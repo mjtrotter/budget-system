@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+/* Page Setup */
+@page {
+  size: 8.5in 11in;
+  margin: 0.4in;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Segoe UI', -apple-system, Arial, sans-serif;
+  font-size: 9pt;
+  line-height: 1.35;
+  color: #333;
+  background: white;
+  position: relative;
+}
+
+/* Watermark - Visible */
+.watermark {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  opacity: 0.08;
+  pointer-events: none;
+  z-index: 0;
+}
+.watermark img {
+  width: 400px;
+  height: auto;
+}
+
+/* Header */
+.header {
+  background: linear-gradient(135deg, #1B5E20 0%, #2E7D32 100%);
+  padding: 16px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  border-radius: 0 0 6px 6px;
+}
+
+.logo-section {
+  display: flex;
+  align-items: center;
+}
+
+.logo {
+  height: 36px;
+  width: auto;
+  filter: brightness(0) invert(1);
+}
+
+.header-right {
+  text-align: right;
+}
+
+.invoice-type {
+  color: white;
+  font-size: 18pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+}
+
+.invoice-subtype {
+  color: rgba(255,255,255,0.85);
+  font-size: 9pt;
+  margin-top: 3px;
+}
+
+/* Content */
+.content {
+  padding: 0 6px;
+  position: relative;
+  z-index: 1;
+}
+
+/* Info Grid - 3 Column for Batch */
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.info-card {
+  background: #f8f9fa;
+  border-radius: 5px;
+  padding: 10px 12px;
+  border-left: 3px solid #1B5E20;
+}
+
+.info-card h3 {
+  color: #1B5E20;
+  font-size: 9pt;
+  font-weight: 600;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 3px 0;
+  border-bottom: 1px dotted #ddd;
+}
+
+.info-row:last-child {
+  border-bottom: none;
+}
+
+.info-label {
+  color: #666;
+  font-size: 8pt;
+}
+
+.info-value {
+  font-weight: 600;
+  color: #333;
+  font-size: 8pt;
+}
+
+.info-value.highlight {
+  color: #1B5E20;
+  font-family: 'Consolas', monospace;
+}
+
+.info-value.large {
+  font-size: 11pt;
+  color: #1B5E20;
+}
+
+/* Section Titles */
+.section-title {
+  color: #1B5E20;
+  font-size: 11pt;
+  font-weight: 600;
+  padding-bottom: 6px;
+  border-bottom: 2px solid #1B5E20;
+  margin-bottom: 10px;
+}
+
+/* Transactions Table */
+.transactions-section {
+  margin-bottom: 16px;
+}
+
+.transactions-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 8pt;
+}
+
+.transactions-table thead th {
+  background: linear-gradient(135deg, #1B5E20 0%, #2E7D32 100%);
+  color: white;
+  padding: 8px 10px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 8pt;
+}
+
+.transactions-table thead th:last-child {
+  text-align: right;
+}
+
+.transactions-table tbody td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #eee;
+}
+
+.transactions-table tbody td:first-child {
+  font-family: 'Consolas', monospace;
+  color: #1B5E20;
+  font-weight: 600;
+}
+
+.transactions-table tbody td:last-child {
+  text-align: right;
+  font-weight: 600;
+  color: #1B5E20;
+}
+
+.transactions-table tbody tr:hover {
+  background: #f9f9f9;
+}
+
+/* Line Items Table */
+.items-section {
+  margin-bottom: 16px;
+}
+
+.items-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 8pt;
+}
+
+.items-table thead th {
+  background: #455A64;
+  color: white;
+  padding: 7px 10px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 8pt;
+}
+
+.items-table thead th.num-col {
+  text-align: center;
+  width: 40px;
+}
+
+.items-table thead th.price-col {
+  text-align: right;
+  width: 80px;
+}
+
+.items-table tbody td {
+  padding: 7px 10px;
+  border-bottom: 1px solid #eee;
+}
+
+.items-table tbody td.num-col {
+  text-align: center;
+}
+
+.items-table tbody td.price-col {
+  text-align: right;
+  font-weight: 500;
+}
+
+.items-table tbody tr:hover {
+  background: #f9f9f9;
+}
+
+/* Summary Stats Box */
+.summary-box {
+  background: linear-gradient(135deg, #f8f9fa 0%, #eceff1 100%);
+  border: 2px solid #1B5E20;
+  border-radius: 8px;
+  padding: 14px;
+  margin-bottom: 16px;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  text-align: center;
+}
+
+.summary-item {
+  background: white;
+  padding: 10px;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.summary-label {
+  font-size: 8pt;
+  color: #666;
+  text-transform: uppercase;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.summary-value {
+  font-size: 16pt;
+  font-weight: 700;
+  color: #1B5E20;
+}
+
+.summary-value.total {
+  color: #C62828;
+  font-size: 18pt;
+}
+
+/* Total Section */
+.total-section {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 20px;
+}
+
+.total-box {
+  background: linear-gradient(135deg, #C62828 0%, #D32F2F 100%);
+  color: white;
+  padding: 14px 28px;
+  border-radius: 6px;
+  text-align: right;
+  min-width: 220px;
+}
+
+.total-label {
+  font-size: 9pt;
+  opacity: 0.9;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.total-amount {
+  font-size: 24pt;
+  font-weight: 700;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+}
+
+/* Signature Section */
+.signature-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding-top: 16px;
+  border-top: 2px solid #e0e0e0;
+}
+
+.processed-info {
+  font-size: 8pt;
+  color: #666;
+}
+
+.processed-info .label {
+  font-weight: 600;
+  color: #1B5E20;
+}
+
+.status-badge {
+  display: inline-block;
+  background: #E8F5E9;
+  color: #1B5E20;
+  padding: 3px 10px;
+  border-radius: 10px;
+  font-size: 8pt;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.signature-box {
+  text-align: center;
+  min-width: 160px;
+}
+
+.signature-line {
+  width: 100%;
+  height: 40px;
+  border-bottom: 2px solid #333;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  margin-bottom: 4px;
+}
+
+.signature-line img {
+  max-width: 120px;
+  max-height: 36px;
+  object-fit: contain;
+}
+
+.signature-name {
+  font-weight: 700;
+  color: #1B5E20;
+  font-size: 9pt;
+}
+
+.signature-title {
+  font-size: 8pt;
+  color: #666;
+}
+
+.signature-date {
+  font-size: 7pt;
+  color: #999;
+  margin-top: 2px;
+}
+
+/* Footer */
+.footer {
+  background: #1B5E20;
+  color: rgba(255,255,255,0.9);
+  padding: 8px 16px;
+  text-align: center;
+  font-size: 7pt;
+  margin-top: 16px;
+  border-radius: 6px 6px 0 0;
+}
+
+/* Admin Batch Variant */
+.admin-invoice .header {
+  background: linear-gradient(135deg, #C62828 0%, #D32F2F 100%);
+}
+
+.admin-invoice .info-card {
+  border-left-color: #C62828;
+}
+
+.admin-invoice .info-card h3,
+.admin-invoice .section-title,
+.admin-invoice .info-value.highlight,
+.admin-invoice .processed-info .label,
+.admin-invoice .signature-name,
+.admin-invoice .summary-value {
+  color: #C62828;
+}
+
+.admin-invoice .transactions-table thead th,
+.admin-invoice .summary-box {
+  border-color: #C62828;
+}
+
+.admin-invoice .transactions-table thead th {
+  background: linear-gradient(135deg, #C62828 0%, #D32F2F 100%);
+}
+
+.admin-invoice .status-badge {
+  background: #FFEBEE;
+  color: #C62828;
+}
+
+.admin-invoice .footer {
+  background: #C62828;
+}
+
+/* Print Optimization */
+@media print {
+  body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .header, .transactions-table thead th, .items-table thead th, .total-box, .footer {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+</style>
+</head>
+<body class="<?= data.isAdmin ? 'admin-invoice' : '' ?>">
+  <!-- Watermark -->
+  <? if (data.sealBase64) { ?>
+  <div class="watermark">
+    <img src="data:image/jpeg;base64,<?= data.sealBase64 ?>" alt="School Seal" />
+  </div>
+  <? } ?>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="logo-section">
+      <? if (data.logoBase64) { ?>
+        <img class="logo" src="data:image/png;base64,<?= data.logoBase64 ?>" alt="Keswick Christian School" />
+      <? } else { ?>
+        <span style="color: white; font-size: 12pt; font-weight: 700;">Keswick Christian School</span>
+      <? } ?>
+    </div>
+    <div class="header-right">
+      <div class="invoice-type"><?= data.isAdmin ? 'Admin' : 'Internal' ?> Batch Invoice</div>
+      <div class="invoice-subtype"><?= data.formType ?> Processing</div>
+    </div>
+  </div>
+
+  <div class="content">
+    <!-- Info Grid - 3 Columns -->
+    <div class="info-grid">
+      <div class="info-card">
+        <h3>Invoice Details</h3>
+        <div class="info-row">
+          <span class="info-label">Invoice ID</span>
+          <span class="info-value highlight"><?= data.invoiceId || data.invoiceNumber ?></span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Date</span>
+          <span class="info-value"><?= data.invoiceDate || new Date().toLocaleDateString() ?></span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Type</span>
+          <span class="info-value"><?= data.formType ?></span>
+        </div>
+      </div>
+
+      <div class="info-card">
+        <h3>Processing</h3>
+        <div class="info-row">
+          <span class="info-label">Division</span>
+          <span class="info-value"><?= data.divisionName || data.division ?></span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Batch Type</span>
+          <span class="info-value"><?= data.formType ?></span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Processed</span>
+          <span class="info-value"><?= new Date().toLocaleDateString() ?></span>
+        </div>
+      </div>
+
+      <div class="info-card">
+        <h3>Batch Summary</h3>
+        <div class="info-row">
+          <span class="info-label">Transactions</span>
+          <span class="info-value large"><?= (data.transactions && data.transactions.length) || 1 ?></span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Line Items</span>
+          <span class="info-value large"><?= (data.lineItems && data.lineItems.length) || 0 ?></span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Total</span>
+          <span class="info-value large">$<?= (data.totalAmount || data.amount || 0).toFixed(2) ?></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Transactions Table -->
+    <? if (data.transactions && data.transactions.length > 0) { ?>
+    <div class="transactions-section">
+      <h2 class="section-title">Batch Transactions (<?= data.transactions.length ?>)</h2>
+      <table class="transactions-table">
+        <thead>
+          <tr>
+            <th>Transaction ID</th>
+            <th>Description</th>
+            <th>Requestor</th>
+            <th>Items</th>
+            <th>Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          <? data.transactions.forEach(function(transaction, index) { ?>
+          <tr>
+            <td><?= transaction.transactionId || ('TXN-' + (index + 1)) ?></td>
+            <td><?= transaction.description || transaction.lineItemDescription || 'Purchase' ?></td>
+            <td><?= transaction.requestorName || transaction.requestor || data.requestor || '-' ?></td>
+            <td style="text-align: center;"><?= (transaction.lineItems && transaction.lineItems.length) || 1 ?></td>
+            <td>$<?= (transaction.amount || 0).toFixed(2) ?></td>
+          </tr>
+          <? }); ?>
+        </tbody>
+      </table>
+    </div>
+    <? } ?>
+
+    <!-- Line Items Table -->
+    <? if (data.lineItems && data.lineItems.length > 0) { ?>
+    <div class="items-section">
+      <h2 class="section-title">Line Items (<?= data.lineItems.length ?>)</h2>
+      <table class="items-table">
+        <thead>
+          <tr>
+            <th class="num-col">#</th>
+            <th>Description</th>
+            <th>Category</th>
+            <th class="num-col">Qty</th>
+            <th class="price-col">Unit</th>
+            <th class="price-col">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          <? data.lineItems.forEach(function(item, index) { ?>
+          <tr>
+            <td class="num-col"><?= index + 1 ?></td>
+            <td><?= item.description || item.name || item.title || 'Item' ?></td>
+            <td><?= item.category || item.type || '-' ?></td>
+            <td class="num-col"><?= item.quantity || 1 ?></td>
+            <td class="price-col">$<?= (item.unitPrice || item.price || 0).toFixed(2) ?></td>
+            <td class="price-col">$<?= (item.totalPrice || (item.quantity || 1) * (item.unitPrice || item.price || 0) || 0).toFixed(2) ?></td>
+          </tr>
+          <? }); ?>
+        </tbody>
+      </table>
+    </div>
+    <? } ?>
+
+    <!-- Summary Statistics Box -->
+    <div class="summary-box">
+      <div class="summary-grid">
+        <div class="summary-item">
+          <div class="summary-label">Transactions</div>
+          <div class="summary-value"><?= (data.transactions && data.transactions.length) || 1 ?></div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-label">Total Items</div>
+          <div class="summary-value"><?= (data.lineItems && data.lineItems.length) || 0 ?></div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-label">Total Amount</div>
+          <div class="summary-value total">$<?= (data.totalAmount || data.amount || 0).toFixed(2) ?></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Total -->
+    <div class="total-section">
+      <div class="total-box">
+        <div class="total-label">Batch Total</div>
+        <div class="total-amount">$<?= (data.totalAmount || data.amount || 0).toFixed(2) ?></div>
+      </div>
+    </div>
+
+    <!-- Signature Section -->
+    <div class="signature-section">
+      <div class="processed-info">
+        <div><span class="label">Processed:</span> <?= new Date().toLocaleDateString() ?></div>
+        <div><span class="label">Form Type:</span> <?= data.formType ?></div>
+        <div class="status-badge">BATCH APPROVED</div>
+      </div>
+
+      <div class="signature-box">
+        <div class="signature-line">
+          <? if (data.approverSignatureBase64 || data.signatureBase64) { ?>
+            <img src="data:image/png;base64,<?= data.approverSignatureBase64 || data.signatureBase64 ?>" alt="Signature" />
+          <? } ?>
+        </div>
+        <div class="signature-name"><?= data.approverName || data.signatureName || (data.isAdmin ? 'Administrator' : 'Principal') ?></div>
+        <div class="signature-title"><?= data.approverTitle || data.signatureTitle || (data.isAdmin ? 'Administrator' : 'Principal') ?></div>
+        <div class="signature-date"><?= new Date().toLocaleDateString() ?></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    Keswick Christian School | 10100 4th St N, St. Petersburg, FL 33716 | (727) 576-5457
+  </div>
+</body>
+</html>

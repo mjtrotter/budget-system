@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Budget Approval System</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #1B5E20 0%, #2E7D32 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 8px 8px 0 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .header-logo {
+            max-width: 280px;
+            height: auto;
+            filter: brightness(0) invert(1); /* Makes logo white */
+            margin-bottom: 8px;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 13px;
+            font-family: monospace;
+            letter-spacing: 1px;
+        }
+        
+        .content {
+            background: white;
+            padding: 30px;
+            border-radius: 0 0 8px 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .request-info {
+            margin-bottom: 30px;
+        }
+        
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+        
+        .info-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 6px;
+            border-left: 4px solid #1B5E20;
+        }
+
+        .info-card h3 {
+            color: #666;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+        }
+
+        .info-card p {
+            font-size: 24px;
+            font-weight: 600;
+            color: #1B5E20;
+        }
+        
+        .info-card.warning {
+            border-left-color: #f57c00;
+        }
+        
+        .info-card.warning p {
+            color: #f57c00;
+        }
+        
+        .info-card.danger {
+            border-left-color: #d32f2f;
+        }
+        
+        .info-card.danger p {
+            color: #d32f2f;
+        }
+        
+        .details-section {
+            margin-top: 25px;
+            padding: 20px;
+            background: #fafafa;
+            border-radius: 6px;
+        }
+        
+        .details-section h3 {
+            margin-bottom: 15px;
+            color: #444;
+        }
+        
+        .details-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .details-table th,
+        .details-table td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .details-table th {
+            font-weight: 600;
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .details-table tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .items-list {
+            list-style: none;
+            margin-top: 10px;
+        }
+        
+        .items-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .items-list li:last-child {
+            border-bottom: none;
+        }
+        
+        .action-section {
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 2px solid #e0e0e0;
+        }
+        
+        .action-section h3 {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        
+        .btn {
+            padding: 15px 40px;
+            font-size: 16px;
+            font-weight: 600;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .btn-approve {
+            background-color: #1B5E20;
+            color: white;
+        }
+
+        .btn-approve:hover {
+            background-color: #145218;
+        }
+        
+        .btn-reject {
+            background-color: #f44336;
+            color: white;
+        }
+        
+        .btn-reject:hover {
+            background-color: #da190b;
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .reason-section {
+            display: none;
+            margin-top: 20px;
+        }
+        
+        .reason-section textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            resize: vertical;
+            min-height: 100px;
+            font-family: inherit;
+        }
+        
+        .reason-section textarea:focus {
+            outline: none;
+            border-color: #1B5E20;
+            box-shadow: 0 0 0 3px rgba(27, 94, 32, 0.1);
+        }
+        
+        .submit-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .submit-group .btn {
+            padding: 10px 20px;
+            font-size: 14px;
+        }
+        
+        .btn-cancel {
+            background-color: #757575;
+            color: white;
+        }
+        
+        .btn-cancel:hover {
+            background-color: #616161;
+        }
+        
+        .message {
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 20px;
+            text-align: center;
+        }
+        
+        .message.success {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+            border: 1px solid #4caf50;
+        }
+        
+        .message.error {
+            background-color: #ffebee;
+            color: #c62828;
+            border: 1px solid #f44336;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #1B5E20;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .footer {
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+            margin-top: 40px;
+        }
+        
+        @media (max-width: 600px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .content {
+                padding: 20px;
+            }
+            
+            .button-group {
+                flex-direction: column;
+            }
+            
+            .btn {
+                width: 100%;
+            }
+            
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <img src="https://drive.google.com/uc?export=view&id=1HDkW_xGIc4jOBH4REnXb3VJcZaEjPHKj" alt="Keswick Christian School" class="header-logo" onerror="this.style.display='none'">
+            <h1>Budget Approval System</h1>
+            <p id="headerRequestId"></p>
+        </div>
+        
+        <div class="content" id="mainContent">
+            <div class="loading" id="loadingSection">
+                <div class="spinner"></div>
+                <p style="margin-top: 20px;">Loading request details...</p>
+            </div>
+            
+            <div id="requestDetails" style="display: none;">
+                <div class="request-info">
+                    <h2>Approval Request Details</h2>
+                    
+                    <div class="info-grid">
+                        <div class="info-card">
+                            <h3>Request Type</h3>
+                            <p id="requestType">-</p>
+                        </div>
+                        
+                        <div class="info-card">
+                            <h3>Total Amount</h3>
+                            <p id="totalAmount">-</p>
+                        </div>
+                        
+                        <div class="info-card" id="budgetCard">
+                            <h3>Budget Available</h3>
+                            <p id="budgetAvailable">-</p>
+                        </div>
+                        
+                        <div class="info-card">
+                            <h3>Requestor</h3>
+                            <p id="requestor" style="font-size: 16px;">-</p>
+                        </div>
+                    </div>
+                    
+                    <div class="details-section">
+                        <h3>Request Details</h3>
+                        <table class="details-table">
+                            <tbody id="detailsTable">
+                                <!-- Details will be populated here -->
+                            </tbody>
+                        </table>
+                        
+                        <div id="itemsList" style="display: none;">
+                            <h4 style="margin-top: 20px;">Items Requested:</h4>
+                            <ul class="items-list" id="itemsContainer">
+                                <!-- Items will be populated here -->
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="action-section" id="actionSection">
+                    <h3>Your Decision</h3>
+                    
+                    <div class="button-group" id="mainButtons">
+                        <button class="btn btn-approve" onclick="showApproval()">
+                            APPROVE REQUEST
+                        </button>
+                        <button class="btn btn-reject" onclick="showRejection()">
+                            REJECT REQUEST
+                        </button>
+                    </div>
+                    
+                    <div class="reason-section" id="approvalConfirm">
+                        <p style="margin-bottom: 15px;">You are about to <strong>APPROVE</strong> this request.</p>
+                        <textarea id="approvalNotes" placeholder="Optional: Add any notes or conditions for this approval"></textarea>
+                        <div class="submit-group">
+                            <button class="btn btn-approve" onclick="submitDecision('approve')">
+                                Confirm Approval
+                            </button>
+                            <button class="btn btn-cancel" onclick="cancelDecision()">
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="reason-section" id="rejectionReason">
+                        <p style="margin-bottom: 15px;">Please provide a reason for rejecting this request:</p>
+                        <textarea id="rejectionNotes" placeholder="Enter rejection reason (required)" required></textarea>
+                        <div class="submit-group">
+                            <button class="btn btn-reject" onclick="submitDecision('reject')">
+                                Confirm Rejection
+                            </button>
+                            <button class="btn btn-cancel" onclick="cancelDecision()">
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="resultMessage"></div>
+            </div>
+            
+            <div id="errorSection" style="display: none;">
+                <div class="message error">
+                    <h3>Error Loading Request</h3>
+                    <p id="errorMessage">Unable to load the approval request. Please check the link and try again.</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer" style="background: #1B5E20; color: rgba(255,255,255,0.9); padding: 12px; border-radius: 0 0 8px 8px;">
+            <p>Budget Management System</p>
+        </div>
+    </div>
+
+    <script>
+        // Server-injected data from doGet() template
+        const serverData = JSON.parse(<?!= JSON.stringify(serverData || '{}') ?>);
+        const requestId = serverData.transactionId || '';
+        const approverEmail = serverData.approverEmail || '';
+
+        // Request data from server (real data, not simulated)
+        const requestData = {
+            type: serverData.type || 'Unknown',
+            amount: parseFloat(serverData.amount) || 0,
+            requestor: serverData.requestor || 'Unknown',
+            budgetAvailable: parseFloat(serverData.budgetAvailable) || 0,
+            budgetAllocated: parseFloat(serverData.budgetAllocated) || 0,
+            department: serverData.department || 'Unknown',
+            division: serverData.division || 'Unknown',
+            description: serverData.description || '',
+            status: serverData.status || 'UNKNOWN',
+            items: []
+        };
+
+        // Initialize the page
+        window.onload = function() {
+            loadRequestDetails();
+        };
+
+        function loadRequestDetails() {
+            document.getElementById('loadingSection').style.display = 'none';
+
+            // Set request ID in header
+            if (requestId) {
+                document.getElementById('headerRequestId').textContent = requestId;
+            }
+
+            if (!requestId || !approverEmail) {
+                showError('Invalid approval link. Missing required parameters.');
+                return;
+            }
+
+            if (requestData.status !== 'PENDING') {
+                showError('This request has already been ' + requestData.status.toLowerCase() + '.');
+                return;
+            }
+
+            // Populate request details with real server data
+            document.getElementById('requestType').textContent = requestData.type;
+            document.getElementById('totalAmount').textContent = '$' + requestData.amount.toFixed(2);
+            document.getElementById('budgetAvailable').textContent = '$' + requestData.budgetAvailable.toFixed(2);
+            document.getElementById('requestor').textContent = requestData.requestor;
+
+            // Check budget status
+            if (requestData.amount > requestData.budgetAvailable) {
+                document.getElementById('budgetCard').classList.add('danger');
+
+                const warningRow = document.createElement('tr');
+                warningRow.innerHTML =
+                    '<td style="color: #d32f2f; font-weight: bold;">Warning</td>' +
+                    '<td style="color: #d32f2f;">This request exceeds available budget by $' +
+                    (requestData.amount - requestData.budgetAvailable).toFixed(2) + '</td>';
+                document.getElementById('detailsTable').appendChild(warningRow);
+            }
+
+            // Add details from real data
+            addDetailRow('Request ID', requestId);
+            addDetailRow('Department', requestData.department);
+            addDetailRow('Division', requestData.division);
+            addDetailRow('Description', requestData.description);
+            addDetailRow('Budget Allocated', '$' + requestData.budgetAllocated.toFixed(2));
+
+            // Show the request details
+            document.getElementById('requestDetails').style.display = 'block';
+        }
+
+        function addDetailRow(label, value) {
+            if (!value || value === 'Unknown' || value === '$0.00') return;
+            const row = document.createElement('tr');
+            row.innerHTML = '<th>' + label + ':</th><td>' + value + '</td>';
+            document.getElementById('detailsTable').appendChild(row);
+        }
+
+        function showApproval() {
+            document.getElementById('mainButtons').style.display = 'none';
+            document.getElementById('rejectionReason').style.display = 'none';
+            document.getElementById('approvalConfirm').style.display = 'block';
+        }
+
+        function showRejection() {
+            document.getElementById('mainButtons').style.display = 'none';
+            document.getElementById('approvalConfirm').style.display = 'none';
+            document.getElementById('rejectionReason').style.display = 'block';
+        }
+
+        function cancelDecision() {
+            document.getElementById('approvalConfirm').style.display = 'none';
+            document.getElementById('rejectionReason').style.display = 'none';
+            document.getElementById('mainButtons').style.display = 'flex';
+            document.getElementById('approvalNotes').value = '';
+            document.getElementById('rejectionNotes').value = '';
+        }
+
+        function submitDecision(decision) {
+            var reason = '';
+
+            if (decision === 'approve') {
+                reason = document.getElementById('approvalNotes').value;
+            } else {
+                reason = document.getElementById('rejectionNotes').value;
+                if (!reason.trim()) {
+                    document.getElementById('rejectionNotes').style.borderColor = '#d32f2f';
+                    document.getElementById('rejectionNotes').placeholder = 'Rejection reason is required';
+                    return;
+                }
+            }
+
+            // Disable all buttons
+            var buttons = document.querySelectorAll('.btn');
+            for (var i = 0; i < buttons.length; i++) {
+                buttons[i].disabled = true;
+            }
+
+            // Show loading spinner
+            document.getElementById('actionSection').innerHTML =
+                '<div class="spinner"></div><p style="margin-top: 20px;">Processing your decision...</p>';
+
+            // Call server-side function via google.script.run
+            google.script.run
+                .withSuccessHandler(function(result) {
+                    if (result && result.success) {
+                        showResult(decision, true);
+                    } else {
+                        showResult(decision, false, (result && result.error) || 'Unknown error occurred.');
+                    }
+                })
+                .withFailureHandler(function(error) {
+                    showResult(decision, false, error.message || 'Server error. Please try again.');
+                })
+                .handleApprovalFromWebApp(requestId, approverEmail, decision, reason);
+        }
+
+        function showResult(decision, success, errorMsg) {
+            document.getElementById('actionSection').style.display = 'none';
+
+            var messageDiv = document.getElementById('resultMessage');
+
+            if (success) {
+                var actionText = decision === 'approve' ? 'Approved' : 'Rejected';
+                messageDiv.innerHTML =
+                    '<div class="message success">' +
+                    '<h3>&#10003; Request ' + actionText + '</h3>' +
+                    '<p>The ' + requestData.type + ' request for $' + requestData.amount.toFixed(2) + ' has been ' + actionText.toLowerCase() + '.</p>' +
+                    '<p style="margin-top: 10px;">Notification has been sent to ' + requestData.requestor + '</p>' +
+                    '<p style="margin-top: 20px; font-size: 14px;">You can close this window.</p>' +
+                    '</div>';
+            } else {
+                messageDiv.innerHTML =
+                    '<div class="message error">' +
+                    '<h3>Error Processing Request</h3>' +
+                    '<p>' + (errorMsg || 'Unknown error') + '</p>' +
+                    '<button class="btn btn-approve" style="margin-top: 20px;" onclick="location.reload()">Try Again</button>' +
+                    '</div>';
+            }
+        }
+
+        function showError(message) {
+            document.getElementById('loadingSection').style.display = 'none';
+            document.getElementById('requestDetails').style.display = 'none';
+            document.getElementById('errorSection').style.display = 'block';
+            document.getElementById('errorMessage').textContent = message;
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,256 @@
+2:11:08 PM	Notice	Execution started
+2:11:09 PM	Info	=== BUDGET HUB ===
+2:11:09 PM	Info	
+2:11:09 PM	Info	SystemLog:
+2:11:09 PM	Info	  A: Timestamp
+2:11:09 PM	Info	  B: Action
+2:11:09 PM	Info	  C: User
+2:11:09 PM	Info	  D: Amount
+2:11:09 PM	Info	  E: Details
+2:11:09 PM	Info	  F: Before
+2:11:09 PM	Info	  G: After
+2:11:09 PM	Info	  H: Status
+2:11:09 PM	Info	
+2:11:09 PM	Info	
+2:11:09 PM	Info	TransactionArchive:
+2:11:09 PM	Info	  A: TransactionID
+2:11:09 PM	Info	  B: OrderID
+2:11:09 PM	Info	  C: ProcessedOn
+2:11:09 PM	Info	  D: Requestor
+2:11:09 PM	Info	  E: Approver
+2:11:09 PM	Info	  F: Organization
+2:11:09 PM	Info	  G: Form
+2:11:09 PM	Info	  H: Amount
+2:11:09 PM	Info	  I: Description
+2:11:09 PM	Info	  J: FiscalQuarter
+2:11:09 PM	Info	  K: InvoiceGenerated
+2:11:09 PM	Info	  L: InvoiceID
+2:11:09 PM	Info	  M: InvoiceURL
+2:11:09 PM	Info	
+2:11:09 PM	Info	
+2:11:09 PM	Info	UserDirectory:
+2:11:09 PM	Info	  A: Email
+2:11:09 PM	Info	  B: FirstName
+2:11:09 PM	Info	  C: LastName
+2:11:09 PM	Info	  D: Role
+2:11:09 PM	Info	  E: Department
+2:11:09 PM	Info	  F: Division
+2:11:09 PM	Info	  G: Approver
+2:11:09 PM	Info	  H: BudgetAllocated
+2:11:09 PM	Info	  I: BudgetSpent
+2:11:09 PM	Info	  J: BudgetEncumbered
+2:11:09 PM	Info	  K: BudgetRemaining
+2:11:09 PM	Info	  L: UtilizationRate
+2:11:09 PM	Info	  M: Active
+2:11:09 PM	Info	  N: LastModified
+2:11:09 PM	Info	
+2:11:09 PM	Info	
+2:11:09 PM	Info	OrganizationBudgets:
+2:11:09 PM	Info	  A: Organization
+2:11:09 PM	Info	  B: BudgetAllocated
+2:11:09 PM	Info	  C: BudgetSpent
+2:11:09 PM	Info	  D: BudgetEncumbered
+2:11:09 PM	Info	  E: BudgetAvailable
+2:11:09 PM	Info	  F: Approver
+2:11:09 PM	Info	  G: Active
+2:11:09 PM	Info	  H: LastModified
+2:11:09 PM	Info	
+2:11:09 PM	Info	
+2:11:09 PM	Info	TransactionLedger:
+2:11:10 PM	Info	  A: TransactionID
+2:11:10 PM	Info	  B: OrderID
+2:11:10 PM	Info	  C: ProcessedOn
+2:11:10 PM	Info	  D: Requestor
+2:11:10 PM	Info	  E: Approver
+2:11:10 PM	Info	  F: Organization
+2:11:10 PM	Info	  G: Form
+2:11:10 PM	Info	  H: Amount
+2:11:10 PM	Info	  I: Description
+2:11:10 PM	Info	  J: FiscalQuarter
+2:11:10 PM	Info	  K: InvoiceGenerated
+2:11:10 PM	Info	  L: InvoiceID
+2:11:10 PM	Info	  M: InvoiceURL
+2:11:10 PM	Info	
+2:11:10 PM	Info	
+2:11:10 PM	Info	System Config:
+2:11:10 PM	Info	  A: Property
+2:11:10 PM	Info	  B: Value
+2:11:10 PM	Info	  C: Description
+2:11:10 PM	Info	  D: Last Updated
+2:11:10 PM	Info	
+2:11:13 PM	Info	=== AUTOMATED HUB ===
+2:11:13 PM	Info	
+2:11:13 PM	Info	Warehouse:
+2:11:13 PM	Info	  A: Timestamp
+2:11:13 PM	Info	  B: Email Address
+2:11:13 PM	Info	  C: Item 1 - Item ID
+2:11:13 PM	Info	  D: Item 1 - Quantity
+2:11:13 PM	Info	  E: Add another item?
+2:11:13 PM	Info	  F: Item 2 - Item ID
+2:11:13 PM	Info	  G: Item 2 - Quantity
+2:11:13 PM	Info	  H: Add another item? 
+2:11:13 PM	Info	  I: Item 3 - Item ID
+2:11:13 PM	Info	  J: Item 3 - Quantity
+2:11:13 PM	Info	  K: Add another item?  
+2:11:13 PM	Info	  L: Item 4 - Item ID
+2:11:13 PM	Info	  M: Item 4 - Quantity
+2:11:13 PM	Info	  N: Add another item?   
+2:11:13 PM	Info	  O: Item 5 - Item ID
+2:11:13 PM	Info	  P: Item 5 - Quantity
+2:11:13 PM	Info	  Q: 
+2:11:13 PM	Info	  R: Item 1 - Description
+2:11:13 PM	Info	  S: Item 1 - Price
+2:11:13 PM	Info	  T: Item 2 - Description
+2:11:13 PM	Info	  U: Item 2 - Price
+2:11:13 PM	Info	  V: Item 3 - Description
+2:11:13 PM	Info	  W: Item 3 - Price
+2:11:13 PM	Info	  X: Item 4 - Description
+2:11:13 PM	Info	  Y: Item 4 - Price
+2:11:13 PM	Info	  Z: Item 5 - Description
+2:11:13 PM	Info	  AA: Item 5 - Price
+2:11:13 PM	Info	  AB: Total Cost
+2:11:13 PM	Info	  AC: Transaction ID
+2:11:13 PM	Info	
+2:11:13 PM	Info	
+2:11:13 PM	Info	Amazon:
+2:11:13 PM	Info	  A: Timestamp
+2:11:13 PM	Info	  B: Email Address
+2:11:13 PM	Info	  C: Item 1 - Description
+2:11:13 PM	Info	  D: Item 1 - Amazon URL
+2:11:13 PM	Info	  E: Item 1 - Quantity
+2:11:13 PM	Info	  F: Item 1 - Unit Price ($)
+2:11:13 PM	Info	  G: Add another item?
+2:11:13 PM	Info	  H: Item 2 - Description
+2:11:13 PM	Info	  I: Item 2 - Amazon URL
+2:11:13 PM	Info	  J: Item 2 - Quantity
+2:11:13 PM	Info	  K: Item 2 - Unit Price ($)
+2:11:13 PM	Info	  L: Add another item?
+2:11:13 PM	Info	  M: Item 3 - Description
+2:11:13 PM	Info	  N: Item 3 - Amazon URL
+2:11:13 PM	Info	  O: Item 3 - Quantity
+2:11:13 PM	Info	  P: Item 3 - Unit Price ($)
+2:11:13 PM	Info	  Q: Add another item?
+2:11:13 PM	Info	  R: Item 4 - Description
+2:11:13 PM	Info	  S: Item 4 - Amazon URL
+2:11:13 PM	Info	  T: Item 4 - Quantity
+2:11:13 PM	Info	  U: Item 4 - Unit Price ($)
+2:11:13 PM	Info	  V: Add another item?
+2:11:13 PM	Info	  W: Item 5 - Description
+2:11:13 PM	Info	  X: Item 5 - Amazon URL
+2:11:13 PM	Info	  Y: Item 5 - Quantity
+2:11:13 PM	Info	  Z: Item 5 - Unit Price ($)
+2:11:13 PM	Info	  AA: 
+2:11:13 PM	Info	  AB: Total Cost
+2:11:13 PM	Info	  AC: Transaction ID
+2:11:13 PM	Info	
+2:11:13 PM	Info	
+2:11:13 PM	Info	AutomatedQueue:
+2:11:14 PM	Info	  A: TransactionID
+2:11:14 PM	Info	  B: Requestor
+2:11:14 PM	Info	  C: RequestType
+2:11:14 PM	Info	  D: Department
+2:11:14 PM	Info	  E: Division
+2:11:14 PM	Info	  F: Amount
+2:11:14 PM	Info	  G: Description
+2:11:14 PM	Info	  H: Status
+2:11:14 PM	Info	  I: Requested
+2:11:14 PM	Info	  J: Approved
+2:11:14 PM	Info	  K: Processed
+2:11:14 PM	Info	  L: ResponseID
+2:11:14 PM	Info	
+2:11:14 PM	Info	
+2:11:14 PM	Info	WarehouseCatalog:
+2:11:14 PM	Info	  A: Stock Number
+2:11:14 PM	Info	  B: Item Description
+2:11:14 PM	Info	  C: Price
+2:11:14 PM	Info	  D: UOM
+2:11:14 PM	Info	  E: Category
+2:11:14 PM	Info	
+2:11:14 PM	Info	
+2:11:14 PM	Info	System Config:
+2:11:14 PM	Info	  A: Property
+2:11:14 PM	Info	  B: Value
+2:11:14 PM	Info	  C: Description
+2:11:14 PM	Info	  D: Last Updated
+2:11:14 PM	Info	
+2:11:15 PM	Info	=== MANUAL HUB ===
+2:11:15 PM	Info	
+2:11:15 PM	Info	Admin:
+2:11:15 PM	Info	  A: Timestamp
+2:11:15 PM	Info	  B: Email Address
+2:11:15 PM	Info	  C: Purchase Description
+2:11:15 PM	Info	  D: Total Cost ($)
+2:11:15 PM	Info	  E: Rationale/Additional Notes
+2:11:15 PM	Info	  F: Upload Invoice/PO PDF:
+2:11:15 PM	Info	  G: TransactionID
+2:11:15 PM	Info	  H: TransactionID
+2:11:15 PM	Info	  I: TransactionID
+2:11:15 PM	Info	  J: TransactionID
+2:11:15 PM	Info	  K: TransactionID
+2:11:15 PM	Info	  L: TransactionID
+2:11:15 PM	Info	  M: TransactionID
+2:11:15 PM	Info	  N: TransactionID
+2:11:15 PM	Info	  O: TransactionID
+2:11:15 PM	Info	  P: TransactionID
+2:11:15 PM	Info	  Q: TransactionID
+2:11:15 PM	Info	  R: TransactionID
+2:11:15 PM	Info	
+2:11:15 PM	Info	
+2:11:15 PM	Info	Curriculum:
+2:11:15 PM	Info	  A: Timestamp
+2:11:15 PM	Info	  B: Email Address
+2:11:15 PM	Info	  C: Curriculum Type
+2:11:15 PM	Info	  D: How would you like to provide item details?
+2:11:15 PM	Info	  E: Resource Name:
+2:11:15 PM	Info	  F: Resource URL/Link:
+2:11:15 PM	Info	  G: ISBN:
+2:11:15 PM	Info	  H: Quantity Needed
+2:11:15 PM	Info	  I: Total Cost ($)
+2:11:15 PM	Info	  J: Upload PDF/PO for purchase:
+2:11:15 PM	Info	  K: TransactionID
+2:11:15 PM	Info	  L: TransactionID
+2:11:15 PM	Info	  M: TransactionID
+2:11:15 PM	Info	  N: TransactionID
+2:11:15 PM	Info	  O: TransactionID
+2:11:15 PM	Info	  P: TransactionID
+2:11:15 PM	Info	  Q: TransactionID
+2:11:15 PM	Info	
+2:11:15 PM	Info	
+2:11:15 PM	Info	Field Trip:
+2:11:16 PM	Info	  A: Timestamp
+2:11:16 PM	Info	  B: Email Address
+2:11:16 PM	Info	  C: Trip Destination:
+2:11:16 PM	Info	  D: Trip Date:
+2:11:16 PM	Info	  E: Number of Students:
+2:11:16 PM	Info	  F: Transportation Type
+2:11:16 PM	Info	  G: Total Cost ($)
+2:11:16 PM	Info	  H: Upload PDF Invoice/PO:
+2:11:16 PM	Info	  I: TransactionID
+2:11:16 PM	Info	  J: TransactionID
+2:11:16 PM	Info	  K: TransactionID
+2:11:16 PM	Info	  L: TransactionID
+2:11:16 PM	Info	  M: TransactionID
+2:11:16 PM	Info	
+2:11:16 PM	Info	
+2:11:16 PM	Info	ManualQueue:
+2:11:16 PM	Info	  A: TransactionID
+2:11:16 PM	Info	  B: Requestor
+2:11:16 PM	Info	  C: RequestType
+2:11:16 PM	Info	  D: Department
+2:11:16 PM	Info	  E: Division
+2:11:16 PM	Info	  F: Amount
+2:11:16 PM	Info	  G: Description
+2:11:16 PM	Info	  H: Status
+2:11:16 PM	Info	  I: Requested
+2:11:16 PM	Info	  J: Approved
+2:11:16 PM	Info	  K: 
+2:11:16 PM	Info	  L: 
+2:11:16 PM	Info	
+2:11:16 PM	Info	
+2:11:16 PM	Info	System Config:
+2:11:16 PM	Info	  A: Property
+2:11:16 PM	Info	  B: Value
+2:11:16 PM	Info	  C: Description
+2:11:16 PM	Info	  D: Last Updated
+2:11:16 PM	Info	
+2:11:16 PM	Notice	Execution completed

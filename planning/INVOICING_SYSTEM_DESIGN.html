@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Invoicing System Design</title>
+<style>
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; max-width: 900px; margin: 40px auto; padding: 20px; line-height: 1.6; }
+h1, h2, h3 { color: #1B5E20; border-bottom: 1px solid #ddd; padding-bottom: 8px; }
+table { border-collapse: collapse; width: 100%; margin: 20px 0; }
+th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+th { background: #f5f5f5; }
+code { background: #f4f4f4; padding: 2px 6px; border-radius: 3px; }
+pre { background: #f4f4f4; padding: 15px; border-radius: 5px; overflow-x: auto; }
+</style>
+</head>
+<body>
+<h1>Invoicing System Design</h1>
+<p><strong>Version:</strong> 2.0
+<strong>Last Updated:</strong> February 11, 2026</p>
+<hr />
+<h2>Overview</h2>
+<p>The Budget System generates two types of invoices:
+1. <strong>Batch Invoices</strong> - Amazon &amp; Warehouse (grouped by division)
+2. <strong>Single Invoices</strong> - Field Trip, Curriculum, Admin (per transaction)</p>
+<hr />
+<h2>ID Formats</h2>
+<h3>Transaction ID</h3>
+<ul>
+<li><strong>Scope:</strong> Individual line item from form submission</li>
+<li><strong>Format:</strong> <code>{FormPrefix}-{SequentialNumber}</code></li>
+<li><strong>Resets:</strong> Annually (fiscal year)</li>
+<li><strong>Examples:</strong></li>
+<li><code>AMZ-0001</code> - First Amazon transaction of fiscal year</li>
+<li><code>WHS-0142</code> - 142nd Warehouse transaction</li>
+<li><code>FLD-0023</code> - 23rd Field Trip transaction</li>
+<li><code>CUR-0089</code> - 89th Curriculum transaction</li>
+<li><code>ADM-0015</code> - 15th Admin transaction</li>
+</ul>
+<h3>Invoice ID</h3>
+<ul>
+<li><strong>Scope:</strong> PDF document (can contain multiple transactions)</li>
+<li><strong>Format:</strong> <code>{FormPrefix}-{Division/Identifier}-{MMDD}[-{Increment}]</code></li>
+<li><strong>Increment:</strong> Starts at <code>-02</code> for second invoice same day (first has no suffix)</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Form Type</th>
+<th>Division/ID</th>
+<th>Example</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Amazon</td>
+<td>Division code</td>
+<td><code>AMZ-US-0211</code></td>
+<td>Upper School, Feb 11</td>
+</tr>
+<tr>
+<td>Amazon (2nd)</td>
+<td>Division code</td>
+<td><code>AMZ-US-0211-02</code></td>
+<td>Second of day</td>
+</tr>
+<tr>
+<td>Warehouse Internal</td>
+<td>Division code</td>
+<td><code>WHS-LS-0214</code></td>
+<td>Lower School, Feb 14</td>
+</tr>
+<tr>
+<td>Warehouse External</td>
+<td>(none)</td>
+<td><code>WHS-0214</code></td>
+<td>Combined for vendor</td>
+</tr>
+<tr>
+<td>Field Trip</td>
+<td>Division code</td>
+<td><code>FLD-KK-0211</code></td>
+<td>Keswick Kids</td>
+</tr>
+<tr>
+<td>Curriculum</td>
+<td>Department code</td>
+<td><code>CUR-MATH-0211</code></td>
+<td>Math Department</td>
+</tr>
+<tr>
+<td>Admin</td>
+<td>User initials</td>
+<td><code>ADM-MJT-0211</code></td>
+<td>Mark J Trotter</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>Invoice Types &amp; Generation</h2>
+<h3>Batch Invoices</h3>
+<h4>Amazon (Internal)</h4>
+<ul>
+<li><strong>Schedule:</strong> Tuesday &amp; Friday</li>
+<li><strong>Grouping:</strong> By Division (US, LS, KK)</li>
+<li><strong>Content:</strong> All approved Amazon transactions since last batch</li>
+<li><strong>Output:</strong> Up to 3 invoices per batch day (one per division with transactions)</li>
+<li><strong>Signatures:</strong> Division Principal + Sherilyn Neel (BO)</li>
+</ul>
+<h4>Warehouse Internal</h4>
+<ul>
+<li><strong>Schedule:</strong> Wednesday</li>
+<li><strong>Grouping:</strong> By Division (US, LS, KK)</li>
+<li><strong>Content:</strong> All approved Warehouse transactions since last batch</li>
+<li><strong>Output:</strong> Up to 3 internal invoices per batch day</li>
+<li><strong>Signatures:</strong> Division Principal + Sherilyn Neel (BO)</li>
+</ul>
+<h4>Warehouse External</h4>
+<ul>
+<li><strong>Schedule:</strong> Wednesday (same as internal)</li>
+<li><strong>Grouping:</strong> ALL divisions combined</li>
+<li><strong>Content:</strong> All Warehouse transactions for the week</li>
+<li><strong>Output:</strong> 1 external invoice to warehouse vendor</li>
+<li><strong>Signatures:</strong> Sherilyn Neel (BO) only? Or BO + CFO?</li>
+</ul>
+<h3>Single Invoices (Generated on Approval)</h3>
+<h4>Field Trip</h4>
+<ul>
+<li><strong>Trigger:</strong> Immediately upon approval</li>
+<li><strong>Content:</strong> Single transaction</li>
+<li><strong>Organization:</strong> Division</li>
+<li><strong>Signatures:</strong> Division Principal + Beth Endrulat (CFO)</li>
+</ul>
+<h4>Curriculum</h4>
+<ul>
+<li><strong>Trigger:</strong> Immediately upon approval</li>
+<li><strong>Content:</strong> Single transaction</li>
+<li><strong>Organization:</strong> Department</li>
+<li><strong>Signatures:</strong> Division Principal (per audit) + Sherilyn Neel (BO)</li>
+</ul>
+<h4>Admin</h4>
+<ul>
+<li><strong>Trigger:</strong> Auto-approved, invoice generated immediately</li>
+<li><strong>Content:</strong> Single transaction</li>
+<li><strong>Organization:</strong> Administration</li>
+<li><strong>Signatures:</strong> Self (the admin) + Beth Endrulat (CFO)</li>
+</ul>
+<hr />
+<h2>Signature Matrix</h2>
+<table>
+<thead>
+<tr>
+<th>Invoice Type</th>
+<th>Left Signature</th>
+<th>Right Signature</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Amazon batch</td>
+<td>Division Principal</td>
+<td>Sherilyn Neel</td>
+</tr>
+<tr>
+<td>Warehouse internal</td>
+<td>Division Principal</td>
+<td>Sherilyn Neel</td>
+</tr>
+<tr>
+<td>Warehouse external</td>
+<td>Sherilyn Neel</td>
+<td>(single signature?)</td>
+</tr>
+<tr>
+<td>Field Trip</td>
+<td>Division Principal</td>
+<td>Beth Endrulat</td>
+</tr>
+<tr>
+<td>Curriculum</td>
+<td>Division Principal</td>
+<td>Sherilyn Neel</td>
+</tr>
+<tr>
+<td>Admin</td>
+<td>Self (admin user)</td>
+<td>Beth Endrulat</td>
+</tr>
+</tbody>
+</table>
+<h3>Division Principals</h3>
+<table>
+<thead>
+<tr>
+<th>Division</th>
+<th>Principal</th>
+<th>Email</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>US</td>
+<td>Lee Mortimer</td>
+<td>lmortimer@keswickchristian.org</td>
+</tr>
+<tr>
+<td>LS</td>
+<td>D. Dumais</td>
+<td>ddumais@keswickchristian.org</td>
+</tr>
+<tr>
+<td>KK</td>
+<td>S. Carmichael</td>
+<td>scarmichael@keswickchristian.org</td>
+</tr>
+</tbody>
+</table>
+<h3>Business Office Signers</h3>
+<table>
+<thead>
+<tr>
+<th>Role</th>
+<th>Name</th>
+<th>Forms</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Business Office</td>
+<td>Sherilyn Neel</td>
+<td>Amazon, Warehouse, Curriculum</td>
+</tr>
+<tr>
+<td>CFO</td>
+<td>Beth Endrulat</td>
+<td>Field Trip, Admin</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>Invoice Templates</h2>
+<h3>Batch Invoice Layout (Amazon/Warehouse)</h3>
+<pre><code>┌─────────────────────────────────────────────────────────────────┐
+│ [KCS Text Logo]                                    INVOICE      │
+│ 10100 54th Avenue North                                         │
+│ St. Petersburg, FL 33708                      AMZ-US-0211       │
+│ (727) 522-2111                               February 11, 2026  │
+├─────────────────────────────────────────────────────────────────┤
+│ DIVISION: Upper School          FORM TYPE: Amazon Orders        │
+│ FISCAL PERIOD: Q3 FY2025-26     BATCH DATE: February 11, 2026   │
+├─────────────────────────────────────────────────────────────────┤
+│ #  │ TXN ID    │ Requestor       │ Description          │ Amount│
+│────┼───────────┼─────────────────┼──────────────────────┼───────│
+│ 1  │ AMZ-0142  │ Sarah Johnson   │ Lab Goggles (3x)     │ $74.97│
+│ 2  │ AMZ-0145  │ Mike Chen       │ Calculators (5x)     │ $89.00│
+│ 3  │ AMZ-0147  │ Sarah Johnson   │ Digital Thermometers │ $62.50│
+│ 4  │ AMZ-0151  │ Lisa Park       │ Printer Paper        │ $45.99│
+├─────────────────────────────────────────────────────────────────┤
+│                                              TOTAL: $272.46     │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│ ____________________              ____________________          │
+│ Lee Mortimer                      Sherilyn Neel                 │
+│ Principal, Upper School           Business Office               │
+│ February 11, 2026                 February 11, 2026             │
+│                                                                 │
+├─────────────────────────────────────────────────────────────────┤
+│ [KCS Seal Watermark - Subtle Background]                        │
+│ Keswick Christian School | Budget Management System             │
+└─────────────────────────────────────────────────────────────────┘
+</code></pre>
+<h3>Single Invoice Layout (Field Trip/Curriculum/Admin)</h3>
+<pre><code>┌─────────────────────────────────────────────────────────────────┐
+│ [KCS Text Logo]                                    INVOICE      │
+│ 10100 54th Avenue North                                         │
+│ St. Petersburg, FL 33708                      FLD-US-0211       │
+│ (727) 522-2111                               February 11, 2026  │
+├─────────────────────────────────────────────────────────────────┤
+│ TRANSACTION DETAILS                 REQUESTOR INFORMATION       │
+│ ─────────────────────               ──────────────────────      │
+│ Transaction ID: FLD-0023            Requested By: Sarah Johnson │
+│ Form Type: Field Trip               Department: Science         │
+│ Fiscal Quarter: Q3 FY2025-26        Division: Upper School      │
+│                                     Date Submitted: Feb 10, 2026│
+├─────────────────────────────────────────────────────────────────┤
+│ #  │ Description                              │ Qty │   Amount  │
+│────┼──────────────────────────────────────────┼─────┼───────────│
+│ 1  │ Museum of Science &amp; Industry             │  45 │   $450.00 │
+│    │ Trip Date: March 15, 2026                │     │           │
+│    │ Transportation: Charter Bus              │     │           │
+├─────────────────────────────────────────────────────────────────┤
+│                                              TOTAL: $450.00     │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│ ____________________              ____________________          │
+│ Lee Mortimer                      Beth Endrulat                 │
+│ Principal, Upper School           Chief Financial Officer       │
+│ February 11, 2026                 February 11, 2026             │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+</code></pre>
+<hr />
+<h2>Drive Folder Structure</h2>
+<pre><code>Budget_System_Invoices/
+├── FY2025-26/
+│   ├── Q1/
+│   │   ├── Amazon/
+│   │   │   ├── US/
+│   │   │   ├── LS/
+│   │   │   └── KK/
+│   │   ├── Warehouse/
+│   │   │   ├── Internal/
+│   │   │   │   ├── US/
+│   │   │   │   ├── LS/
+│   │   │   │   └── KK/
+│   │   │   └── External/
+│   │   ├── Field_Trip/
+│   │   │   ├── US/
+│   │   │   ├── LS/
+│   │   │   └── KK/
+│   │   ├── Curriculum/
+│   │   │   ├── Math/
+│   │   │   ├── Science/
+│   │   │   ├── English/
+│   │   │   └── .../
+│   │   └── Admin/
+│   ├── Q2/
+│   ├── Q3/
+│   └── Q4/
+└── FY2026-27/
+</code></pre>
+<hr />
+<h2>Batch Processing Logic</h2>
+<h3>Amazon Batch (Tuesday &amp; Friday)</h3>
+<pre><code class="language-javascript">function runAmazonBatch() {
+  // 1. Get all approved Amazon transactions not yet invoiced
+  // 2. Group by Division
+  // 3. For each division with transactions:
+  //    a. Generate Invoice ID: AMZ-{DIV}-{MMDD}[-{increment}]
+  //    b. Create PDF with batch template
+  //    c. Store in Drive: FY/Quarter/Amazon/{Division}/
+  //    d. Update TransactionLedger: InvoiceGenerated=YES, InvoiceID, InvoiceURL
+  // 4. Log batch completion
+}
+</code></pre>
+<h3>Warehouse Batch (Wednesday)</h3>
+<pre><code class="language-javascript">function runWarehouseBatch() {
+  // 1. Get all approved Warehouse transactions not yet invoiced
+  // 2. Group by Division for internal invoices
+  // 3. For each division with transactions:
+  //    a. Generate internal invoice (WHS-{DIV}-{MMDD})
+  //    b. Store in Drive: FY/Quarter/Warehouse/Internal/{Division}/
+  // 4. Generate ONE external invoice (WHS-{MMDD}) for all transactions
+  //    - Store in Drive: FY/Quarter/Warehouse/External/
+  // 5. Update TransactionLedger for all
+}
+</code></pre>
+<h3>Single Invoice Generation (On Approval)</h3>
+<pre><code class="language-javascript">function generateSingleInvoice(transactionId, formType) {
+  // 1. Get transaction details from ledger
+  // 2. Determine Invoice ID based on form type:
+  //    - Field Trip: FLD-{DIV}-{MMDD}
+  //    - Curriculum: CUR-{DEPT}-{MMDD}
+  //    - Admin: ADM-{INITIALS}-{MMDD}
+  // 3. Create PDF with single template
+  // 4. Store in appropriate Drive folder
+  // 5. Update TransactionLedger
+}
+</code></pre>
+<hr />
+<h2>Triggers</h2>
+<table>
+<thead>
+<tr>
+<th>Trigger</th>
+<th>Function</th>
+<th>Schedule</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Amazon Batch</td>
+<td><code>runAmazonBatch</code></td>
+<td>Tuesday 6:00 AM, Friday 6:00 AM</td>
+</tr>
+<tr>
+<td>Warehouse Batch</td>
+<td><code>runWarehouseBatch</code></td>
+<td>Wednesday 6:00 AM</td>
+</tr>
+<tr>
+<td>Single Invoice</td>
+<td><code>generateSingleInvoice</code></td>
+<td>Called on approval (not scheduled)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>Questions Resolved</h2>
+<ol>
+<li>✅ Warehouse has internal (by division) + external (combined) invoices</li>
+<li>✅ Amazon is internal only (for audit trail)</li>
+<li>✅ Invoice ID format: Prefix-Division/ID-MMDD[-increment]</li>
+<li>✅ Increment starts at -02 (first has no suffix)</li>
+<li>✅ Admin uses initials (ADM-MJT-0211)</li>
+<li>✅ Curriculum shows division approver on invoice (per audit)</li>
+<li>✅ Batch days: Amazon Tue/Fri, Warehouse Wed</li>
+</ol>
+<hr />
+<h2>Implementation Checklist</h2>
+<ul>
+<li>[ ] Update Transaction ID generation (fiscal year reset)</li>
+<li>[ ] Create Invoice ID generator with increment logic</li>
+<li>[ ] Rewrite batch invoice template</li>
+<li>[ ] Rewrite single invoice template</li>
+<li>[ ] Create <code>runAmazonBatch()</code> function</li>
+<li>[ ] Create <code>runWarehouseBatch()</code> function</li>
+<li>[ ] Update <code>processApprovalDecision()</code> to trigger single invoices</li>
+<li>[ ] Update Admin form for auto-approve + immediate invoice</li>
+<li>[ ] Create batch triggers (Tue/Fri, Wed)</li>
+<li>[ ] Update Drive folder structure</li>
+<li>[ ] Test end-to-end flow</li>
+</ul>
+</body>
+</html>

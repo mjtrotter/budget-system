@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Batch Invoice Preview - Amazon Upper School</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bonheur+Royale&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      /* Keswick Christian School brand green - extracted from "Keswick" logo */
+      --logo-green: #13381f;
+    }
+
+    @page {
+      size: letter;
+      margin: 0.75in;
+      counter-increment: page;
+
+      @bottom-left {
+        content: "Page " counter(page) " of " counter(pages);
+        font-family: 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
+        font-size: 7pt;
+        color: var(--logo-green);
+        font-weight: 600;
+        border-top: 1px solid var(--logo-green);
+        padding-top: 8px;
+      }
+
+      @bottom-center {
+        content: "Order PO-AMZ-US-0211 | Keswick Christian School Purchase Order System";
+        font-family: 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
+        font-size: 7pt;
+        color: var(--logo-green);
+        border-top: 1px solid var(--logo-green);
+        padding-top: 8px;
+      }
+
+      @bottom-right {
+        content: "";
+        border-top: 1px solid var(--logo-green);
+        padding-top: 8px;
+      }
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
+      font-size: 9pt;
+      line-height: 1.4;
+      color: #333;
+      background: #f0f0f0;
+    }
+
+    /* FIXED: Removed max-width constraint that was causing margin imbalance */
+    .page-container {
+      width: 100%;
+      margin: 20px auto;
+      background: white;
+      padding: 0.75in; /* Match @page margins for screen preview */
+      box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+      position: relative;
+    }
+
+    /* Watermark */
+    .watermark {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      opacity: 0.04;
+      z-index: 0;
+      pointer-events: none;
+    }
+    .watermark img { width: 400px; }
+
+    /* Header - Two-row layout: images on top, info below */
+    .header {
+      margin-bottom: 18px;
+      padding-bottom: 12px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* REDESIGNED: Three-image header layout - school name | crest | purchase order */
+    .header-top {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      column-gap: 40px;  /* Equal spacing on both sides of crest */
+      margin-bottom: 18px;
+    }
+
+    /* Left: School name IMAGE - 10% smaller for better spacing */
+    .school-name-img {
+      display: flex;
+      justify-content: flex-start;
+      align-items: center;
+    }
+    .school-name-img img {
+      height: 81px;  /* 10% smaller than 90px */
+      width: auto;
+    }
+
+    /* Center: Shield/crest IMAGE - centered focal point */
+    .shield-crest {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .shield-crest img {
+      height: 102px;
+      width: auto;
+    }
+
+    /* Right: PURCHASE ORDER TEXT - styled to match "Keswick" from school logo */
+    .invoice-title {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      text-align: right;
+    }
+
+    .invoice-title-text {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+    }
+
+    .invoice-title-text .main-word {
+      font-family: 'Lucida Bright', 'Lucida Serif', Georgia, serif;
+      font-size: 32pt;
+      font-weight: 600;  /* Demi-bold */
+      color: #13381f;  /* Exact green extracted from "Keswick" logo */
+      line-height: 1.1;
+      margin-bottom: 0px;
+      letter-spacing: 0.8px;
+    }
+
+    .invoice-title-text .sub-word {
+      font-family: 'Lucida Bright', 'Lucida Serif', Georgia, serif;
+      font-size: 32pt;
+      font-weight: 600;  /* Demi-bold */
+      color: #13381f;  /* Exact green extracted from "Keswick" logo */
+      line-height: 1.1;
+      letter-spacing: 0.8px;
+    }
+
+    /* Bottom row: Address left, PO details right - balanced layout */
+    .header-bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 40px;
+      margin-top: 15px;
+    }
+
+    /* Left: School address block - black text */
+    .school-info {
+      font-size: 10pt;
+      color: #333;
+      line-height: 1.7;
+      font-weight: 500;
+      flex: 1;
+      max-width: 45%;
+    }
+
+    /* Right: PO details block - black bold text (not green) */
+    .invoice-details {
+      text-align: right;
+      font-size: 10pt;
+      color: #333;
+      line-height: 1.7;
+      flex: 1;
+      max-width: 45%;
+    }
+    .invoice-details .detail-row {
+      margin-bottom: 3px;
+    }
+    .invoice-details .label {
+      color: #666;
+      display: inline;
+      font-weight: 400;
+      min-width: 80px;
+      text-align: right;
+    }
+    .invoice-details .value {
+      color: #000;
+      font-weight: 700;
+      display: inline;
+      margin-left: 8px;
+    }
+
+    /* Meta info */
+    .meta-section {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      padding: 10px 15px;
+      background: #f8f8f8;
+      border-radius: 4px;
+      position: relative;
+      z-index: 1;
+    }
+    .meta-item { font-size: 9pt; }
+    .meta-label { color: #666; }
+    .meta-value { font-weight: 600; color: var(--logo-green); }
+
+    /* Table */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 15px;
+      position: relative;
+      z-index: 1;
+    }
+
+    thead {
+      display: table-header-group;
+    }
+
+    thead th {
+      background: #f5f5f5;
+      border-top: 2px solid var(--logo-green);
+      border-bottom: 2px solid var(--logo-green);
+      padding: 10px 8px;
+      text-align: left;
+      font-size: 8pt;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: #333;
+    }
+
+    thead th.right { text-align: right; }
+    thead th.center { text-align: center; }
+
+    tbody tr {
+      page-break-inside: avoid;
+    }
+
+    /* COMPRESSED: Reduced to 8px vertical padding to fit signatures on page 3 */
+    tbody td {
+      padding: 8px;
+      border-bottom: 1px solid #eee;
+      vertical-align: top;
+      font-size: 9pt;
+    }
+
+    td.txn-id {
+      width: 85px;
+      font-family: 'Consolas', monospace;
+      font-size: 8pt;
+      color: var(--logo-green);
+      font-weight: 500;
+    }
+    td.requestor { width: 120px; }
+    td.description { }
+    td.qty { width: 40px; text-align: center; }
+    td.unit-price { width: 70px; text-align: right; font-family: monospace; }
+    td.amount { width: 75px; text-align: right; font-family: monospace; font-weight: 500; }
+
+    /* COMPRESSED: Reduced padding to 10px to fit signatures on page 3 */
+    .txn-group-first td {
+      border-top: 1px solid #ddd;
+      padding-top: 10px;
+    }
+    .txn-group-first:not(.txn-group-last) td {
+      border-bottom: none;
+    }
+    .txn-group-middle td {
+      border-bottom: none;
+      padding-top: 4px;
+      padding-bottom: 4px;
+    }
+    .txn-group-middle td.txn-id,
+    .txn-group-middle td.requestor {
+      color: transparent;
+    }
+    .txn-group-last td {
+      padding-bottom: 10px;
+    }
+    .txn-group-last:not(.txn-group-first) td.txn-id,
+    .txn-group-last:not(.txn-group-first) td.requestor {
+      color: transparent;
+    }
+
+    /* Totals & Signatures */
+    .footer-section {
+      margin-top: 20px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .totals {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 35px;
+    }
+
+    .totals-box {
+      width: 200px;
+      border-top: 2px solid var(--logo-green);
+      padding-top: 8px;
+    }
+
+    .totals-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 5px 0;
+      font-size: 10pt;
+    }
+
+    .totals-row.grand {
+      font-size: 14pt;
+      font-weight: 700;
+    }
+
+    .totals-row.grand .value {
+      color: var(--logo-green);
+    }
+
+    /* Signatures */
+    .signatures {
+      display: flex;
+      justify-content: space-between;
+      padding-top: 25px;
+      border-top: 2px solid var(--logo-green);
+    }
+
+    .signature-block {
+      text-align: center;
+      width: 220px;
+    }
+
+    .signature-label {
+      font-size: 8pt;
+      color: var(--logo-green);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 5px;
+      font-weight: 600;
+    }
+
+    .signature-line {
+      height: 55px;
+      border-bottom: 2px solid var(--logo-green);
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      margin-bottom: 5px;
+    }
+
+    .signature-line .signature {
+      font-family: 'Bonheur Royale', cursive;
+      font-size: 28pt;
+      color: #000;
+      line-height: 1;
+    }
+
+    .sig-name { font-weight: 600; font-size: 9pt; }
+    .sig-title { font-size: 8pt; color: #666; }
+    .sig-date { font-size: 8pt; color: #999; margin-top: 3px; }
+
+
+    @media print {
+      body { background: white; }
+      .page-container {
+        box-shadow: none;
+        margin: 0;
+        padding: 0; /* Remove padding in print, @page margins handle it */
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page-container">
+    <!-- Watermark -->
+    <div class="watermark">
+      <img src="file:///Users/mjtrotter/Downloads/watermark.jpg" alt="" onerror="this.style.display='none'" />
+    </div>
+
+    <div class="header">
+      <!-- Three-image balanced layout: school name | crest | purchase order -->
+      <div class="header-top">
+        <!-- Left: School name IMAGE - aligned left -->
+        <div class="school-name-img">
+          <img src="school-name.png"
+               alt="Keswick Christian School" />
+        </div>
+
+        <!-- Center: Shield/crest IMAGE - centered -->
+        <div class="shield-crest">
+          <img src="crest.png"
+               alt="KCS Crest" />
+        </div>
+
+        <!-- Right: PURCHASE ORDER TEXT - styled to match Keswick -->
+        <div class="invoice-title">
+          <div class="invoice-title-text">
+            <div class="main-word">Purchase</div>
+            <div class="sub-word">Order</div>
+          </div>
+        </div>
+      </div>
+      <div class="header-bottom">
+        <div class="school-info">
+          10101 54th Avenue North<br>
+          St. Petersburg, FL 33708<br>
+          businessoffice@keswickchristian.org<br>
+          (727) 522-2111
+        </div>
+        <div class="invoice-details">
+          <div class="detail-row"><span class="label">Order No:</span> <span class="value">PO-AMZ-US-0211</span></div>
+          <div class="detail-row"><span class="label">Date:</span> <span class="value">February 11, 2026</span></div>
+          <div class="detail-row"><span class="label">Division:</span> <span class="value">Upper School</span></div>
+        </div>
+      </div>
+    </div>
+
+
+    <table>
+      <thead>
+        <tr>
+          <th>Transaction</th>
+          <th>Requestor</th>
+          <th>Description</th>
+          <th class="center">Qty</th>
+          <th class="right">Unit Price</th>
+          <th class="right">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- Transaction AMZ-0142: Sarah Johnson - 3 items -->
+        <tr class="txn-group-first">
+          <td class="txn-id">AMZ-0142</td>
+          <td class="requestor">Sarah Johnson</td>
+          <td class="description">Science Lab Safety Goggles (12-pack)</td>
+          <td class="qty">3</td>
+          <td class="unit-price">$24.99</td>
+          <td class="amount">$74.97</td>
+        </tr>
+        <tr class="txn-group-middle">
+          <td class="txn-id">AMZ-0142</td>
+          <td class="requestor">Sarah Johnson</td>
+          <td class="description">Digital Thermometer Set</td>
+          <td class="qty">5</td>
+          <td class="unit-price">$12.50</td>
+          <td class="amount">$62.50</td>
+        </tr>
+        <tr class="txn-group-last">
+          <td class="txn-id">AMZ-0142</td>
+          <td class="requestor">Sarah Johnson</td>
+          <td class="description">Beaker Set 250ml (6-pack)</td>
+          <td class="qty">2</td>
+          <td class="unit-price">$18.75</td>
+          <td class="amount">$37.50</td>
+        </tr>
+
+        <!-- Transaction AMZ-0145: Mike Chen - 2 items -->
+        <tr class="txn-group-first">
+          <td class="txn-id">AMZ-0145</td>
+          <td class="requestor">Mike Chen</td>
+          <td class="description">TI-84 Plus CE Graphing Calculator</td>
+          <td class="qty">5</td>
+          <td class="unit-price">$117.99</td>
+          <td class="amount">$589.95</td>
+        </tr>
+        <tr class="txn-group-last">
+          <td class="txn-id">AMZ-0145</td>
+          <td class="requestor">Mike Chen</td>
+          <td class="description">Classroom Whiteboard Markers, Bulk</td>
+          <td class="qty">2</td>
+          <td class="unit-price">$17.50</td>
+          <td class="amount">$35.00</td>
+        </tr>
+
+        <!-- Transaction AMZ-0151: Lisa Park - 1 item -->
+        <tr class="txn-group-first txn-group-last">
+          <td class="txn-id">AMZ-0151</td>
+          <td class="requestor">Lisa Park</td>
+          <td class="description">HP Printer Paper, 8.5x11, 10 reams</td>
+          <td class="qty">1</td>
+          <td class="unit-price">$45.99</td>
+          <td class="amount">$45.99</td>
+        </tr>
+
+        <!-- Transaction AMZ-0153: David Wilson - 3 items -->
+        <tr class="txn-group-first">
+          <td class="txn-id">AMZ-0153</td>
+          <td class="requestor">David Wilson</td>
+          <td class="description">Acrylic Paint Set, 24 colors</td>
+          <td class="qty">6</td>
+          <td class="unit-price">$18.99</td>
+          <td class="amount">$113.94</td>
+        </tr>
+        <tr class="txn-group-middle">
+          <td class="txn-id">AMZ-0153</td>
+          <td class="requestor">David Wilson</td>
+          <td class="description">Artist Brush Set, 15-piece</td>
+          <td class="qty">6</td>
+          <td class="unit-price">$8.99</td>
+          <td class="amount">$53.94</td>
+        </tr>
+        <tr class="txn-group-last">
+          <td class="txn-id">AMZ-0153</td>
+          <td class="requestor">David Wilson</td>
+          <td class="description">Canvas Panel, 11x14, 6-pack</td>
+          <td class="qty">2</td>
+          <td class="unit-price">$19.62</td>
+          <td class="amount">$39.24</td>
+        </tr>
+
+        <!-- Transaction AMZ-0155: Emily Davis - 1 item -->
+        <tr class="txn-group-first txn-group-last">
+          <td class="txn-id">AMZ-0155</td>
+          <td class="requestor">Emily Davis</td>
+          <td class="description">To Kill a Mockingbird, Paperback</td>
+          <td class="qty">30</td>
+          <td class="unit-price">$7.50</td>
+          <td class="amount">$225.00</td>
+        </tr>
+
+        <!-- Transaction AMZ-0158: Jennifer Martinez - Multi-line description test -->
+        <tr class="txn-group-first">
+          <td class="txn-id">AMZ-0158</td>
+          <td class="requestor">Jennifer Martinez</td>
+          <td class="description">Classroom STEM Robotics Kit with Arduino-Compatible Microcontroller, Sensors, Motors, and Complete Learning Curriculum Guide for Middle School Students</td>
+          <td class="qty">4</td>
+          <td class="unit-price">$189.99</td>
+          <td class="amount">$759.96</td>
+        </tr>
+        <tr class="txn-group-last">
+          <td class="txn-id">AMZ-0158</td>
+          <td class="requestor">Jennifer Martinez</td>
+          <td class="description">Replacement Parts Kit: Extra wheels, gears, fasteners, and connectors for robotics classroom activities</td>
+          <td class="qty">2</td>
+          <td class="unit-price">$34.99</td>
+          <td class="amount">$69.98</td>
+        </tr>
+
+        <!-- Transaction AMZ-0161: Robert Thompson -->
+        <tr class="txn-group-first txn-group-last">
+          <td class="txn-id">AMZ-0161</td>
+          <td class="requestor">Robert Thompson</td>
+          <td class="description">Premium Heavy-Duty Laminating Pouches, 9x12 inch, 5mil thickness, Crystal Clear finish, 200-pack - Ideal for classroom posters, certificates, and educational materials</td>
+          <td class="qty">3</td>
+          <td class="unit-price">$42.99</td>
+          <td class="amount">$128.97</td>
+        </tr>
+
+        <!-- Transaction AMZ-0163: Amanda Clark - 4 items -->
+        <tr class="txn-group-first">
+          <td class="txn-id">AMZ-0163</td>
+          <td class="requestor">Amanda Clark</td>
+          <td class="description">Scientific Calculator, Solar Powered</td>
+          <td class="qty">15</td>
+          <td class="unit-price">$11.99</td>
+          <td class="amount">$179.85</td>
+        </tr>
+        <tr class="txn-group-middle">
+          <td class="txn-id">AMZ-0163</td>
+          <td class="requestor">Amanda Clark</td>
+          <td class="description">Geometric Shapes Manipulatives Set - Includes 3D Models of Cubes, Pyramids, Spheres, Cones, and Prisms with Storage Container</td>
+          <td class="qty">6</td>
+          <td class="unit-price">$28.50</td>
+          <td class="amount">$171.00</td>
+        </tr>
+        <tr class="txn-group-middle">
+          <td class="txn-id">AMZ-0163</td>
+          <td class="requestor">Amanda Clark</td>
+          <td class="description">Dry Erase Graph Boards, 12x12</td>
+          <td class="qty">20</td>
+          <td class="unit-price">$6.99</td>
+          <td class="amount">$139.80</td>
+        </tr>
+        <tr class="txn-group-last">
+          <td class="txn-id">AMZ-0163</td>
+          <td class="requestor">Amanda Clark</td>
+          <td class="description">Protractor and Compass Set</td>
+          <td class="qty">30</td>
+          <td class="unit-price">$3.25</td>
+          <td class="amount">$97.50</td>
+        </tr>
+
+        <!-- Transaction AMZ-0165: Mark Stevens -->
+        <tr class="txn-group-first txn-group-last">
+          <td class="txn-id">AMZ-0165</td>
+          <td class="requestor">Mark Stevens</td>
+          <td class="description">Professional Grade Document Camera with Flexible Gooseneck Arm, LED Illumination, 8MP Resolution, USB Connectivity, and Compatible Software for Interactive Whiteboard Integration</td>
+          <td class="qty">2</td>
+          <td class="unit-price">$149.00</td>
+          <td class="amount">$298.00</td>
+        </tr>
+
+        <!-- Transaction AMZ-0167: Patricia Lee - 3 items -->
+        <tr class="txn-group-first">
+          <td class="txn-id">AMZ-0167</td>
+          <td class="requestor">Patricia Lee</td>
+          <td class="description">Spanish-English Bilingual Dictionary</td>
+          <td class="qty">25</td>
+          <td class="unit-price">$9.99</td>
+          <td class="amount">$249.75</td>
+        </tr>
+        <tr class="txn-group-middle">
+          <td class="txn-id">AMZ-0167</td>
+          <td class="requestor">Patricia Lee</td>
+          <td class="description">Vocabulary Flashcard Set - 500 Most Common Spanish Words with Images, Pronunciation Guide, and Example Sentences</td>
+          <td class="qty">10</td>
+          <td class="unit-price">$14.99</td>
+          <td class="amount">$149.90</td>
+        </tr>
+        <tr class="txn-group-last">
+          <td class="txn-id">AMZ-0167</td>
+          <td class="requestor">Patricia Lee</td>
+          <td class="description">Audio CD Set: Conversational Spanish</td>
+          <td class="qty">5</td>
+          <td class="unit-price">$24.99</td>
+          <td class="amount">$124.95</td>
+        </tr>
+
+        <!-- Transaction AMZ-0170: Kevin Brown -->
+        <tr class="txn-group-first">
+          <td class="txn-id">AMZ-0170</td>
+          <td class="requestor">Kevin Brown</td>
+          <td class="description">Wireless Presentation Clicker with Laser Pointer, USB Receiver, 100ft Range, and Rechargeable Battery</td>
+          <td class="qty">3</td>
+          <td class="unit-price">$29.99</td>
+          <td class="amount">$89.97</td>
+        </tr>
+        <tr class="txn-group-last">
+          <td class="txn-id">AMZ-0170</td>
+          <td class="requestor">Kevin Brown</td>
+          <td class="description">HDMI Cable 10ft, High Speed</td>
+          <td class="qty">8</td>
+          <td class="unit-price">$7.99</td>
+          <td class="amount">$63.92</td>
+        </tr>
+
+        <!-- Transaction AMZ-0172: Susan White - Multi-line test -->
+        <tr class="txn-group-first txn-group-last">
+          <td class="txn-id">AMZ-0172</td>
+          <td class="requestor">Susan White</td>
+          <td class="description">Complete Chemistry Lab Equipment Kit for High School - Includes Beakers, Flasks, Test Tubes, Graduated Cylinders, Bunsen Burner Accessories, Safety Equipment, and Storage Case with Foam Inserts</td>
+          <td class="qty">2</td>
+          <td class="unit-price">$425.00</td>
+          <td class="amount">$850.00</td>
+        </tr>
+
+        <!-- Transaction AMZ-0175: James Garcia - 2 items -->
+        <tr class="txn-group-first">
+          <td class="txn-id">AMZ-0175</td>
+          <td class="requestor">James Garcia</td>
+          <td class="description">Basketball Training Cones, Set of 50</td>
+          <td class="qty">2</td>
+          <td class="unit-price">$19.99</td>
+          <td class="amount">$39.98</td>
+        </tr>
+        <tr class="txn-group-last">
+          <td class="txn-id">AMZ-0175</td>
+          <td class="requestor">James Garcia</td>
+          <td class="description">Athletic First Aid Kit - Professional Grade with Instant Cold Packs, Bandages, Athletic Tape, and Emergency Supplies</td>
+          <td class="qty">4</td>
+          <td class="unit-price">$54.99</td>
+          <td class="amount">$219.96</td>
+        </tr>
+
+        <!-- Transaction AMZ-0178: Nancy Miller -->
+        <tr class="txn-group-first txn-group-last">
+          <td class="txn-id">AMZ-0178</td>
+          <td class="requestor">Nancy Miller</td>
+          <td class="description">Music Stand, Heavy Duty Adjustable</td>
+          <td class="qty">15</td>
+          <td class="unit-price">$22.50</td>
+          <td class="amount">$337.50</td>
+        </tr>
+
+        <!-- Transaction AMZ-0180: Chris Anderson - 3 items -->
+        <tr class="txn-group-first">
+          <td class="txn-id">AMZ-0180</td>
+          <td class="requestor">Chris Anderson</td>
+          <td class="description">Wireless Mouse, Ergonomic Design</td>
+          <td class="qty">10</td>
+          <td class="unit-price">$15.99</td>
+          <td class="amount">$159.90</td>
+        </tr>
+        <tr class="txn-group-middle">
+          <td class="txn-id">AMZ-0180</td>
+          <td class="requestor">Chris Anderson</td>
+          <td class="description">USB Keyboard, Full Size, Spill-Resistant with Quiet Keys and Numeric Keypad - Compatible with Windows and Mac</td>
+          <td class="qty">10</td>
+          <td class="unit-price">$18.99</td>
+          <td class="amount">$189.90</td>
+        </tr>
+        <tr class="txn-group-last">
+          <td class="txn-id">AMZ-0180</td>
+          <td class="requestor">Chris Anderson</td>
+          <td class="description">Webcam 1080p with Microphone</td>
+          <td class="qty">5</td>
+          <td class="unit-price">$39.99</td>
+          <td class="amount">$199.95</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="footer-section">
+      <div class="totals">
+        <div class="totals-box">
+          <div class="totals-row">
+            <span>Line items</span>
+            <span class="value">32</span>
+          </div>
+          <div class="totals-row grand">
+            <span>TOTAL</span>
+            <span class="value">$5,799.37</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="signatures">
+        <div class="signature-block">
+          <div class="signature-label">Approved By</div>
+          <div class="signature-line">
+            <span class="signature">Lee Mortimer</span>
+          </div>
+          <div class="sig-name">Lee Mortimer</div>
+          <div class="sig-title">Principal, Upper School</div>
+          <div class="sig-date">February 11, 2026</div>
+        </div>
+
+        <div class="signature-block">
+          <div class="signature-label">Ordered By</div>
+          <div class="signature-line">
+            <span class="signature">Sherilyn Neel</span>
+          </div>
+          <div class="sig-name">Sherilyn Neel</div>
+          <div class="sig-title">Business Office</div>
+          <div class="sig-date">February 11, 2026</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>

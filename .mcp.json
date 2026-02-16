@@ -1,0 +1,29 @@
+{
+  "mcpServers": {
+    "mlx-pipeline": {
+      "command": "python3",
+      "args": ["-m", "mcp.servers.mlx_server"],
+      "env": {
+        "PYTHONPATH": "/Users/mjtrotter/SDK-1/packages/sdk/mlx_pipeline",
+        "MLX_MODELS_PATH": "/Volumes/Crucial X10/FINAL_MODELS"
+      },
+      "disabled": false
+    },
+    "agent": {
+      "command": "python3",
+      "args": ["-m", "src.mcp_servers.agent.server"],
+      "env": {
+        "PYTHONPATH": "/Users/mjtrotter/SDK-1/packages/sdk"
+      },
+      "disabled": false
+    },
+    "copilot": {
+      "command": "python3",
+      "args": ["-m", "src.tools.mcp_copilot_server"],
+      "env": {
+        "PYTHONPATH": "/Users/mjtrotter/SDK-1/packages/sdk"
+      },
+      "disabled": false
+    }
+  }
+}

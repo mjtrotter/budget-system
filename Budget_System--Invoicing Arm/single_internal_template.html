@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+/* Page Setup */
+@page {
+  size: 8.5in 11in;
+  margin: 0.5in;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Segoe UI', -apple-system, Arial, sans-serif;
+  font-size: 10pt;
+  line-height: 1.5;
+  color: #333;
+  background: white;
+  position: relative;
+  padding: 20px 40px;
+}
+
+/* Watermark - Subtle seal in background */
+.watermark {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  opacity: 0.05;
+  pointer-events: none;
+  z-index: 0;
+}
+.watermark img {
+  width: 450px;
+  height: auto;
+}
+
+/* Header with text logo */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding-bottom: 20px;
+  border-bottom: 2px solid #1B5E20;
+  margin-bottom: 24px;
+}
+
+.logo-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.logo {
+  height: 50px;
+  width: auto;
+}
+
+.school-address {
+  font-size: 8pt;
+  color: #666;
+  margin-top: 6px;
+}
+
+.invoice-title-section {
+  text-align: right;
+}
+
+.invoice-title {
+  font-size: 28pt;
+  font-weight: 300;
+  color: #1B5E20;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.invoice-number {
+  font-size: 11pt;
+  color: #666;
+  margin-top: 4px;
+}
+
+.invoice-date {
+  font-size: 10pt;
+  color: #888;
+}
+
+/* Content Container */
+.content {
+  position: relative;
+  z-index: 1;
+}
+
+/* Info Section */
+.info-section {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 30px;
+  gap: 40px;
+}
+
+.info-block {
+  flex: 1;
+}
+
+.info-block h3 {
+  font-size: 9pt;
+  font-weight: 600;
+  color: #1B5E20;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #ddd;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  font-size: 9pt;
+}
+
+.info-label {
+  color: #666;
+}
+
+.info-value {
+  font-weight: 500;
+  color: #333;
+}
+
+.info-value.highlight {
+  color: #1B5E20;
+  font-family: 'Consolas', monospace;
+  font-weight: 600;
+}
+
+/* Line Items Table */
+.items-section {
+  margin-bottom: 30px;
+}
+
+.items-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 9pt;
+}
+
+.items-table thead th {
+  background: #f5f5f5;
+  color: #333;
+  padding: 12px 10px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 8pt;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 2px solid #1B5E20;
+}
+
+.items-table thead th:nth-child(3),
+.items-table thead th:nth-child(4),
+.items-table thead th:nth-child(5) {
+  text-align: right;
+}
+
+.items-table tbody td {
+  padding: 12px 10px;
+  border-bottom: 1px solid #eee;
+  vertical-align: top;
+}
+
+.items-table tbody td:nth-child(3),
+.items-table tbody td:nth-child(4),
+.items-table tbody td:nth-child(5) {
+  text-align: right;
+}
+
+.items-table tbody tr:last-child td {
+  border-bottom: 2px solid #ddd;
+}
+
+.item-description {
+  font-weight: 500;
+}
+
+.item-details {
+  font-size: 8pt;
+  color: #888;
+  margin-top: 2px;
+}
+
+/* Totals Section */
+.totals-section {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 40px;
+}
+
+.totals-box {
+  width: 250px;
+}
+
+.totals-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  font-size: 10pt;
+}
+
+.totals-row.subtotal {
+  border-bottom: 1px solid #ddd;
+}
+
+.totals-row.total {
+  border-top: 2px solid #1B5E20;
+  margin-top: 8px;
+  padding-top: 12px;
+  font-size: 14pt;
+  font-weight: 700;
+}
+
+.totals-row.total .amount {
+  color: #1B5E20;
+}
+
+/* Additional Info */
+.additional-info {
+  background: #fafafa;
+  border-left: 3px solid #1B5E20;
+  padding: 12px 16px;
+  margin-bottom: 30px;
+  font-size: 9pt;
+}
+
+.additional-info h4 {
+  font-size: 9pt;
+  font-weight: 600;
+  color: #1B5E20;
+  margin-bottom: 6px;
+}
+
+.additional-info p {
+  color: #555;
+  margin: 4px 0;
+}
+
+/* Signatures Section */
+.signatures-section {
+  display: flex;
+  justify-content: space-between;
+  padding-top: 30px;
+  border-top: 1px solid #ddd;
+  margin-top: auto;
+}
+
+.signature-block {
+  text-align: center;
+  width: 200px;
+}
+
+.signature-line {
+  width: 100%;
+  height: 50px;
+  border-bottom: 1px solid #333;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  margin-bottom: 6px;
+}
+
+.signature-line img {
+  max-width: 160px;
+  max-height: 45px;
+  object-fit: contain;
+}
+
+.signature-name {
+  font-weight: 600;
+  color: #333;
+  font-size: 10pt;
+}
+
+.signature-title {
+  font-size: 8pt;
+  color: #666;
+}
+
+.signature-date {
+  font-size: 8pt;
+  color: #999;
+  margin-top: 4px;
+}
+
+/* Status Badge */
+.status-section {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 6px 20px;
+  border-radius: 4px;
+  font-size: 10pt;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.status-badge.approved {
+  background: #E8F5E9;
+  color: #1B5E20;
+  border: 1px solid #1B5E20;
+}
+
+.status-badge.pending {
+  background: #FFF8E1;
+  color: #F57F17;
+  border: 1px solid #F57F17;
+}
+
+/* Footer */
+.footer {
+  text-align: center;
+  padding-top: 20px;
+  margin-top: 30px;
+  border-top: 1px solid #eee;
+  font-size: 8pt;
+  color: #888;
+}
+
+/* Print Optimization */
+@media print {
+  body {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .watermark {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+</style>
+</head>
+<body>
+  <!-- Watermark - KCS Seal -->
+  <? if (data.sealBase64) { ?>
+  <div class="watermark">
+    <img src="data:image/jpeg;base64,<?= data.sealBase64 ?>" alt="" />
+  </div>
+  <? } ?>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="logo-section">
+      <? if (data.logoBase64) { ?>
+        <img class="logo" src="data:image/png;base64,<?= data.logoBase64 ?>" alt="Keswick Christian School" />
+      <? } else { ?>
+        <div style="font-size: 18pt; font-weight: 600; color: #1B5E20;">Keswick Christian School</div>
+      <? } ?>
+      <div class="school-address">
+        10100 54th Avenue North, St. Petersburg, FL 33708<br>
+        Phone: (727) 522-2111 | Fax: (727) 522-7199
+      </div>
+    </div>
+    <div class="invoice-title-section">
+      <div class="invoice-title">Invoice</div>
+      <div class="invoice-number"><?= data.invoiceId || data.invoiceNumber ?></div>
+      <div class="invoice-date"><?= data.invoiceDate || new Date().toLocaleDateString() ?></div>
+    </div>
+  </div>
+
+  <div class="content">
+    <!-- Status -->
+    <div class="status-section">
+      <span class="status-badge approved">APPROVED</span>
+    </div>
+
+    <!-- Info Section -->
+    <div class="info-section">
+      <div class="info-block">
+        <h3>Transaction Details</h3>
+        <div class="info-row">
+          <span class="info-label">Transaction ID</span>
+          <span class="info-value highlight"><?= data.transactionId ?></span>
+        </div>
+        <? if (data.orderId) { ?>
+        <div class="info-row">
+          <span class="info-label">Order ID</span>
+          <span class="info-value highlight"><?= data.orderId ?></span>
+        </div>
+        <? } ?>
+        <div class="info-row">
+          <span class="info-label">Form Type</span>
+          <span class="info-value"><?= data.formType ?></span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Fiscal Quarter</span>
+          <span class="info-value"><?= data.fiscalQuarter || 'Current' ?></span>
+        </div>
+      </div>
+
+      <div class="info-block">
+        <h3>Requestor Information</h3>
+        <div class="info-row">
+          <span class="info-label">Requested By</span>
+          <span class="info-value"><?= data.requestorName || data.requestor ?></span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Department</span>
+          <span class="info-value"><?= data.department || 'N/A' ?></span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Division</span>
+          <span class="info-value"><?= data.divisionName || data.division ?></span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Date Submitted</span>
+          <span class="info-value"><?= data.submittedDate || new Date().toLocaleDateString() ?></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Line Items -->
+    <div class="items-section">
+      <table class="items-table">
+        <thead>
+          <tr>
+            <th style="width: 40px;">#</th>
+            <th>Description</th>
+            <th style="width: 60px;">Qty</th>
+            <th style="width: 90px;">Unit Price</th>
+            <th style="width: 90px;">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          <? if (data.lineItems && data.lineItems.length > 0) { ?>
+            <? data.lineItems.forEach(function(item, index) { ?>
+            <tr>
+              <td><?= index + 1 ?></td>
+              <td>
+                <div class="item-description"><?= item.description || 'Item' ?></div>
+                <? if (item.details) { ?>
+                <div class="item-details"><?= item.details ?></div>
+                <? } ?>
+              </td>
+              <td><?= item.quantity || 1 ?></td>
+              <td>$<?= (item.unitPrice || 0).toFixed(2) ?></td>
+              <td>$<?= (item.totalPrice || item.totalAmount || 0).toFixed(2) ?></td>
+            </tr>
+            <? }); ?>
+          <? } else { ?>
+            <tr>
+              <td>1</td>
+              <td>
+                <div class="item-description"><?= data.description || 'Purchase' ?></div>
+              </td>
+              <td><?= data.quantity || 1 ?></td>
+              <td>$<?= ((data.totalAmount || data.amount || 0) / (data.quantity || 1)).toFixed(2) ?></td>
+              <td>$<?= (data.totalAmount || data.amount || 0).toFixed(2) ?></td>
+            </tr>
+          <? } ?>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Totals -->
+    <div class="totals-section">
+      <div class="totals-box">
+        <div class="totals-row subtotal">
+          <span>Subtotal</span>
+          <span>$<?= (data.subtotal || data.totalAmount || data.amount || 0).toFixed(2) ?></span>
+        </div>
+        <? if (data.tax && data.tax > 0) { ?>
+        <div class="totals-row">
+          <span>Tax</span>
+          <span>$<?= data.tax.toFixed(2) ?></span>
+        </div>
+        <? } ?>
+        <div class="totals-row total">
+          <span>Total</span>
+          <span class="amount">$<?= (data.totalAmount || data.amount || 0).toFixed(2) ?></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Additional Info (if any) -->
+    <? if (data.justification || data.notes || data.additionalInfo) { ?>
+    <div class="additional-info">
+      <h4>Additional Information</h4>
+      <? if (data.justification) { ?><p><strong>Justification:</strong> <?= data.justification ?></p><? } ?>
+      <? if (data.notes) { ?><p><strong>Notes:</strong> <?= data.notes ?></p><? } ?>
+      <? if (data.additionalInfo) { ?><p><?= data.additionalInfo ?></p><? } ?>
+    </div>
+    <? } ?>
+
+    <!-- Signatures -->
+    <div class="signatures-section">
+      <div class="signature-block">
+        <div class="signature-line">
+          <? if (data.approverSignatureBase64) { ?>
+            <img src="data:image/png;base64,<?= data.approverSignatureBase64 ?>" alt="Signature" />
+          <? } ?>
+        </div>
+        <div class="signature-name"><?= data.approverName || 'Approver' ?></div>
+        <div class="signature-title"><?= data.approverTitle || 'Division Approver' ?></div>
+        <div class="signature-date"><?= data.approvalDate || new Date().toLocaleDateString() ?></div>
+      </div>
+
+      <div class="signature-block">
+        <div class="signature-line">
+          <? if (data.boSignatureBase64) { ?>
+            <img src="data:image/png;base64,<?= data.boSignatureBase64 ?>" alt="Signature" />
+          <? } ?>
+        </div>
+        <div class="signature-name"><?= data.boName || 'Business Office' ?></div>
+        <div class="signature-title"><?= data.boTitle || 'Authorized Signature' ?></div>
+        <div class="signature-date"><?= data.processedDate || new Date().toLocaleDateString() ?></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    Keswick Christian School | Tax ID: XX-XXXXXXX | Invoice generated by Budget Management System
+  </div>
+</body>
+</html>

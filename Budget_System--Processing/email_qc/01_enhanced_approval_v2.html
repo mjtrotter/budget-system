@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Approval Request - v2 Wide Logo</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; background: #f0f0f0; line-height: 1.5; }
+    .wrapper { max-width: 640px; margin: 20px auto; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.1); }
+
+    /* Header with Wide Logo */
+    .header {
+      background: linear-gradient(135deg, #1B5E20 0%, #2E7D32 100%);
+      padding: 16px 20px;
+      text-align: center;
+    }
+    .header-logo {
+      max-width: 280px;
+      height: auto;
+      filter: brightness(0) invert(1); /* Makes logo white */
+    }
+    .order-id {
+      color: rgba(255,255,255,0.9);
+      font-size: 13px;
+      font-family: monospace;
+      margin-top: 8px;
+      letter-spacing: 1px;
+    }
+
+    /* Action Buttons - TOP */
+    .action-bar {
+      background: #f8f8f8;
+      padding: 15px 20px;
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      border-bottom: 1px solid #e0e0e0;
+    }
+    .btn {
+      padding: 12px 32px;
+      font-weight: 600;
+      font-size: 14px;
+      border-radius: 6px;
+      text-decoration: none;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      transition: all 0.2s;
+    }
+    .btn-approve { background: #1B5E20; color: white; }
+    .btn-approve:hover { background: #145218; }
+    .btn-reject { background: #C62828; color: white; }
+    .btn-reject:hover { background: #A31F1F; }
+
+    /* Content */
+    .content { padding: 20px; }
+
+    /* Summary Card */
+    .summary-card {
+      background: linear-gradient(135deg, #f5f5f5 0%, #eeeeee 100%);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+      border-left: 4px solid #1B5E20;
+    }
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 0;
+    }
+    .summary-row:not(:last-child) { border-bottom: 1px solid #ddd; }
+    .summary-label { color: #666; font-size: 13px; }
+    .summary-value { font-weight: 600; color: #333; }
+    .summary-value.amount { color: #1B5E20; font-size: 18px; }
+
+    /* Budget Visualization */
+    .budget-section {
+      background: #fafafa;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .budget-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .budget-title { font-size: 14px; font-weight: 600; color: #333; }
+    .budget-status {
+      font-size: 12px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 12px;
+    }
+    .budget-status.ok { background: #E8F5E9; color: #1B5E20; }
+    .budget-status.warning { background: #FFF3E0; color: #E65100; }
+    .budget-status.danger { background: #FFEBEE; color: #C62828; }
+
+    /* Budget Bar */
+    .budget-bar-wrapper { margin-bottom: 8px; }
+    .budget-bar {
+      height: 24px;
+      background: #e0e0e0;
+      border-radius: 12px;
+      position: relative;
+      overflow: hidden;
+    }
+    .budget-bar-spent {
+      height: 100%;
+      background: linear-gradient(90deg, #1B5E20, #2E7D32);
+      border-radius: 12px 0 0 12px;
+      position: absolute;
+      left: 0;
+      top: 0;
+    }
+    .budget-bar-request {
+      height: 100%;
+      background: repeating-linear-gradient(45deg, #D4A017, #D4A017 4px, #E6B422 4px, #E6B422 8px);
+      position: absolute;
+      top: 0;
+    }
+    .budget-scale {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: #888;
+      margin-top: 4px;
+    }
+
+    /* Budget Details Grid */
+    .budget-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .budget-item {
+      text-align: center;
+      padding: 8px;
+      background: white;
+      border-radius: 6px;
+    }
+    .budget-item-label { font-size: 11px; color: #888; text-transform: uppercase; }
+    .budget-item-value { font-size: 16px; font-weight: 600; color: #333; }
+    .budget-item-value.positive { color: #1B5E20; }
+    .budget-item-value.negative { color: #C62828; }
+
+    /* Items Table */
+    .items-section { margin-bottom: 16px; }
+    .items-title { font-size: 14px; font-weight: 600; color: #333; margin-bottom: 8px; }
+    .items-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .items-table th {
+      background: #1B5E20;
+      color: white;
+      padding: 8px;
+      text-align: left;
+      font-weight: 500;
+    }
+    .items-table th:last-child { text-align: right; }
+    .items-table td {
+      padding: 10px 8px;
+      border-bottom: 1px solid #eee;
+    }
+    .items-table td:last-child { text-align: right; font-weight: 600; }
+    .items-table tr:hover { background: #f9f9f9; }
+    .items-total {
+      text-align: right;
+      padding: 12px 8px;
+      font-weight: 700;
+      font-size: 15px;
+      border-top: 2px solid #1B5E20;
+    }
+
+    /* Description */
+    .description-box {
+      background: #f5f5f5;
+      padding: 12px;
+      border-radius: 6px;
+      font-size: 14px;
+      color: #555;
+      margin-bottom: 16px;
+    }
+    .description-label { font-size: 12px; color: #888; margin-bottom: 4px; }
+
+    /* Footer */
+    .footer {
+      background: #1B5E20;
+      padding: 12px 20px;
+      text-align: center;
+      font-size: 12px;
+      color: rgba(255,255,255,0.8);
+    }
+
+    /* Mobile */
+    @media (max-width: 500px) {
+      .action-bar { flex-direction: column; }
+      .btn { width: 100%; text-align: center; }
+      .budget-grid { grid-template-columns: 1fr; }
+      .summary-row { flex-direction: column; align-items: flex-start; gap: 2px; }
+      .header-logo { max-width: 220px; }
+    }
+
+    /* QC Badge */
+    .qc-badge {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      background: #ff5722;
+      color: white;
+      padding: 6px 12px;
+      border-radius: 16px;
+      font-size: 11px;
+      font-weight: bold;
+      z-index: 9999;
+    }
+  </style>
+</head>
+<body>
+  <div class="qc-badge">QC v2 - Wide Logo</div>
+
+  <div class="wrapper">
+    <!-- Header with Wide Logo -->
+    <div class="header">
+      <img src="kcs_logo_wide.png" alt="Keswick Christian School" class="header-logo">
+      <div class="order-id">US-AMZ-0209-01</div>
+    </div>
+
+    <!-- Action Buttons at TOP -->
+    <div class="action-bar">
+      <a href="#approve" class="btn btn-approve">✓ Approve</a>
+      <a href="#reject" class="btn btn-reject">✕ Reject</a>
+    </div>
+
+    <div class="content">
+      <!-- Summary Card -->
+      <div class="summary-card">
+        <div class="summary-row">
+          <span class="summary-label">Request Type</span>
+          <span class="summary-value">Amazon Purchase</span>
+        </div>
+        <div class="summary-row">
+          <span class="summary-label">Requestor</span>
+          <span class="summary-value">Sarah Johnson · Upper School</span>
+        </div>
+        <div class="summary-row">
+          <span class="summary-label">Total Amount</span>
+          <span class="summary-value amount">$287.45</span>
+        </div>
+      </div>
+
+      <!-- Budget Visualization -->
+      <div class="budget-section">
+        <div class="budget-header">
+          <span class="budget-title">Budget Status</span>
+          <span class="budget-status ok">65% Used</span>
+        </div>
+        <div class="budget-bar-wrapper">
+          <div class="budget-bar">
+            <div class="budget-bar-spent" style="width: 65%"></div>
+            <div class="budget-bar-request" style="left: 65%; width: 6%"></div>
+          </div>
+          <div class="budget-scale">
+            <span>$0</span>
+            <span>$1,250</span>
+            <span>$2,500</span>
+            <span>$3,750</span>
+            <span>$5,000</span>
+          </div>
+        </div>
+        <div class="budget-grid">
+          <div class="budget-item">
+            <div class="budget-item-label">Allocated</div>
+            <div class="budget-item-value">$5,000</div>
+          </div>
+          <div class="budget-item">
+            <div class="budget-item-label">Available</div>
+            <div class="budget-item-value positive">$1,750</div>
+          </div>
+          <div class="budget-item">
+            <div class="budget-item-label">After Request</div>
+            <div class="budget-item-value positive">$1,462.55</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Description -->
+      <div class="description-box">
+        <div class="description-label">Purpose</div>
+        Science lab supplies for AP Chemistry - beakers, test tubes, and safety equipment for spring semester.
+      </div>
+
+      <!-- Items Table -->
+      <div class="items-section">
+        <div class="items-title">Items Requested</div>
+        <table class="items-table">
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th>Qty</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Pyrex Glass Beaker Set (6-Pack)</td>
+              <td>2</td>
+              <td>$91.98</td>
+            </tr>
+            <tr>
+              <td>Borosilicate Test Tubes (50-Pack)</td>
+              <td>1</td>
+              <td>$32.50</td>
+            </tr>
+            <tr>
+              <td>Safety Goggles Class Set (30)</td>
+              <td>1</td>
+              <td>$89.99</td>
+            </tr>
+            <tr>
+              <td>Lab Coat White Medium (5-Pack)</td>
+              <td>1</td>
+              <td>$72.98</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="items-total">Total: $287.45</div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      Budget Management System
+    </div>
+  </div>
+</body>
+</html>

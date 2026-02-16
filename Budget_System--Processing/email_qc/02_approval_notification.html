@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Approval Notification - Streamlined</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; background: #f0f0f0; line-height: 1.5; }
+    .wrapper { max-width: 560px; margin: 20px auto; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.1); }
+
+    .header {
+      background: linear-gradient(135deg, #1B5E20 0%, #2E7D32 100%);
+      padding: 16px 20px;
+      text-align: center;
+    }
+    .header-logo { max-width: 200px; filter: brightness(0) invert(1); }
+
+    .success-bar {
+      background: #E8F5E9;
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid #C8E6C9;
+    }
+    .success-bar .icon { font-size: 24px; }
+    .success-bar .text { font-size: 15px; color: #1B5E20; font-weight: 600; }
+
+    .content { padding: 20px; }
+
+    .order-summary {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 16px;
+      background: #f5f5f5;
+      border-radius: 6px;
+      margin-bottom: 16px;
+    }
+    .order-id { font-family: monospace; font-size: 14px; color: #555; }
+    .order-amount { font-size: 20px; font-weight: 700; color: #1B5E20; }
+
+    .status-message {
+      background: #FFF8E1;
+      border-left: 3px solid #FFA000;
+      padding: 12px 16px;
+      font-size: 14px;
+      color: #5D4037;
+      margin-bottom: 16px;
+      border-radius: 0 6px 6px 0;
+    }
+    .status-message strong { color: #E65100; }
+
+    /* Alternative status for BO processing */
+    .status-message.bo {
+      background: #E3F2FD;
+      border-left-color: #1976D2;
+      color: #1565C0;
+    }
+    .status-message.bo strong { color: #0D47A1; }
+
+    .budget-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 0;
+      font-size: 14px;
+      border-bottom: 1px solid #eee;
+    }
+    .budget-row:last-child { border-bottom: none; }
+    .budget-label { color: #666; }
+    .budget-value { font-weight: 600; color: #333; }
+    .budget-value.green { color: #1B5E20; }
+
+    .footer {
+      background: #1B5E20;
+      padding: 10px 20px;
+      text-align: center;
+      font-size: 11px;
+      color: rgba(255,255,255,0.7);
+    }
+
+    .qc-badge {
+      position: fixed; top: 10px; right: 10px;
+      background: #4CAF50; color: white;
+      padding: 6px 12px; border-radius: 16px;
+      font-size: 11px; font-weight: bold; z-index: 9999;
+    }
+  </style>
+</head>
+<body>
+  <div class="qc-badge">Approval Notification</div>
+
+  <div class="wrapper">
+    <div class="header">
+      <img src="kcs_logo_wide.png" alt="KCS" class="header-logo">
+    </div>
+
+    <div class="success-bar">
+      <span class="icon">✅</span>
+      <span class="text">Your Request Has Been Approved</span>
+    </div>
+
+    <div class="content">
+      <div class="order-summary">
+        <span class="order-id">US-AMZ-0209-01</span>
+        <span class="order-amount">$287.45</span>
+      </div>
+
+      <!-- For Amazon/Warehouse orders -->
+      <div class="status-message">
+        Queued for ordering on <strong>Wednesday, February 12</strong>
+      </div>
+
+      <!-- For Curriculum/Field Trip/Admin (uncomment to preview)
+      <div class="status-message bo">
+        Sent to <strong>Business Office</strong> for processing
+      </div>
+      -->
+
+      <div class="budget-row">
+        <span class="budget-label">Budget Remaining</span>
+        <span class="budget-value green">$1,462.55</span>
+      </div>
+      <div class="budget-row">
+        <span class="budget-label">Utilization</span>
+        <span class="budget-value">71%</span>
+      </div>
+    </div>
+
+    <div class="footer">
+      Keswick Christian School · Budget Management System
+    </div>
+  </div>
+</body>
+</html>

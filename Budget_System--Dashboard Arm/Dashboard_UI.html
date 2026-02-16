@@ -1,0 +1,2605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Keswick Budget Dashboard</title>
+    
+    <!-- Google Fonts removed - using system fonts (Lucida Bright, Palatino) -->
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+    
+    <style>
+        /* ============================================================================ */
+        /* CSS VARIABLES & RESET */
+        /* ============================================================================ */
+        
+        :root {
+            --primary-color: #13381f;
+            --primary-dark: #0f2817;
+            --primary-light: #4caf50;
+            --secondary-color: #ff9800;
+            --danger-color: #f44336;
+            --warning-color: #ff9800;
+            --success-color: #4caf50;
+            --info-color: #2196f3;
+            
+            --text-primary: #212121;
+            --text-secondary: #757575;
+            --text-light: #9e9e9e;
+            
+            --bg-primary: #ffffff;
+            --bg-secondary: #f5f5f5;
+            --bg-tertiary: #e0e0e0;
+            
+            --border-color: #e0e0e0;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.12);
+            --shadow-md: 0 4px 6px rgba(0,0,0,0.1);
+            --shadow-lg: 0 10px 20px rgba(0,0,0,0.15);
+            
+            --radius-sm: 4px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            
+            --transition-fast: 150ms ease;
+            --transition-normal: 300ms ease;
+        }
+
+        /* ============================================================================ */
+        /* HEADER TYPOGRAPHY - Lucida Bright Demi Style */
+        /* ============================================================================ */
+
+        h1, h2, h3, .page-title, .chart-title, .table-title,
+        .dashboard-title-text .main-word {
+            font-family: 'Lucida Bright', 'Lucida Serif', Georgia, serif;
+            font-weight: 600;
+            color: #13381f;
+        }
+
+        h1, .page-title { font-size: 24pt; }
+        h2, .chart-title, .table-title { font-size: 18pt; }
+        h3 { font-size: 14pt; }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
+            font-size: 10pt;
+            line-height: 1.6;
+            color: var(--text-primary);
+            background-color: var(--bg-secondary);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        
+        /* ============================================================================ */
+        /* DEBUG CONSOLE STYLES */
+        /* ============================================================================ */
+        
+        .debug-console {
+            position: fixed;
+            right: 20px;
+            top: 20px;
+            width: 600px;
+            max-width: 90vw;
+            height: 500px;
+            max-height: 80vh;
+            background: #1a1a1a;
+            color: #f0f0f0;
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 12px;
+        }
+        
+        .debug-console.hidden {
+            display: none;
+        }
+        
+        .debug-header {
+            background: #2a2a2a;
+            padding: 12px 16px;
+            border-radius: 8px 8px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #3a3a3a;
+        }
+        
+        .debug-title {
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .debug-stats {
+            font-size: 11px;
+            color: #888;
+            font-weight: normal;
+            margin-left: 16px;
+        }
+        
+        .debug-controls {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        
+        .debug-filter {
+            background: #1a1a1a;
+            color: #f0f0f0;
+            border: 1px solid #3a3a3a;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+        }
+        
+        .debug-btn {
+            background: #3a3a3a;
+            color: #f0f0f0;
+            border: none;
+            padding: 6px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            transition: background 0.2s;
+        }
+        
+        .debug-btn:hover {
+            background: #4a4a4a;
+        }
+        
+        .debug-btn.primary {
+            background: #1b5e20;
+            color: white;
+        }
+        
+        .debug-btn.primary:hover {
+            background: #2e7d32;
+        }
+        
+        .debug-body {
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .debug-logs {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+            background: #0a0a0a;
+        }
+        
+        .debug-log-entry {
+            margin-bottom: 8px;
+            padding: 8px;
+            border-radius: 4px;
+            background: #1a1a1a;
+            border-left: 3px solid #3a3a3a;
+            transition: all 0.2s;
+        }
+        
+        .debug-log-entry:hover {
+            background: #2a2a2a;
+        }
+        
+        .debug-log-entry.debug {
+            border-left-color: #64b5f6;
+        }
+        
+        .debug-log-entry.info {
+            border-left-color: #81c784;
+        }
+        
+        .debug-log-entry.warn {
+            border-left-color: #ffb74d;
+        }
+        
+        .debug-log-entry.error {
+            border-left-color: #e57373;
+            background: #2a1a1a;
+        }
+        
+        .debug-log-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 4px;
+        }
+        
+        .debug-log-level {
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            background: #2a2a2a;
+        }
+        
+        .debug-log-level.debug { color: #64b5f6; }
+        .debug-log-level.info { color: #81c784; }
+        .debug-log-level.warn { color: #ffb74d; }
+        .debug-log-level.error { color: #e57373; }
+        
+        .debug-log-meta {
+            color: #666;
+            font-size: 10px;
+        }
+        
+        .debug-log-message {
+            color: #f0f0f0;
+            margin-bottom: 4px;
+        }
+        
+        .debug-log-data {
+            background: #0a0a0a;
+            padding: 6px;
+            border-radius: 3px;
+            font-size: 11px;
+            color: #888;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        
+        .debug-footer {
+            padding: 12px 16px;
+            border-top: 1px solid #3a3a3a;
+            background: #2a2a2a;
+        }
+        
+        .debug-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        /* Debug Toggle Button */
+        .debug-toggle {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: #1b5e20;
+            color: white;
+            border: none;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            cursor: pointer;
+            z-index: 9999;
+            transition: all 0.3s;
+            font-size: 20px;
+        }
+        
+        .debug-toggle:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+        }
+        
+        .debug-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #f44336;
+            color: white;
+            font-size: 10px;
+            font-weight: bold;
+            padding: 2px 6px;
+            border-radius: 10px;
+            min-width: 20px;
+            text-align: center;
+        }
+        
+        .debug-badge.hidden {
+            display: none;
+        }
+        
+        /* ============================================================================ */
+        /* LAYOUT COMPONENTS */
+        /* ============================================================================ */
+        
+        .dashboard-container {
+            display: flex;
+            min-height: 100vh;
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            width: 260px;
+            background: var(--bg-primary);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            transition: margin-left var(--transition-normal);
+        }
+        
+        .sidebar.collapsed {
+            margin-left: -260px;
+        }
+        
+        .sidebar-header {
+            padding: 24px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            color: var(--text-primary);
+        }
+        
+        .logo img {
+            height: 40px;
+            width: auto;
+        }
+        
+        .logo-text {
+            font-size: 18px;
+            font-weight: 600;
+            line-height: 1.2;
+        }
+        
+        .nav-menu {
+            flex: 1;
+            padding: 16px 0;
+            overflow-y: auto;
+        }
+        
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 24px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: all var(--transition-fast);
+            cursor: pointer;
+            border: none;
+            background: none;
+            width: 100%;
+            text-align: left;
+            font-size: 14px;
+        }
+        
+        .nav-item:hover {
+            color: var(--primary-color);
+            background-color: rgba(19, 56, 31, 0.05);
+        }
+        
+        .nav-item.active {
+            color: var(--primary-color);
+            background-color: rgba(19, 56, 31, 0.1);
+            font-weight: 500;
+            position: relative;
+        }
+        
+        .nav-item.active::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background-color: var(--primary-color);
+        }
+        
+        .nav-icon {
+            width: 20px;
+            text-align: center;
+        }
+        
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+        
+        /* ============================================================================ */
+        /* HEADER - Institutional Design */
+        /* ============================================================================ */
+
+        .header {
+            background: var(--bg-primary);
+            border-bottom: 2px solid var(--primary-color);
+            padding: 24px 32px 16px;
+        }
+
+        /* Institutional header - 3-column grid like PO */
+        .header-institutional {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            align-items: center;
+            column-gap: 40px;
+            margin-bottom: 16px;
+        }
+
+        .school-name-img {
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+        }
+
+        .shield-crest {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .dashboard-title {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+        }
+
+        .dashboard-title-text .main-word {
+            font-family: 'Lucida Bright', 'Lucida Serif', Georgia, serif;
+            font-size: 32pt;
+            font-weight: 600;
+            color: #13381f;
+            line-height: 1.1;
+            letter-spacing: 0.8px;
+        }
+
+        /* Actions row below institutional header */
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .header-spacer {
+            flex: 1;
+        }
+
+        .page-subtitle {
+            font-size: 16pt;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .menu-toggle {
+            display: none;
+            background: none;
+            border: none;
+            font-size: 20px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 8px;
+            border-radius: var(--radius-sm);
+            transition: all var(--transition-fast);
+        }
+
+        .menu-toggle:hover {
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+
+        .header-button {
+            background: none;
+            border: 1px solid var(--border-color);
+            padding: 8px 16px;
+            border-radius: var(--radius-md);
+            font-size: 14px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .header-button:hover {
+            border-color: var(--primary-color);
+            color: var(--primary-color);
+            background-color: rgba(19, 56, 31, 0.05);
+        }
+
+        .user-menu {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 16px;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            transition: background-color var(--transition-fast);
+        }
+
+        .user-menu:hover {
+            background-color: var(--bg-secondary);
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background-color: var(--primary-color);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .user-info {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .user-name {
+            font-weight: 500;
+            color: var(--text-primary);
+            font-size: 14px;
+        }
+
+        .user-role {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        
+        /* Content Area */
+        .content {
+            flex: 1;
+            padding: 32px;
+            overflow-y: auto;
+        }
+        
+        /* ============================================================================ */
+        /* LOADING STATES */
+        /* ============================================================================ */
+        
+        .loading-container {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(255, 255, 255, 0.95);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            backdrop-filter: blur(4px);
+        }
+        
+        .loading-content {
+            text-align: center;
+            max-width: 400px;
+        }
+        
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid var(--bg-tertiary);
+            border-top-color: var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 24px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .loading-text {
+            font-size: 18px;
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+        
+        .loading-subtext {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+        }
+        
+        .loading-progress {
+            width: 100%;
+            height: 4px;
+            background-color: var(--bg-tertiary);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-bottom: 12px;
+        }
+        
+        .loading-progress-bar {
+            height: 100%;
+            background-color: var(--primary-color);
+            width: 0%;
+            transition: width 300ms ease;
+            animation: progress 2s ease-in-out infinite;
+        }
+        
+        @keyframes progress {
+            0% { width: 0%; }
+            50% { width: 70%; }
+            100% { width: 100%; }
+        }
+        
+        .loading-error {
+            background-color: #ffebee;
+            border: 1px solid #ffcdd2;
+            border-radius: var(--radius-md);
+            padding: 16px;
+            margin-top: 24px;
+        }
+        
+        .loading-error-title {
+            color: #c62828;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+        
+        .loading-error-message {
+            color: #d32f2f;
+            font-size: 14px;
+            margin-bottom: 16px;
+        }
+        
+        .loading-error-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+        
+        .error-button {
+            padding: 8px 16px;
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            border: none;
+        }
+        
+        .error-button.primary {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        .error-button.primary:hover {
+            background-color: var(--primary-dark);
+        }
+        
+        .error-button.secondary {
+            background-color: transparent;
+            color: var(--primary-color);
+            border: 1px solid var(--primary-color);
+        }
+        
+        .error-button.secondary:hover {
+            background-color: rgba(19, 56, 31, 0.05);
+        }
+        
+        /* Error Alert */
+        .error-alert {
+            background-color: #ffebee;
+            border: 1px solid #ffcdd2;
+            border-radius: var(--radius-md);
+            padding: 16px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: start;
+            gap: 12px;
+        }
+        
+        .error-icon {
+            color: #f44336;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+        
+        .error-content {
+            flex: 1;
+        }
+        
+        .error-title {
+            font-weight: 500;
+            color: #c62828;
+            margin-bottom: 4px;
+        }
+        
+        .error-message {
+            color: #d32f2f;
+            font-size: 14px;
+        }
+        
+        /* ============================================================================ */
+        /* CARDS & WIDGETS */
+        /* ============================================================================ */
+        
+        .widget-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+        
+        .widget-card {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            transition: all var(--transition-normal);
+        }
+        
+        .widget-card:hover {
+            box-shadow: var(--shadow-md);
+            transform: translateY(-2px);
+        }
+        
+        .widget-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+        
+        .widget-title {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .widget-icon {
+            font-size: 20px;
+            color: var(--text-light);
+        }
+        
+        .widget-value {
+            font-size: 32px;
+            font-weight: 600;
+            color: var(--text-primary);
+            line-height: 1.2;
+            margin-bottom: 8px;
+        }
+        
+        .widget-subtitle {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+        
+        .widget-trend {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 12px;
+            font-weight: 500;
+            padding: 4px 8px;
+            border-radius: var(--radius-sm);
+            margin-top: 12px;
+        }
+        
+        .widget-trend.up {
+            color: var(--success-color);
+            background-color: rgba(76, 175, 80, 0.1);
+        }
+        
+        .widget-trend.down {
+            color: var(--danger-color);
+            background-color: rgba(244, 67, 54, 0.1);
+        }
+        
+        /* Charts */
+        .chart-container {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+        
+        .chart-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+        }
+        
+        .chart-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        
+        .chart-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .chart-canvas {
+            max-height: 400px;
+        }
+        
+        /* Tables */
+        .table-container {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            margin-bottom: 24px;
+        }
+        
+        .table-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .table-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        
+        .table-wrapper {
+            overflow-x: auto;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th {
+            text-align: left;
+            padding: 12px 24px;
+            font-weight: 500;
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            background-color: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            white-space: nowrap;
+        }
+        
+        td {
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+        
+        tr:last-child td {
+            border-bottom: none;
+        }
+        
+        tr:hover {
+            background-color: rgba(0, 0, 0, 0.02);
+        }
+        
+        /* Status Badges */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+            text-transform: capitalize;
+        }
+        
+        .status-badge.approved {
+            background-color: rgba(76, 175, 80, 0.1);
+            color: var(--success-color);
+        }
+        
+        .status-badge.pending {
+            background-color: rgba(255, 152, 0, 0.1);
+            color: var(--warning-color);
+        }
+        
+        .status-badge.rejected {
+            background-color: rgba(244, 67, 54, 0.1);
+            color: var(--danger-color);
+        }
+        
+        /* Tabs */
+        .tabs-container {
+            margin-bottom: 32px;
+        }
+        
+        .tabs-header {
+            display: flex;
+            border-bottom: 2px solid var(--border-color);
+            margin-bottom: 24px;
+        }
+        
+        .tab-button {
+            padding: 12px 24px;
+            background: none;
+            border: none;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            cursor: pointer;
+            position: relative;
+            transition: all var(--transition-fast);
+        }
+        
+        .tab-button:hover {
+            color: var(--text-primary);
+        }
+        
+        .tab-button.active {
+            color: var(--primary-color);
+        }
+        
+        .tab-button.active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background-color: var(--primary-color);
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+            animation: fadeIn var(--transition-normal);
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .menu-toggle {
+                display: block;
+            }
+
+            /* Institutional header responsive - stack vertically */
+            .header-institutional {
+                grid-template-columns: 1fr;
+                row-gap: 16px;
+            }
+
+            .school-name-img,
+            .shield-crest,
+            .dashboard-title {
+                justify-content: center;
+            }
+
+            .dashboard-title-text .main-word {
+                text-align: center;
+            }
+
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                height: 100vh;
+                z-index: 1000;
+                box-shadow: var(--shadow-lg);
+            }
+
+            .sidebar.collapsed {
+                margin-left: -260px;
+            }
+
+            .content {
+                padding: 24px;
+            }
+
+            .debug-console {
+                right: 10px;
+                top: 10px;
+                width: calc(100vw - 20px);
+                height: calc(100vh - 100px);
+            }
+        }
+
+        @media (max-width: 768px) {
+            /* Smaller header images on mobile */
+            .dashboard-title-text .main-word {
+                font-size: 24pt;
+            }
+
+            .school-name-img img {
+                height: 60px;
+            }
+
+            .shield-crest img {
+                height: 75px;
+            }
+
+            .widget-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header {
+                padding: 16px;
+            }
+            
+            .content {
+                padding: 16px;
+            }
+            
+            .page-title {
+                font-size: 20px;
+            }
+        }
+        
+        /* ============================================================================ */
+        /* UTILITY CLASSES */
+        /* ============================================================================ */
+        
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+        .text-muted { color: var(--text-secondary); }
+        .text-danger { color: var(--danger-color); }
+        .text-success { color: var(--success-color); }
+        .text-warning { color: var(--warning-color); }
+        
+        .mt-1 { margin-top: 8px; }
+        .mt-2 { margin-top: 16px; }
+        .mt-3 { margin-top: 24px; }
+        .mt-4 { margin-top: 32px; }
+        
+        .mb-1 { margin-bottom: 8px; }
+        .mb-2 { margin-bottom: 16px; }
+        .mb-3 { margin-bottom: 24px; }
+        .mb-4 { margin-bottom: 32px; }
+        
+        .hidden { display: none !important; }
+        
+        /* ============================================================================ */
+        /* DEMO MODE BANNER */
+        /* ============================================================================ */
+        
+        .demo-banner {
+            background-color: #fff3e0;
+            border: 1px solid #ffe0b2;
+            padding: 12px 24px;
+            text-align: center;
+            font-size: 14px;
+            color: #e65100;
+        }
+        
+        .demo-banner strong {
+            font-weight: 600;
+        }
+        
+    </style>
+</head>
+<body>
+    <!-- Loading State -->
+    <div id="loadingContainer" class="loading-container">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Loading Keswick Budget Dashboard</div>
+            <div class="loading-subtext">Authenticating and fetching your data...</div>
+            <div class="loading-progress">
+                <div class="loading-progress-bar"></div>
+            </div>
+            <div id="loadingStatus" class="text-muted" style="font-size: 12px; margin-top: 8px;">
+                Initializing...
+            </div>
+            <div id="loadingError" class="loading-error hidden">
+                <div class="loading-error-title">Connection Issue</div>
+                <div class="loading-error-message">
+                    Unable to connect to the dashboard. This might be a temporary issue.
+                </div>
+                <div class="loading-error-actions">
+                    <button class="error-button primary" onclick="retryConnection()">
+                        <i class="fas fa-redo"></i> Retry
+                    </button>
+                    <button class="error-button secondary" onclick="loadDemoMode()">
+                        <i class="fas fa-play"></i> Demo Mode
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Main Dashboard -->
+    <div id="dashboardContainer" class="dashboard-container hidden">
+        <!-- Sidebar -->
+        <aside id="sidebar" class="sidebar">
+            <div class="sidebar-header">
+                <a href="#" class="logo">
+                    <img id="schoolLogo" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' fill='%231b5e20' rx='8'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.35em' fill='white' font-family='Arial' font-size='20' font-weight='bold'%3EK%3C/text%3E%3C/svg%3E" alt="Keswick">
+                    <div class="logo-text">
+                        Keswick<br>
+                        <span style="font-size: 12px; font-weight: 400;">Budget Dashboard</span>
+                    </div>
+                </a>
+            </div>
+            <nav class="nav-menu">
+                <button class="nav-item active" data-tab="overview">
+                    <i class="fas fa-chart-line nav-icon"></i>
+                    <span>Overview</span>
+                </button>
+                <button class="nav-item" data-tab="transactions">
+                    <i class="fas fa-receipt nav-icon"></i>
+                    <span>Transactions</span>
+                </button>
+                <button class="nav-item" data-tab="tac">
+                    <i class="fas fa-calculator nav-icon"></i>
+                    <span>TAC Calculator</span>
+                </button>
+                <button class="nav-item" data-tab="reports">
+                    <i class="fas fa-file-alt nav-icon"></i>
+                    <span>Reports</span>
+                </button>
+                <button class="nav-item" data-tab="analytics">
+                    <i class="fas fa-chart-pie nav-icon"></i>
+                    <span>Analytics</span>
+                </button>
+            </nav>
+        </aside>
+        
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="header">
+                <!-- Three-element institutional header -->
+                <div class="header-institutional">
+                    <!-- Left: School name IMAGE -->
+                    <div class="school-name-img">
+                        <img id="schoolNameLogo"
+                             src=""
+                             alt="Keswick Christian School"
+                             style="height: 81px; width: auto;" />
+                    </div>
+
+                    <!-- Center: Crest IMAGE -->
+                    <div class="shield-crest">
+                        <img id="schoolCrest"
+                             src=""
+                             alt="KCS Crest"
+                             style="height: 102px; width: auto;" />
+                    </div>
+
+                    <!-- Right: "Dashboard" TEXT -->
+                    <div class="dashboard-title">
+                        <div class="dashboard-title-text">
+                            <div class="main-word">Dashboard</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Secondary row: menu toggle + page title + actions + user -->
+                <div class="header-actions">
+                    <button id="menuToggle" class="menu-toggle">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <h1 id="pageTitle" class="page-subtitle">Dashboard Overview</h1>
+                    <div class="header-spacer"></div>
+                    <button class="header-button" onclick="refreshDashboard()">
+                        <i class="fas fa-sync-alt"></i>
+                        <span>Refresh</span>
+                    </button>
+                    <button class="header-button" onclick="exportDashboard()">
+                        <i class="fas fa-download"></i>
+                        <span>Export</span>
+                    </button>
+                    <div class="user-menu" id="userMenu">
+                        <div class="user-avatar" id="userAvatar">
+                            <span id="userInitials">JD</span>
+                        </div>
+                        <div class="user-info">
+                            <div id="userName" class="user-name">John Doe</div>
+                            <div id="userRole" class="user-role">Executive</div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+            
+            <!-- Demo Mode Banner -->
+            <div id="demoBanner" class="demo-banner hidden">
+                <i class="fas fa-info-circle"></i>
+                <strong>Demo Mode:</strong> You're viewing sample data. Some features may be limited.
+            </div>
+            
+            <!-- Content Area -->
+            <div class="content">
+                <!-- Error Alert -->
+                <div id="errorAlert" class="error-alert hidden">
+                    <i class="fas fa-exclamation-triangle error-icon"></i>
+                    <div class="error-content">
+                        <div class="error-title">Unable to load some data</div>
+                        <div class="error-message">
+                            Some dashboard components couldn't be loaded. You can continue working with cached data.
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Tab Contents -->
+                <div id="overviewTab" class="tab-content active">
+                    <!-- KPI Widgets -->
+                    <div id="kpiGrid" class="widget-grid">
+                        <!-- KPIs will be inserted here -->
+                    </div>
+                    
+                    <!-- Charts -->
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <h2 class="chart-title">Budget Overview by Division</h2>
+                            <div class="chart-actions">
+                                <button class="header-button" onclick="toggleChartType()">
+                                    <i class="fas fa-chart-bar"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <canvas id="divisionChart" class="chart-canvas"></canvas>
+                    </div>
+                    
+                    <!-- Division Summary Table -->
+                    <div class="table-container">
+                        <div class="table-header">
+                            <h2 class="table-title">Division Summary</h2>
+                        </div>
+                        <div class="table-wrapper">
+                            <table id="divisionTable">
+                                <thead>
+                                    <tr>
+                                        <th>Division</th>
+                                        <th>Allocated</th>
+                                        <th>Spent</th>
+                                        <th>Encumbered</th>
+                                        <th>Available</th>
+                                        <th>Utilization</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Data will be inserted here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="transactionsTab" class="tab-content">
+                    <!-- Transactions content -->
+                    <div class="table-container">
+                        <div class="table-header">
+                            <h2 class="table-title">Recent Transactions</h2>
+                        </div>
+                        <div class="table-wrapper">
+                            <table id="transactionsTable">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>ID</th>
+                                        <th>Division</th>
+                                        <th>Department</th>
+                                        <th>Vendor</th>
+                                        <th>Description</th>
+                                        <th>Amount</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Data will be inserted here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="tacTab" class="tab-content">
+                    <!-- TAC Calculator content -->
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <h2 class="chart-title">TAC Calculator</h2>
+                        </div>
+                        <div style="padding: 40px; text-align: center; color: var(--text-secondary);">
+                            <i class="fas fa-calculator" style="font-size: 48px; margin-bottom: 16px;"></i>
+                            <p>TAC Calculator coming soon...</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="reportsTab" class="tab-content">
+                    <!-- Reports content -->
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <h2 class="chart-title">Reports</h2>
+                        </div>
+                        <div style="padding: 40px; text-align: center; color: var(--text-secondary);">
+                            <i class="fas fa-file-alt" style="font-size: 48px; margin-bottom: 16px;"></i>
+                            <p>Report generation coming soon...</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="analyticsTab" class="tab-content">
+                    <!-- Analytics content -->
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <h2 class="chart-title">Analytics</h2>
+                        </div>
+                        <div style="padding: 40px; text-align: center; color: var(--text-secondary);">
+                            <i class="fas fa-chart-pie" style="font-size: 48px; margin-bottom: 16px;"></i>
+                            <p>Advanced analytics coming soon...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <!-- Debug Console will be injected here by JavaScript -->
+
+    <script>
+        // ============================================================================
+        // DEBUG SYSTEM
+        // ============================================================================
+        
+        class DashboardDebugger {
+            constructor() {
+                this.logs = [];
+                this.startTime = Date.now();
+                this.isOpen = false;
+                this.filters = { level: 'all', category: 'all' };
+                this.enabled = true; // Set to false in production
+                
+                if (this.enabled) {
+                    this.initializeDebugConsole();
+                    this.interceptErrors();
+                    this.interceptNetworkCalls();
+                }
+            }
+            
+            log(message, data = null, category = 'general') {
+                this.addLog('info', message, data, category);
+            }
+            
+            debug(message, data = null, category = 'general') {
+                this.addLog('debug', message, data, category);
+            }
+            
+            warn(message, data = null, category = 'general') {
+                this.addLog('warn', message, data, category);
+            }
+            
+            error(message, data = null, category = 'general') {
+                this.addLog('error', message, data, category);
+                if (!this.isOpen) this.toggle();
+            }
+            
+            addLog(level, message, data, category) {
+                const logEntry = {
+                    id: Date.now() + Math.random(),
+                    timestamp: new Date().toISOString(),
+                    elapsed: Date.now() - this.startTime,
+                    level: level,
+                    category: category,
+                    message: message,
+                    data: data
+                };
+                
+                this.logs.push(logEntry);
+                if (this.logs.length > 500) this.logs.shift();
+                
+                if (this.isOpen) {
+                    this.addLogToConsole(logEntry);
+                }
+                
+                // Also log to browser console
+                console[level === 'error' ? 'error' : level === 'warn' ? 'warn' : 'log'](
+                    `[${category}] ${message}`, data
+                );
+                
+                this.updateBadge();
+            }
+            
+            initializeDebugConsole() {
+                const debugHtml = `
+                    <div id="debugConsole" class="debug-console hidden">
+                        <div class="debug-header">
+                            <div class="debug-title">
+                                <i class="fas fa-bug"></i>
+                                Debug Console
+                                <span class="debug-stats">
+                                    <span id="debugLogCount">0</span> logs | 
+                                    <span id="debugElapsed">0s</span>
+                                </span>
+                            </div>
+                            <div class="debug-controls">
+                                <select id="debugLevelFilter" class="debug-filter">
+                                    <option value="all">All Levels</option>
+                                    <option value="debug">Debug</option>
+                                    <option value="info">Info</option>
+                                    <option value="warn">Warnings</option>
+                                    <option value="error">Errors</option>
+                                </select>
+                                <select id="debugCategoryFilter" class="debug-filter">
+                                    <option value="all">All Categories</option>
+                                    <option value="auth">Authentication</option>
+                                    <option value="data">Data Loading</option>
+                                    <option value="render">Rendering</option>
+                                    <option value="network">Network</option>
+                                    <option value="general">General</option>
+                                </select>
+                                <button id="debugClear" class="debug-btn">
+                                    <i class="fas fa-trash"></i> Clear
+                                </button>
+                                <button id="debugExport" class="debug-btn">
+                                    <i class="fas fa-download"></i> Export
+                                </button>
+                                <button id="debugClose" class="debug-btn">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="debug-body">
+                            <div id="debugLogs" class="debug-logs"></div>
+                        </div>
+                        <div class="debug-footer">
+                            <div class="debug-actions">
+                                <button onclick="window.dashDebugger.runDiagnostics()" class="debug-btn primary">
+                                    <i class="fas fa-stethoscope"></i> Run Diagnostics
+                                </button>
+                                <button onclick="window.dashDebugger.testConnections()" class="debug-btn">
+                                    <i class="fas fa-network-wired"></i> Test Connections
+                                </button>
+                                <button onclick="window.dashDebugger.clearCache()" class="debug-btn">
+                                    <i class="fas fa-broom"></i> Clear Cache
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button id="debugToggle" class="debug-toggle">
+                        <i class="fas fa-bug"></i>
+                        <span class="debug-badge hidden">0</span>
+                    </button>
+                `;
+                
+                document.body.insertAdjacentHTML('beforeend', debugHtml);
+                this.setupEventListeners();
+                this.startUpdateTimer();
+            }
+            
+            setupEventListeners() {
+                document.getElementById('debugToggle').addEventListener('click', () => this.toggle());
+                document.getElementById('debugClose').addEventListener('click', () => this.toggle());
+                document.getElementById('debugClear').addEventListener('click', () => this.clearLogs());
+                document.getElementById('debugExport').addEventListener('click', () => this.exportLogs());
+                
+                document.getElementById('debugLevelFilter').addEventListener('change', (e) => {
+                    this.filters.level = e.target.value;
+                    this.refreshLogs();
+                });
+                
+                document.getElementById('debugCategoryFilter').addEventListener('change', (e) => {
+                    this.filters.category = e.target.value;
+                    this.refreshLogs();
+                });
+            }
+            
+            toggle() {
+                this.isOpen = !this.isOpen;
+                document.getElementById('debugConsole').classList.toggle('hidden');
+                if (this.isOpen) this.refreshLogs();
+            }
+            
+            addLogToConsole(logEntry) {
+                const logsContainer = document.getElementById('debugLogs');
+                
+                if (this.filters.level !== 'all' && logEntry.level !== this.filters.level) return;
+                if (this.filters.category !== 'all' && logEntry.category !== this.filters.category) return;
+                
+                const logElement = document.createElement('div');
+                logElement.className = `debug-log-entry ${logEntry.level}`;
+                
+                const timestamp = new Date(logEntry.timestamp).toLocaleTimeString();
+                const elapsed = (logEntry.elapsed / 1000).toFixed(2);
+                
+                logElement.innerHTML = `
+                    <div class="debug-log-header">
+                        <div>
+                            <span class="debug-log-level ${logEntry.level}">${logEntry.level}</span>
+                            <span class="debug-log-meta">[${logEntry.category}]</span>
+                        </div>
+                        <span class="debug-log-meta">${timestamp} (+${elapsed}s)</span>
+                    </div>
+                    <div class="debug-log-message">${logEntry.message}</div>
+                    ${logEntry.data ? `<div class="debug-log-data">${JSON.stringify(logEntry.data, null, 2)}</div>` : ''}
+                `;
+                
+                logsContainer.appendChild(logElement);
+                logsContainer.scrollTop = logsContainer.scrollHeight;
+            }
+            
+            refreshLogs() {
+                const logsContainer = document.getElementById('debugLogs');
+                logsContainer.innerHTML = '';
+                this.logs.forEach(log => this.addLogToConsole(log));
+            }
+            
+            clearLogs() {
+                this.logs = [];
+                document.getElementById('debugLogs').innerHTML = '';
+                this.updateBadge();
+            }
+            
+            exportLogs() {
+                const exportData = {
+                    timestamp: new Date().toISOString(),
+                    userAgent: navigator.userAgent,
+                    logs: this.logs,
+                    diagnostics: this.getSystemDiagnostics()
+                };
+                
+                const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `dashboard-debug-${Date.now()}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                this.log('Debug logs exported', null, 'system');
+            }
+            
+            updateBadge() {
+                const errorCount = this.logs.filter(log => log.level === 'error').length;
+                const badge = document.querySelector('.debug-badge');
+                
+                if (errorCount > 0) {
+                    badge.textContent = errorCount;
+                    badge.classList.remove('hidden');
+                } else {
+                    badge.classList.add('hidden');
+                }
+            }
+            
+            startUpdateTimer() {
+                setInterval(() => {
+                    if (this.isOpen) {
+                        document.getElementById('debugLogCount').textContent = this.logs.length;
+                        document.getElementById('debugElapsed').textContent = 
+                            Math.floor((Date.now() - this.startTime) / 1000) + 's';
+                    }
+                }, 1000);
+            }
+            
+            interceptErrors() {
+                window.addEventListener('error', (event) => {
+                    this.error('JavaScript Error', {
+                        message: event.message,
+                        source: event.filename,
+                        line: event.lineno,
+                        column: event.colno,
+                        error: event.error?.stack
+                    }, 'error');
+                });
+                
+                window.addEventListener('unhandledrejection', (event) => {
+                    this.error('Unhandled Promise Rejection', {
+                        reason: event.reason,
+                        promise: event.promise
+                    }, 'error');
+                });
+            }
+            
+            interceptNetworkCalls() {
+                if (typeof google !== 'undefined' && google.script && google.script.run) {
+                    const originalRun = google.script.run;
+                    const debuggerInstance = this;
+                    
+                    // Create proxy for google.script.run
+                    const methods = ['withSuccessHandler', 'withFailureHandler'];
+                    methods.forEach(method => {
+                        const original = originalRun[method];
+                        originalRun[method] = function(handler) {
+                            const wrappedHandler = function(...args) {
+                                debuggerInstance.log(`${method} called`, args, 'network');
+                                return handler(...args);
+                            };
+                            return original.call(this, wrappedHandler);
+                        };
+                    });
+                }
+            }
+            
+            async runDiagnostics() {
+                this.log('Starting system diagnostics...', null, 'system');
+                
+                const diagnostics = {
+                    browser: this.getBrowserInfo(),
+                    performance: this.getPerformanceMetrics(),
+                    storage: this.getStorageInfo(),
+                    network: await this.getNetworkStatus(),
+                    dom: this.getDOMStats()
+                };
+                
+                this.log('Diagnostics complete', diagnostics, 'system');
+                alert('Diagnostics Complete! Check the debug console for details.');
+                
+                return diagnostics;
+            }
+            
+            getBrowserInfo() {
+                return {
+                    userAgent: navigator.userAgent,
+                    platform: navigator.platform,
+                    language: navigator.language,
+                    cookiesEnabled: navigator.cookieEnabled,
+                    onLine: navigator.onLine,
+                    screenResolution: `${screen.width}x${screen.height}`,
+                    windowSize: `${window.innerWidth}x${window.innerHeight}`,
+                    pixelRatio: window.devicePixelRatio
+                };
+            }
+            
+            getPerformanceMetrics() {
+                const navigation = performance.getEntriesByType('navigation')[0];
+                return {
+                    pageLoadTime: navigation?.loadEventEnd - navigation?.fetchStart,
+                    domContentLoaded: navigation?.domContentLoadedEventEnd - navigation?.domContentLoadedEventStart,
+                    resourceCount: performance.getEntriesByType('resource').length,
+                    memoryUsage: performance.memory ? {
+                        usedJSHeapSize: Math.round(performance.memory.usedJSHeapSize / 1048576) + ' MB',
+                        totalJSHeapSize: Math.round(performance.memory.totalJSHeapSize / 1048576) + ' MB',
+                        jsHeapSizeLimit: Math.round(performance.memory.jsHeapSizeLimit / 1048576) + ' MB'
+                    } : 'Not available'
+                };
+            }
+            
+            getStorageInfo() {
+                const getStorageSize = (storage) => {
+                    let size = 0;
+                    for (let key in storage) {
+                        size += storage[key].length + key.length;
+                    }
+                    return Math.round(size / 1024) + ' KB';
+                };
+                
+                return {
+                    localStorage: {
+                        size: getStorageSize(localStorage),
+                        keys: Object.keys(localStorage).length
+                    },
+                    sessionStorage: {
+                        size: getStorageSize(sessionStorage),
+                        keys: Object.keys(sessionStorage).length
+                    }
+                };
+            }
+            
+            async getNetworkStatus() {
+                try {
+                    const startTime = Date.now();
+                    
+                    return new Promise((resolve) => {
+                        const timeout = setTimeout(() => {
+                            resolve({
+                                status: 'timeout',
+                                responseTime: Date.now() - startTime,
+                                message: 'Network request timed out'
+                            });
+                        }, 5000);
+                        
+                        if (typeof google !== 'undefined' && google.script && google.script.run) {
+                            google.script.run
+                                .withSuccessHandler(() => {
+                                    clearTimeout(timeout);
+                                    resolve({
+                                        status: 'connected',
+                                        responseTime: Date.now() - startTime,
+                                        message: 'Successfully connected to server'
+                                    });
+                                })
+                                .withFailureHandler((error) => {
+                                    clearTimeout(timeout);
+                                    resolve({
+                                        status: 'error',
+                                        responseTime: Date.now() - startTime,
+                                        message: error.message,
+                                        error: error
+                                    });
+                                })
+                                .getWebAppUrl();
+                        } else {
+                            clearTimeout(timeout);
+                            resolve({
+                                status: 'unavailable',
+                                message: 'Google Script API not available'
+                            });
+                        }
+                    });
+                } catch (error) {
+                    return {
+                        status: 'error',
+                        message: 'Failed to test network connection',
+                        error: error.message
+                    };
+                }
+            }
+            
+            getDOMStats() {
+                return {
+                    totalElements: document.getElementsByTagName('*').length,
+                    scripts: document.scripts.length,
+                    stylesheets: document.styleSheets.length,
+                    images: document.images.length,
+                    forms: document.forms.length
+                };
+            }
+            
+            getSystemDiagnostics() {
+                return {
+                    browser: this.getBrowserInfo(),
+                    performance: this.getPerformanceMetrics(),
+                    storage: this.getStorageInfo(),
+                    dom: this.getDOMStats()
+                };
+            }
+            
+            async testConnections() {
+                this.log('Testing server connections...', null, 'network');
+                
+                const tests = [
+                    { name: 'Web App URL', method: 'getWebAppUrl' },
+                    { name: 'Dashboard Data', method: 'getDashboardData' }
+                ];
+                
+                for (const test of tests) {
+                    try {
+                        const startTime = Date.now();
+                        await this.testServerMethod(test.method);
+                        const elapsed = Date.now() - startTime;
+                        
+                        this.log(`✅ ${test.name} - Success (${elapsed}ms)`, null, 'network');
+                    } catch (error) {
+                        this.error(`❌ ${test.name} - Failed`, error, 'network');
+                    }
+                }
+            }
+            
+            testServerMethod(methodName) {
+                return new Promise((resolve, reject) => {
+                    const timeout = setTimeout(() => {
+                        reject(new Error('Timeout after 10 seconds'));
+                    }, 10000);
+                    
+                    if (typeof google !== 'undefined' && google.script && google.script.run && google.script.run[methodName]) {
+                        google.script.run
+                            .withSuccessHandler((result) => {
+                                clearTimeout(timeout);
+                                resolve(result);
+                            })
+                            .withFailureHandler((error) => {
+                                clearTimeout(timeout);
+                                reject(error);
+                            })[methodName]();
+                    } else {
+                        clearTimeout(timeout);
+                        reject(new Error(`Method ${methodName} not available`));
+                    }
+                });
+            }
+            
+            clearCache() {
+                try {
+                    localStorage.clear();
+                    sessionStorage.clear();
+                    this.log('Cache cleared successfully', null, 'system');
+                    
+                    if (confirm('Cache cleared. Reload the page now?')) {
+                        window.location.reload();
+                    }
+                } catch (error) {
+                    this.error('Failed to clear cache', error, 'system');
+                }
+            }
+        }
+        
+        // ============================================================================
+        // GLOBAL VARIABLES
+        // ============================================================================
+        
+        let currentUser = null;
+        let dashboardData = null;
+        let currentTab = 'overview';
+        let isLoading = false;
+        let isDemoMode = false;
+        let charts = {};
+        let loadingTimeout = null;
+        let dashDebugger = null;
+        
+        // ============================================================================
+        // INITIALIZATION
+        // ============================================================================
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize debugger first
+            dashDebugger = new DashboardDebugger();
+            window.dashDebugger = dashDebugger; // Make available globally
+            
+            dashDebugger.log('🚀 Dashboard initialized', {
+                timestamp: new Date().toISOString(),
+                url: window.location.href
+            }, 'init');
+            
+            initializeEventListeners();
+            loadDashboard();
+        });
+        
+        function initializeEventListeners() {
+            dashDebugger.log('Setting up event listeners', null, 'init');
+            
+            // Menu toggle
+            document.getElementById('menuToggle').addEventListener('click', toggleSidebar);
+            
+            // Tab navigation
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.addEventListener('click', function() {
+                    switchTab(this.dataset.tab);
+                });
+            });
+        }
+        
+        // ============================================================================
+        // DASHBOARD LOADING - ENHANCED WITH DEBUGGING
+        // ============================================================================
+        
+        async function loadDashboard() {
+            dashDebugger.log('📊 Loading dashboard...', null, 'init');
+            updateLoadingStatus('Connecting to server...');
+            
+            try {
+                // Test Google Script availability
+                if (typeof google === 'undefined' || !google.script || !google.script.run) {
+                    dashDebugger.warn('⚠️ Google Script API not available - loading demo mode', null, 'init');
+                    loadDemoMode();
+                    return;
+                }
+                dashDebugger.log('✅ Google Script API available', null, 'init');
+                
+                // Set loading timeout - increased to 30 seconds
+                loadingTimeout = setTimeout(() => {
+                    dashDebugger.warn('⏱️ Loading timeout reached', { duration: 30000 }, 'network');
+                    handleLoadingTimeout();
+                }, 30000);
+                
+                updateLoadingStatus('Authenticating user...');
+                dashDebugger.log('Calling getDashboardData...', null, 'network');
+                
+                const startTime = Date.now();
+                
+                // Call the server function
+                google.script.run
+                    .withSuccessHandler((response) => {
+                        clearTimeout(loadingTimeout);
+                        const elapsed = Date.now() - startTime;
+                        
+                        dashDebugger.log('✅ Server response received', {
+                            elapsed: elapsed + 'ms',
+                            success: response?.success,
+                            hasUser: !!response?.user,
+                            hasData: !!response?.data,
+                            error: response?.error
+                        }, 'network');
+                        
+                        handleDashboardResponse(response);
+                    })
+                    .withFailureHandler((error) => {
+                        clearTimeout(loadingTimeout);
+                        const elapsed = Date.now() - startTime;
+                        
+                        dashDebugger.error('❌ Server call failed', {
+                            elapsed: elapsed + 'ms',
+                            error: error.message,
+                            stack: error.stack
+                        }, 'network');
+                        
+                        handleDashboardError(error);
+                    })
+                    .getDashboardData();
+                    
+            } catch (error) {
+                dashDebugger.error('❌ Dashboard initialization error', {
+                    message: error.message,
+                    stack: error.stack
+                }, 'init');
+                
+                handleDashboardError(error);
+            }
+        }
+        
+        function handleDashboardResponse(response) {
+            dashDebugger.log('Processing dashboard response', response, 'data');
+            
+            if (!response) {
+                handleDashboardError(new Error('Empty response from server'));
+                return;
+            }
+            
+            if (response.success) {
+                currentUser = response.user;
+                dashboardData = response.data;
+                
+                dashDebugger.log('Dashboard data loaded successfully', {
+                    user: currentUser?.email,
+                    role: currentUser?.role,
+                    dataKeys: dashboardData ? Object.keys(dashboardData) : []
+                }, 'data');
+                
+                // Update UI with user info
+                updateUserInterface();
+                
+                // Render dashboard
+                renderDashboard();
+                
+                // Hide loading, show dashboard
+                hideLoading();
+                showDashboard();
+                
+            } else if (response.fallbackData) {
+                // Use fallback data
+                dashDebugger.warn('⚠️ Using fallback data', response, 'data');
+                isDemoMode = true;
+                currentUser = response.fallbackData.user;
+                
+                // Load demo dashboard
+                loadDemoMode();
+                
+            } else {
+                handleDashboardError(new Error(response.error || 'Failed to load dashboard'));
+            }
+        }
+        
+        function handleDashboardError(error) {
+            clearTimeout(loadingTimeout);
+            dashDebugger.error('❌ Dashboard error', error, 'error');
+            
+            updateLoadingStatus('Connection failed');
+            document.getElementById('loadingError').classList.remove('hidden');
+            
+            // Show error in loading screen
+            const errorMessage = document.querySelector('.loading-error-message');
+            if (error.message) {
+                errorMessage.textContent = error.message;
+            }
+        }
+        
+        function handleLoadingTimeout() {
+            dashDebugger.warn('⏱️ Loading timeout - showing error options', null, 'network');
+            updateLoadingStatus('Taking longer than expected...');
+            document.getElementById('loadingError').classList.remove('hidden');
+        }
+        
+        function updateLoadingStatus(message) {
+            document.getElementById('loadingStatus').textContent = message;
+            dashDebugger.debug(`Loading status: ${message}`, null, 'ui');
+        }
+        
+        // ============================================================================
+        // RETRY AND DEMO MODE
+        // ============================================================================
+        
+        function retryConnection() {
+            dashDebugger.log('🔄 Retrying connection...', null, 'network');
+            document.getElementById('loadingError').classList.add('hidden');
+            updateLoadingStatus('Retrying connection...');
+            loadDashboard();
+        }
+        
+        function loadDemoMode() {
+            dashDebugger.log('🎭 Loading demo mode...', null, 'data');
+            isDemoMode = true;
+            
+            // Create demo user if not provided
+            if (!currentUser) {
+                currentUser = {
+                    email: 'demo@keswickchristian.org',
+                    firstName: 'Demo',
+                    lastName: 'User',
+                    role: 'executive'
+                };
+            }
+            
+            // Generate demo data
+            dashboardData = generateDemoData();
+            
+            dashDebugger.log('Demo data generated', {
+                kpis: dashboardData.kpis.length,
+                divisions: dashboardData.divisionSummary.length,
+                transactions: dashboardData.transactions.length
+            }, 'data');
+            
+            // Update UI
+            updateUserInterface();
+            renderDashboard();
+            
+            // Show demo banner
+            document.getElementById('demoBanner').classList.remove('hidden');
+            
+            // Hide loading, show dashboard
+            hideLoading();
+            showDashboard();
+        }
+        
+        // ============================================================================
+        // UI UPDATE FUNCTIONS
+        // ============================================================================
+        
+        function updateUserInterface() {
+            dashDebugger.debug('Updating user interface', currentUser, 'ui');
+
+            if (!currentUser) return;
+
+            // Update user info
+            const initials = (currentUser.firstName?.[0] || '') + (currentUser.lastName?.[0] || '');
+            document.getElementById('userInitials').textContent = initials || 'U';
+            document.getElementById('userName').textContent =
+                `${currentUser.firstName || 'User'} ${currentUser.lastName || ''}`.trim();
+            document.getElementById('userRole').textContent =
+                currentUser.role?.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'User';
+
+            // Load school logo and brand assets
+            loadSchoolLogo();
+            loadBrandAssets();
+        }
+
+        function loadSchoolLogo() {
+            if (typeof google === 'undefined' || !google.script || !google.script.run) {
+                dashDebugger.debug('Skipping logo load - no google.script', null, 'ui');
+                return;
+            }
+
+            google.script.run
+                .withSuccessHandler(function(response) {
+                    if (response && response.success && response.logo) {
+                        const logoImg = document.getElementById('schoolLogo');
+                        if (logoImg) {
+                            logoImg.src = response.logo;
+                            dashDebugger.debug('School logo loaded', { fileName: response.fileName }, 'ui');
+                        }
+                    } else {
+                        dashDebugger.debug('Logo not loaded - using placeholder', response, 'ui');
+                    }
+                })
+                .withFailureHandler(function(error) {
+                    dashDebugger.debug('Logo load failed - using placeholder', { error: error.message }, 'ui');
+                })
+                .getSchoolLogo();
+        }
+
+        /**
+         * Load brand assets (school-name.png and crest.png) into institutional header
+         */
+        function loadBrandAssets() {
+            dashDebugger.debug('Loading brand assets for institutional header...', null, 'ui');
+
+            // Check if google.script is available
+            if (typeof google === 'undefined' || !google.script || !google.script.run) {
+                dashDebugger.warn('google.script not available, loading from local _scratch folder', null, 'ui');
+                // Load actual PNG files from _scratch folder for local testing
+                const schoolNameLogo = document.getElementById('schoolNameLogo');
+                const schoolCrest = document.getElementById('schoolCrest');
+
+                if (schoolNameLogo) {
+                    schoolNameLogo.src = '../_scratch/school-name.png';
+                }
+                if (schoolCrest) {
+                    schoolCrest.src = '../_scratch/crest.png';
+                }
+                return;
+            }
+
+            // Load school name logo
+            google.script.run
+                .withSuccessHandler(function(response) {
+                    if (response && response.success && response.data) {
+                        const img = document.getElementById('schoolNameLogo');
+                        if (img) {
+                            img.src = 'data:image/png;base64,' + response.data;
+                            dashDebugger.info('School name logo loaded successfully', { fileName: response.fileName }, 'ui');
+                        }
+                    } else {
+                        dashDebugger.warn('School name logo load failed', response, 'ui');
+                    }
+                })
+                .withFailureHandler(function(error) {
+                    dashDebugger.error('School name logo error', { error: error.message }, 'ui');
+                })
+                .getBrandAsset('school-name.png');
+
+            // Load crest
+            google.script.run
+                .withSuccessHandler(function(response) {
+                    if (response && response.success && response.data) {
+                        const img = document.getElementById('schoolCrest');
+                        if (img) {
+                            img.src = 'data:image/png;base64,' + response.data;
+                            dashDebugger.info('School crest loaded successfully', { fileName: response.fileName }, 'ui');
+                        }
+                    } else {
+                        dashDebugger.warn('Crest load failed', response, 'ui');
+                    }
+                })
+                .withFailureHandler(function(error) {
+                    dashDebugger.error('Crest error', { error: error.message }, 'ui');
+                })
+                .getBrandAsset('crest.png');
+        }
+        
+        function hideLoading() {
+            document.getElementById('loadingContainer').classList.add('hidden');
+            dashDebugger.debug('Loading screen hidden', null, 'ui');
+        }
+        
+        function showDashboard() {
+            document.getElementById('dashboardContainer').classList.remove('hidden');
+            dashDebugger.debug('Dashboard displayed', null, 'ui');
+        }
+        
+        // ============================================================================
+        // DASHBOARD RENDERING
+        // ============================================================================
+        
+        function renderDashboard() {
+            dashDebugger.log('🎨 Rendering dashboard...', null, 'render');
+            
+            if (!dashboardData) {
+                dashDebugger.warn('No dashboard data to render', null, 'render');
+                showDataError();
+                return;
+            }
+            
+            try {
+                // Render KPIs
+                if (dashboardData.kpis) {
+                    renderKPIs(dashboardData.kpis);
+                }
+                
+                // Render division chart
+                if (dashboardData.divisionSummary) {
+                    renderDivisionChart(dashboardData.divisionSummary);
+                    renderDivisionTable(dashboardData.divisionSummary);
+                }
+                
+                // Render transactions
+                if (dashboardData.transactions) {
+                    renderTransactions(dashboardData.transactions);
+                }
+                
+                // Show any alerts
+                if (dashboardData.alerts && dashboardData.alerts.length > 0) {
+                    showAlerts(dashboardData.alerts);
+                }
+                
+                dashDebugger.log('✅ Dashboard rendered successfully', null, 'render');
+                
+            } catch (error) {
+                dashDebugger.error('Render error', error, 'render');
+                showDataError();
+            }
+        }
+        
+        function showDataError() {
+            document.getElementById('errorAlert').classList.remove('hidden');
+        }
+        
+        // ============================================================================
+        // KPI RENDERING
+        // ============================================================================
+        
+        function renderKPIs(kpis) {
+            dashDebugger.debug('Rendering KPIs', { count: kpis.length }, 'render');
+            
+            const grid = document.getElementById('kpiGrid');
+            grid.innerHTML = '';
+            
+            if (!kpis || kpis.length === 0) {
+                grid.innerHTML = '<p class="text-muted">No KPI data available</p>';
+                return;
+            }
+            
+            kpis.forEach(kpi => {
+                const card = createKPICard(kpi);
+                grid.appendChild(card);
+            });
+        }
+        
+        function createKPICard(kpi) {
+            const card = document.createElement('div');
+            card.className = 'widget-card';
+            
+            const value = formatKPIValue(kpi.value, kpi.format);
+            const trend = kpi.trend ? createTrendBadge(kpi.trend, kpi.trendValue) : '';
+            
+            card.innerHTML = `
+                <div class="widget-header">
+                    <h3 class="widget-title">${kpi.label}</h3>
+                    ${kpi.urgent ? '<i class="fas fa-exclamation-circle widget-icon text-warning"></i>' : ''}
+                </div>
+                <div class="widget-value">${value}</div>
+                <div class="widget-subtitle">${kpi.description || ''}</div>
+                ${trend}
+            `;
+            
+            return card;
+        }
+        
+        function formatKPIValue(value, format) {
+            switch (format) {
+                case 'currency':
+                    return '$' + value.toLocaleString();
+                case 'percentage':
+                    return value + '%';
+                case 'number':
+                    return value.toLocaleString();
+                default:
+                    return value;
+            }
+        }
+        
+        function createTrendBadge(trend, value) {
+            const icon = trend === 'up' ? 'fa-arrow-up' : 'fa-arrow-down';
+            const text = value ? `${value}%` : '';
+            return `<div class="widget-trend ${trend}">
+                <i class="fas ${icon}"></i>
+                ${text}
+            </div>`;
+        }
+        
+        // ============================================================================
+        // CHART RENDERING
+        // ============================================================================
+        
+        function renderDivisionChart(divisions) {
+            dashDebugger.debug('Rendering division chart', { divisions: divisions.length }, 'render');
+            
+            const ctx = document.getElementById('divisionChart').getContext('2d');
+            
+            if (!divisions || divisions.length === 0) {
+                ctx.font = '14px Inter';
+                ctx.fillStyle = '#757575';
+                ctx.textAlign = 'center';
+                ctx.fillText('No division data available', ctx.canvas.width / 2, ctx.canvas.height / 2);
+                return;
+            }
+            
+            // Destroy existing chart if any
+            if (charts.division) {
+                charts.division.destroy();
+            }
+            
+            const labels = divisions.map(d => d.name);
+            const allocated = divisions.map(d => d.allocated);
+            const spent = divisions.map(d => d.spent);
+            const available = divisions.map(d => d.available);
+            
+            charts.division = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Allocated',
+                            data: allocated,
+                            backgroundColor: 'rgba(19, 56, 31, 0.2)',
+                            borderColor: 'rgba(19, 56, 31, 1)',
+                            borderWidth: 2
+                        },
+                        {
+                            label: 'Spent',
+                            data: spent,
+                            backgroundColor: 'rgba(255, 152, 0, 0.2)',
+                            borderColor: 'rgba(255, 152, 0, 1)',
+                            borderWidth: 2
+                        },
+                        {
+                            label: 'Available',
+                            data: available,
+                            backgroundColor: 'rgba(33, 150, 243, 0.2)',
+                            borderColor: 'rgba(33, 150, 243, 1)',
+                            borderWidth: 2
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '$' + value.toLocaleString();
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': $' + context.raw.toLocaleString();
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // ============================================================================
+        // TABLE RENDERING
+        // ============================================================================
+        
+        function renderDivisionTable(divisions) {
+            dashDebugger.debug('Rendering division table', { divisions: divisions.length }, 'render');
+            
+            const tbody = document.querySelector('#divisionTable tbody');
+            tbody.innerHTML = '';
+            
+            if (!divisions || divisions.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No division data available</td></tr>';
+                return;
+            }
+            
+            divisions.forEach(division => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td><strong>${division.name}</strong></td>
+                    <td>$${division.allocated.toLocaleString()}</td>
+                    <td>$${division.spent.toLocaleString()}</td>
+                    <td>$${division.encumbered.toLocaleString()}</td>
+                    <td>$${division.available.toLocaleString()}</td>
+                    <td>${division.utilization}%</td>
+                    <td>
+                        <span class="status-badge ${getUtilizationStatus(division.utilization)}">
+                            ${getUtilizationStatus(division.utilization)}
+                        </span>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+        
+        function renderTransactions(transactions) {
+            dashDebugger.debug('Rendering transactions', { count: transactions.length }, 'render');
+            
+            const tbody = document.querySelector('#transactionsTable tbody');
+            tbody.innerHTML = '';
+            
+            if (!transactions || transactions.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No recent transactions</td></tr>';
+                return;
+            }
+            
+            transactions.slice(0, 10).forEach(transaction => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${formatDate(transaction.date)}</td>
+                    <td><code>${transaction.transactionId}</code></td>
+                    <td>${transaction.division}</td>
+                    <td>${transaction.department}</td>
+                    <td>${transaction.vendor}</td>
+                    <td>${transaction.description}</td>
+                    <td>$${transaction.amount.toLocaleString()}</td>
+                    <td>
+                        <span class="status-badge ${transaction.status.toLowerCase()}">
+                            ${transaction.status}
+                        </span>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+        
+        // ============================================================================
+        // UTILITY FUNCTIONS
+        // ============================================================================
+        
+        function getUtilizationStatus(utilization) {
+            if (utilization >= 90) return 'rejected';
+            if (utilization >= 75) return 'pending';
+            return 'approved';
+        }
+        
+        function formatDate(date) {
+            if (!date) return '';
+            const d = new Date(date);
+            return d.toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'short', 
+                day: 'numeric' 
+            });
+        }
+        
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('collapsed');
+            dashDebugger.debug('Sidebar toggled', null, 'ui');
+        }
+        
+        function switchTab(tabName) {
+            dashDebugger.debug('Switching tab', { from: currentTab, to: tabName }, 'ui');
+            
+            // Update active nav item
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.toggle('active', item.dataset.tab === tabName);
+            });
+            
+            // Update active tab content
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.toggle('active', content.id === tabName + 'Tab');
+            });
+            
+            // Update page title
+            const titles = {
+                overview: 'Dashboard Overview',
+                transactions: 'Transactions',
+                tac: 'TAC Calculator',
+                reports: 'Reports',
+                analytics: 'Analytics'
+            };
+            document.getElementById('pageTitle').textContent = titles[tabName] || 'Dashboard';
+            
+            currentTab = tabName;
+        }
+        
+        function refreshDashboard() {
+            dashDebugger.log('🔄 Refreshing dashboard...', null, 'action');
+            if (!isLoading) {
+                loadDashboard();
+            }
+        }
+        
+        function exportDashboard() {
+            dashDebugger.log('📥 Exporting dashboard...', null, 'action');
+            alert('Export functionality coming soon!');
+        }
+        
+        function toggleChartType() {
+            dashDebugger.log('📊 Toggling chart type...', null, 'action');
+            // TODO: Implement chart type toggle
+        }
+        
+        function showAlerts(alerts) {
+            dashDebugger.log('🚨 Showing alerts', { count: alerts.length }, 'ui');
+            // TODO: Implement alerts display
+        }
+        
+        // ============================================================================
+        // DEMO DATA GENERATOR
+        // ============================================================================
+        
+        function generateDemoData() {
+            return {
+                kpis: [
+                    {
+                        id: 'total_budget',
+                        label: 'Total Annual Budget',
+                        value: 5000000,
+                        format: 'currency',
+                        trend: 'stable',
+                        description: 'FY 2024-25 allocated budget'
+                    },
+                    {
+                        id: 'ytd_spending',
+                        label: 'YTD Spending',
+                        value: 2100000,
+                        format: 'currency',
+                        trend: 'up',
+                        trendValue: 5.2,
+                        description: '42% of annual budget'
+                    },
+                    {
+                        id: 'budget_utilization',
+                        label: 'Budget Utilization',
+                        value: 42,
+                        format: 'percentage',
+                        trend: 'stable',
+                        description: 'On track for fiscal year'
+                    },
+                    {
+                        id: 'pending_approvals',
+                        label: 'Pending Approvals',
+                        value: 12,
+                        format: 'number',
+                        urgent: true,
+                        description: 'Requires attention'
+                    }
+                ],
+                divisionSummary: [
+                    {
+                        division: 'US',
+                        name: 'Upper School',
+                        allocated: 2000000,
+                        spent: 840000,
+                        encumbered: 160000,
+                        available: 1000000,
+                        utilization: 42
+                    },
+                    {
+                        division: 'LS',
+                        name: 'Lower School',
+                        allocated: 1800000,
+                        spent: 756000,
+                        encumbered: 144000,
+                        available: 900000,
+                        utilization: 42
+                    },
+                    {
+                        division: 'KK',
+                        name: 'Keswick Kids',
+                        allocated: 800000,
+                        spent: 336000,
+                        encumbered: 64000,
+                        available: 400000,
+                        utilization: 42
+                    },
+                    {
+                        division: 'AD',
+                        name: 'Administration',
+                        allocated: 400000,
+                        spent: 168000,
+                        encumbered: 32000,
+                        available: 200000,
+                        utilization: 42
+                    }
+                ],
+                transactions: generateDemoTransactions(20),
+                alerts: [
+                    {
+                        type: 'warning',
+                        message: 'Science department at 85% budget utilization',
+                        timestamp: new Date()
+                    }
+                ]
+            };
+        }
+        
+        function generateDemoTransactions(count) {
+            const vendors = ['Amazon', 'Staples', 'Apple', 'Best Buy', 'Office Depot'];
+            const statuses = ['Approved', 'Pending', 'Processing'];
+            const divisions = ['US', 'LS', 'KK', 'AD'];
+            const departments = ['Math', 'Science', 'English', 'Elementary', 'Administration'];
+            
+            return Array.from({ length: count }, (_, i) => ({
+                transactionId: `TRX-2024-${(1000 + i).toString().padStart(4, '0')}`,
+                date: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000),
+                division: divisions[Math.floor(Math.random() * divisions.length)],
+                department: departments[Math.floor(Math.random() * departments.length)],
+                vendor: vendors[Math.floor(Math.random() * vendors.length)],
+                description: `Purchase Order ${i + 1}`,
+                amount: Math.round(Math.random() * 5000 + 100),
+                status: statuses[Math.floor(Math.random() * statuses.length)]
+            }));
+        }
+    </script>
+</body>
+</html>
