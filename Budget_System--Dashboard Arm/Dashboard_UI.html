@@ -1312,39 +1312,274 @@
                 
                 <div id="tacTab" class="tab-content">
                     <!-- TAC Calculator content -->
+                    <!-- TAC Summary KPIs -->
+                    <div id="tacKpiGrid" class="widget-grid">
+                        <!-- TAC KPIs will be inserted here -->
+                    </div>
+
+                    <!-- TAC by Category -->
                     <div class="chart-container">
                         <div class="chart-header">
-                            <h2 class="chart-title">TAC Calculator</h2>
+                            <h2 class="chart-title">TAC Expenses by Category</h2>
+                            <p style="color: var(--text-secondary); font-size: 12px; margin-top: 4px;">Technology, Activities, Curriculum breakdown</p>
                         </div>
-                        <div style="padding: 40px; text-align: center; color: var(--text-secondary);">
-                            <i class="fas fa-calculator" style="font-size: 48px; margin-bottom: 16px;"></i>
-                            <p>TAC Calculator coming soon...</p>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; padding: 16px;">
+                            <div>
+                                <canvas id="tacCategoryChart" height="250"></canvas>
+                            </div>
+                            <div id="tacCategoryBreakdown">
+                                <!-- Category breakdown cards -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAC by Division/Grade -->
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <h2 class="chart-title">TAC Cost Analysis by Division</h2>
+                            <p style="color: var(--text-secondary); font-size: 12px; margin-top: 4px;">Average cost per student by division</p>
+                        </div>
+                        <div class="table-wrapper">
+                            <table class="data-table" id="tacDivisionTable">
+                                <thead>
+                                    <tr>
+                                        <th>Division</th>
+                                        <th>Est. Students</th>
+                                        <th>TAC Allocated</th>
+                                        <th>TAC Spent</th>
+                                        <th>Available</th>
+                                        <th>Avg Cost/Student</th>
+                                        <th>Utilization</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Data will be inserted here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- TAC Fee Calculator -->
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <h2 class="chart-title">TAC Fee Calculator</h2>
+                            <p style="color: var(--text-secondary); font-size: 12px; margin-top: 4px;">Estimate TAC revenue based on enrollment</p>
+                        </div>
+                        <div style="padding: 16px;">
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px;">
+                                <div class="form-group">
+                                    <label style="display: block; font-weight: 600; margin-bottom: 8px; color: var(--text-primary);">PreK-2 Students</label>
+                                    <input type="number" id="tacStudentsPreK2" value="150" min="0"
+                                           style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 14px;"
+                                           onchange="calculateTACProjection()">
+                                </div>
+                                <div class="form-group">
+                                    <label style="display: block; font-weight: 600; margin-bottom: 8px; color: var(--text-primary);">Grades 3-8 Students</label>
+                                    <input type="number" id="tacStudents38" value="300" min="0"
+                                           style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 14px;"
+                                           onchange="calculateTACProjection()">
+                                </div>
+                                <div class="form-group">
+                                    <label style="display: block; font-weight: 600; margin-bottom: 8px; color: var(--text-primary);">Grades 9-12 Students</label>
+                                    <input type="number" id="tacStudents912" value="350" min="0"
+                                           style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 14px;"
+                                           onchange="calculateTACProjection()">
+                                </div>
+                            </div>
+                            <div id="tacProjectionResults" style="background: var(--bg-secondary); padding: 20px; border-radius: 8px;">
+                                <!-- Projection results will be inserted here -->
+                            </div>
                         </div>
                     </div>
                 </div>
                 
                 <div id="reportsTab" class="tab-content">
                     <!-- Reports content -->
+                    <!-- Report Selection -->
                     <div class="chart-container">
                         <div class="chart-header">
-                            <h2 class="chart-title">Reports</h2>
+                            <h2 class="chart-title">Generate Reports</h2>
+                            <p style="color: var(--text-secondary); font-size: 12px; margin-top: 4px;">Select a report type and configure options</p>
                         </div>
-                        <div style="padding: 40px; text-align: center; color: var(--text-secondary);">
-                            <i class="fas fa-file-alt" style="font-size: 48px; margin-bottom: 16px;"></i>
-                            <p>Report generation coming soon...</p>
+                        <div style="padding: 16px;">
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
+                                <!-- Budget Summary Report -->
+                                <div class="report-card" style="border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; cursor: pointer; transition: all 0.2s;" onclick="generateReport('budget')">
+                                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                                        <div style="width: 48px; height: 48px; background: rgba(19, 56, 31, 0.1); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                                            <i class="fas fa-chart-bar" style="font-size: 24px; color: var(--primary-green);"></i>
+                                        </div>
+                                        <div>
+                                            <h3 style="font-size: 16px; font-weight: 600; margin: 0;">Budget Summary</h3>
+                                            <p style="font-size: 12px; color: var(--text-secondary); margin: 0;">Division & department overview</p>
+                                        </div>
+                                    </div>
+                                    <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">Comprehensive budget status report showing allocations, spending, and utilization rates by division and department.</p>
+                                    <button class="header-button" style="width: 100%;">
+                                        <i class="fas fa-download"></i> Generate Report
+                                    </button>
+                                </div>
+
+                                <!-- Transaction Report -->
+                                <div class="report-card" style="border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; cursor: pointer; transition: all 0.2s;" onclick="generateReport('transactions')">
+                                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                                        <div style="width: 48px; height: 48px; background: rgba(19, 56, 31, 0.1); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                                            <i class="fas fa-list-alt" style="font-size: 24px; color: var(--primary-green);"></i>
+                                        </div>
+                                        <div>
+                                            <h3 style="font-size: 16px; font-weight: 600; margin: 0;">Transaction Report</h3>
+                                            <p style="font-size: 12px; color: var(--text-secondary); margin: 0;">Detailed transaction history</p>
+                                        </div>
+                                    </div>
+                                    <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">Export all transactions with date range filtering. Includes vendor, amount, status, and approval details.</p>
+                                    <button class="header-button" style="width: 100%;">
+                                        <i class="fas fa-download"></i> Generate Report
+                                    </button>
+                                </div>
+
+                                <!-- TAC Report -->
+                                <div class="report-card" style="border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; cursor: pointer; transition: all 0.2s;" onclick="generateReport('tac')">
+                                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                                        <div style="width: 48px; height: 48px; background: rgba(19, 56, 31, 0.1); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                                            <i class="fas fa-calculator" style="font-size: 24px; color: var(--primary-green);"></i>
+                                        </div>
+                                        <div>
+                                            <h3 style="font-size: 16px; font-weight: 600; margin: 0;">TAC Report</h3>
+                                            <p style="font-size: 12px; color: var(--text-secondary); margin: 0;">Technology, Activities, Curriculum</p>
+                                        </div>
+                                    </div>
+                                    <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">TAC fee collection and expense report by category. Shows cost per student analysis and budget utilization.</p>
+                                    <button class="header-button" style="width: 100%;">
+                                        <i class="fas fa-download"></i> Generate Report
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Report Filters -->
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <h2 class="chart-title">Report Filters</h2>
+                        </div>
+                        <div style="padding: 16px;">
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px;">
+                                <div class="form-group">
+                                    <label style="display: block; font-weight: 600; margin-bottom: 8px; color: var(--text-primary);">Date Range</label>
+                                    <select id="reportDateRange" style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 14px;">
+                                        <option value="ytd">Year to Date</option>
+                                        <option value="quarter">Current Quarter</option>
+                                        <option value="month">Current Month</option>
+                                        <option value="custom">Custom Range</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label style="display: block; font-weight: 600; margin-bottom: 8px; color: var(--text-primary);">Division</label>
+                                    <select id="reportDivision" style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 14px;">
+                                        <option value="all">All Divisions</option>
+                                        <option value="US">Upper School</option>
+                                        <option value="LS">Lower School</option>
+                                        <option value="KK">Keswick Kids</option>
+                                        <option value="AD">Administration</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label style="display: block; font-weight: 600; margin-bottom: 8px; color: var(--text-primary);">Status</label>
+                                    <select id="reportStatus" style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 14px;">
+                                        <option value="all">All Statuses</option>
+                                        <option value="approved">Approved</option>
+                                        <option value="pending">Pending</option>
+                                        <option value="processing">Processing</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label style="display: block; font-weight: 600; margin-bottom: 8px; color: var(--text-primary);">Format</label>
+                                    <select id="reportFormat" style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 14px;">
+                                        <option value="csv">CSV (Excel Compatible)</option>
+                                        <option value="json">JSON (Data Export)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Reports Preview -->
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <h2 class="chart-title">Report Preview</h2>
+                        </div>
+                        <div id="reportPreview" style="padding: 16px;">
+                            <div style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                                <i class="fas fa-file-alt" style="font-size: 32px; margin-bottom: 12px;"></i>
+                                <p>Select a report type above to preview and download</p>
+                            </div>
                         </div>
                     </div>
                 </div>
                 
                 <div id="analyticsTab" class="tab-content">
                     <!-- Analytics content -->
+                    <!-- Analytics KPIs -->
+                    <div id="analyticsKpiGrid" class="widget-grid">
+                        <!-- Analytics KPIs will be inserted here -->
+                    </div>
+
+                    <!-- Monthly Spending Trend -->
                     <div class="chart-container">
                         <div class="chart-header">
-                            <h2 class="chart-title">Analytics</h2>
+                            <h2 class="chart-title">Monthly Spending Trend</h2>
+                            <p style="color: var(--text-secondary); font-size: 12px; margin-top: 4px;">Budget vs Actual spending over time</p>
                         </div>
-                        <div style="padding: 40px; text-align: center; color: var(--text-secondary);">
-                            <i class="fas fa-chart-pie" style="font-size: 48px; margin-bottom: 16px;"></i>
-                            <p>Advanced analytics coming soon...</p>
+                        <div style="padding: 16px;">
+                            <canvas id="monthlyTrendChart" height="300"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Two-column layout for breakdowns -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <!-- Categorical Spending Breakdown -->
+                        <div class="chart-container">
+                            <div class="chart-header">
+                                <h2 class="chart-title">Spending by Category</h2>
+                            </div>
+                            <div style="padding: 16px;">
+                                <canvas id="categoricalChart" height="280"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Division Comparison -->
+                        <div class="chart-container">
+                            <div class="chart-header">
+                                <h2 class="chart-title">Division Comparison</h2>
+                            </div>
+                            <div style="padding: 16px;">
+                                <canvas id="divisionComparisonChart" height="280"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Year-End Forecasting -->
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <h2 class="chart-title">Year-End Forecast</h2>
+                            <p style="color: var(--text-secondary); font-size: 12px; margin-top: 4px;">Projected budget status at fiscal year end</p>
+                        </div>
+                        <div style="padding: 16px;">
+                            <div id="forecastGrid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px;">
+                                <!-- Forecast cards will be inserted here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Financial Health Metrics -->
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <h2 class="chart-title">Financial Health Indicators</h2>
+                        </div>
+                        <div style="padding: 16px;">
+                            <div id="healthMetrics" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+                                <!-- Health metrics will be inserted here -->
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -2447,17 +2682,17 @@
         
         function switchTab(tabName) {
             dashDebugger.debug('Switching tab', { from: currentTab, to: tabName }, 'ui');
-            
+
             // Update active nav item
             document.querySelectorAll('.nav-item').forEach(item => {
                 item.classList.toggle('active', item.dataset.tab === tabName);
             });
-            
+
             // Update active tab content
             document.querySelectorAll('.tab-content').forEach(content => {
                 content.classList.toggle('active', content.id === tabName + 'Tab');
             });
-            
+
             // Update page title
             const titles = {
                 overview: 'Dashboard Overview',
@@ -2467,7 +2702,14 @@
                 analytics: 'Analytics'
             };
             document.getElementById('pageTitle').textContent = titles[tabName] || 'Dashboard';
-            
+
+            // Render tab-specific content
+            if (tabName === 'tac') {
+                renderTACTab();
+            } else if (tabName === 'analytics') {
+                renderAnalyticsTab();
+            }
+
             currentTab = tabName;
         }
         
@@ -2480,9 +2722,734 @@
         
         function exportDashboard() {
             dashDebugger.log('📥 Exporting dashboard...', null, 'action');
-            alert('Export functionality coming soon!');
+
+            // Get current active tab
+            const activeTab = document.querySelector('.tab-content.active');
+            const tabId = activeTab ? activeTab.id : 'overviewTab';
+
+            let data = [];
+            let filename = 'dashboard-export';
+
+            if (tabId === 'overviewTab' && dashboardData?.divisionSummary) {
+                data = dashboardData.divisionSummary.map(d => ({
+                    Division: d.name,
+                    Allocated: d.allocated,
+                    Spent: d.spent,
+                    Encumbered: d.encumbered,
+                    Available: d.available,
+                    Utilization: d.utilization + '%'
+                }));
+                filename = 'budget-overview';
+            } else if (tabId === 'transactionsTab' && dashboardData?.transactions) {
+                data = dashboardData.transactions.map(t => ({
+                    Date: new Date(t.date).toLocaleDateString(),
+                    ID: t.transactionId,
+                    Division: t.division,
+                    Department: t.department,
+                    Vendor: t.vendor,
+                    Description: t.description,
+                    Amount: '$' + t.amount.toLocaleString(),
+                    Status: t.status
+                }));
+                filename = 'transactions';
+            } else if (tabId === 'tacTab' && dashboardData?.tacSummary) {
+                const tac = dashboardData.tacSummary;
+                data = [
+                    { Category: 'Technology', Allocated: tac.byCategory?.technology?.allocated || 0, Spent: tac.byCategory?.technology?.spent || 0 },
+                    { Category: 'Activities', Allocated: tac.byCategory?.activities?.allocated || 0, Spent: tac.byCategory?.activities?.spent || 0 },
+                    { Category: 'Curriculum', Allocated: tac.byCategory?.consumables?.allocated || 0, Spent: tac.byCategory?.consumables?.spent || 0 }
+                ];
+                filename = 'tac-summary';
+            } else {
+                alert('No data available to export for this view');
+                return;
+            }
+
+            downloadCSV(data, filename);
         }
-        
+
+        function downloadCSV(data, filename) {
+            if (!data || data.length === 0) {
+                alert('No data to export');
+                return;
+            }
+
+            const headers = Object.keys(data[0]);
+            const csvContent = [
+                headers.join(','),
+                ...data.map(row => headers.map(h => {
+                    let val = row[h];
+                    if (typeof val === 'string' && val.includes(',')) {
+                        val = '"' + val + '"';
+                    }
+                    return val;
+                }).join(','))
+            ].join('\n');
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `${filename}-${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+
+            dashDebugger.log('✅ Export completed: ' + filename, null, 'action');
+        }
+
+        // ============================================================================
+        // TAC CALCULATOR RENDERING
+        // ============================================================================
+
+        function renderTACTab() {
+            if (!dashboardData?.tacSummary) {
+                dashDebugger.warn('No TAC data available', null, 'render');
+                return;
+            }
+
+            const tac = dashboardData.tacSummary;
+
+            // Render TAC KPIs
+            renderTACKPIs(tac);
+
+            // Render category chart
+            renderTACCategoryChart(tac);
+
+            // Render category breakdown
+            renderTACCategoryBreakdown(tac);
+
+            // Render division table
+            renderTACDivisionTable();
+
+            // Calculate initial projection
+            calculateTACProjection();
+        }
+
+        function renderTACKPIs(tac) {
+            const grid = document.getElementById('tacKpiGrid');
+            if (!grid) return;
+
+            const kpis = [
+                { label: 'Total TAC Collected', value: tac.totalCollected || 850000, format: 'currency', description: 'FY 2024-25 fees collected' },
+                { label: 'TAC Allocated', value: tac.totalAllocated || 800000, format: 'currency', description: 'Distributed to categories' },
+                { label: 'TAC Spent', value: tac.totalSpent || 340000, format: 'currency', description: '42.5% utilized' },
+                { label: 'TAC Available', value: tac.totalAvailable || 460000, format: 'currency', description: 'Remaining balance' }
+            ];
+
+            grid.innerHTML = '';
+            kpis.forEach(kpi => {
+                const card = createKPICard(kpi);
+                grid.appendChild(card);
+            });
+        }
+
+        function renderTACCategoryChart(tac) {
+            const ctx = document.getElementById('tacCategoryChart');
+            if (!ctx) return;
+
+            const categories = tac.byCategory || {
+                technology: { allocated: 440000, spent: 187000 },
+                activities: { allocated: 200000, spent: 85000 },
+                consumables: { allocated: 160000, spent: 68000 }
+            };
+
+            if (charts.tacCategory) {
+                charts.tacCategory.destroy();
+            }
+
+            charts.tacCategory = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Technology (55%)', 'Activities (25%)', 'Curriculum (20%)'],
+                    datasets: [{
+                        data: [
+                            categories.technology?.allocated || 440000,
+                            categories.activities?.allocated || 200000,
+                            categories.consumables?.allocated || 160000
+                        ],
+                        backgroundColor: ['#13381f', '#2d6a4f', '#74c69d'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.label + ': $' + context.raw.toLocaleString();
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderTACCategoryBreakdown(tac) {
+            const container = document.getElementById('tacCategoryBreakdown');
+            if (!container) return;
+
+            const categories = [
+                { name: 'Technology', key: 'technology', percent: 55, icon: 'fa-laptop', color: '#13381f' },
+                { name: 'Activities', key: 'activities', percent: 25, icon: 'fa-bus', color: '#2d6a4f' },
+                { name: 'Curriculum', key: 'consumables', percent: 20, icon: 'fa-book', color: '#74c69d' }
+            ];
+
+            container.innerHTML = categories.map(cat => {
+                const data = tac.byCategory?.[cat.key] || { allocated: 0, spent: 0 };
+                const utilization = data.allocated > 0 ? Math.round((data.spent / data.allocated) * 100) : 0;
+                const available = data.allocated - data.spent;
+
+                return `
+                    <div style="background: var(--bg-secondary); border-radius: 8px; padding: 16px; margin-bottom: 12px;">
+                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                            <div style="width: 40px; height: 40px; background: ${cat.color}20; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                                <i class="fas ${cat.icon}" style="color: ${cat.color};"></i>
+                            </div>
+                            <div>
+                                <div style="font-weight: 600;">${cat.name}</div>
+                                <div style="font-size: 12px; color: var(--text-secondary);">${cat.percent}% of TAC budget</div>
+                            </div>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; font-size: 13px;">
+                            <div><span style="color: var(--text-secondary);">Allocated:</span><br><strong>$${data.allocated.toLocaleString()}</strong></div>
+                            <div><span style="color: var(--text-secondary);">Spent:</span><br><strong>$${data.spent.toLocaleString()}</strong></div>
+                            <div><span style="color: var(--text-secondary);">Available:</span><br><strong style="color: var(--primary-green);">$${available.toLocaleString()}</strong></div>
+                        </div>
+                        <div style="margin-top: 12px;">
+                            <div style="height: 6px; background: #e0e0e0; border-radius: 3px; overflow: hidden;">
+                                <div style="height: 100%; width: ${utilization}%; background: ${cat.color}; border-radius: 3px;"></div>
+                            </div>
+                            <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">${utilization}% utilized</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderTACDivisionTable() {
+            const tbody = document.querySelector('#tacDivisionTable tbody');
+            if (!tbody) return;
+
+            // Using division data with TAC estimates
+            const divisions = dashboardData?.divisionSummary || [];
+            const tacTotal = dashboardData?.tacSummary?.totalAllocated || 800000;
+
+            // Estimate students per division
+            const studentEstimates = {
+                'Upper School': 350,
+                'Lower School': 300,
+                'Keswick Kids': 100,
+                'Administration': 0
+            };
+
+            tbody.innerHTML = divisions.map(div => {
+                const students = studentEstimates[div.name] || 100;
+                const tacAllocated = Math.round(tacTotal * (div.allocated / 5000000));
+                const tacSpent = Math.round(tacAllocated * 0.425);
+                const tacAvailable = tacAllocated - tacSpent;
+                const avgCost = students > 0 ? Math.round(tacSpent / students) : 0;
+                const utilization = tacAllocated > 0 ? Math.round((tacSpent / tacAllocated) * 100) : 0;
+
+                return `
+                    <tr>
+                        <td>${div.name}</td>
+                        <td>${students.toLocaleString()}</td>
+                        <td>$${tacAllocated.toLocaleString()}</td>
+                        <td>$${tacSpent.toLocaleString()}</td>
+                        <td style="color: var(--primary-green); font-weight: 500;">$${tacAvailable.toLocaleString()}</td>
+                        <td><strong>$${avgCost.toLocaleString()}</strong></td>
+                        <td><span class="status-badge status-approved">${utilization}%</span></td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function calculateTACProjection() {
+            const preK2 = parseInt(document.getElementById('tacStudentsPreK2')?.value) || 0;
+            const grades38 = parseInt(document.getElementById('tacStudents38')?.value) || 0;
+            const grades912 = parseInt(document.getElementById('tacStudents912')?.value) || 0;
+
+            // Average fees by grade band
+            const feePreK2 = 925;    // Avg of $850-$1000
+            const fee38 = 1125;      // Avg of $1050-$1200
+            const fee912 = 1275;     // Avg of $1250-$1300
+
+            const revenuePreK2 = preK2 * feePreK2;
+            const revenue38 = grades38 * fee38;
+            const revenue912 = grades912 * fee912;
+            const totalRevenue = revenuePreK2 + revenue38 + revenue912;
+            const totalStudents = preK2 + grades38 + grades912;
+            const avgFee = totalStudents > 0 ? Math.round(totalRevenue / totalStudents) : 0;
+
+            // Category allocation
+            const technology = Math.round(totalRevenue * 0.55);
+            const activities = Math.round(totalRevenue * 0.25);
+            const curriculum = Math.round(totalRevenue * 0.20);
+
+            const container = document.getElementById('tacProjectionResults');
+            if (!container) return;
+
+            container.innerHTML = `
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 20px;">
+                    <div style="text-align: center;">
+                        <div style="font-size: 12px; color: var(--text-secondary); text-transform: uppercase;">Total Students</div>
+                        <div style="font-size: 28px; font-weight: 700; color: var(--primary-green);">${totalStudents.toLocaleString()}</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="font-size: 12px; color: var(--text-secondary); text-transform: uppercase;">Projected Revenue</div>
+                        <div style="font-size: 28px; font-weight: 700; color: var(--primary-green);">$${totalRevenue.toLocaleString()}</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="font-size: 12px; color: var(--text-secondary); text-transform: uppercase;">Avg Fee/Student</div>
+                        <div style="font-size: 28px; font-weight: 700; color: var(--primary-green);">$${avgFee.toLocaleString()}</div>
+                    </div>
+                </div>
+                <div style="border-top: 1px solid var(--border-color); padding-top: 16px;">
+                    <h4 style="margin-bottom: 12px; font-size: 14px;">Projected Category Allocation</h4>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
+                        <div style="background: white; padding: 12px; border-radius: 6px; text-align: center;">
+                            <i class="fas fa-laptop" style="color: #13381f; margin-bottom: 8px;"></i>
+                            <div style="font-size: 12px; color: var(--text-secondary);">Technology (55%)</div>
+                            <div style="font-weight: 600;">$${technology.toLocaleString()}</div>
+                        </div>
+                        <div style="background: white; padding: 12px; border-radius: 6px; text-align: center;">
+                            <i class="fas fa-bus" style="color: #2d6a4f; margin-bottom: 8px;"></i>
+                            <div style="font-size: 12px; color: var(--text-secondary);">Activities (25%)</div>
+                            <div style="font-weight: 600;">$${activities.toLocaleString()}</div>
+                        </div>
+                        <div style="background: white; padding: 12px; border-radius: 6px; text-align: center;">
+                            <i class="fas fa-book" style="color: #74c69d; margin-bottom: 8px;"></i>
+                            <div style="font-size: 12px; color: var(--text-secondary);">Curriculum (20%)</div>
+                            <div style="font-weight: 600;">$${curriculum.toLocaleString()}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // ============================================================================
+        // REPORTS RENDERING
+        // ============================================================================
+
+        function generateReport(reportType) {
+            dashDebugger.log('📊 Generating report: ' + reportType, null, 'action');
+
+            const division = document.getElementById('reportDivision')?.value || 'all';
+            const status = document.getElementById('reportStatus')?.value || 'all';
+            const format = document.getElementById('reportFormat')?.value || 'csv';
+
+            let data = [];
+            let filename = '';
+
+            switch (reportType) {
+                case 'budget':
+                    data = generateBudgetReport(division);
+                    filename = 'budget-summary-report';
+                    break;
+                case 'transactions':
+                    data = generateTransactionReport(division, status);
+                    filename = 'transaction-report';
+                    break;
+                case 'tac':
+                    data = generateTACReport(division);
+                    filename = 'tac-report';
+                    break;
+            }
+
+            // Show preview
+            showReportPreview(data, reportType);
+
+            // Download
+            if (format === 'csv') {
+                downloadCSV(data, filename);
+            } else {
+                downloadJSON(data, filename);
+            }
+        }
+
+        function generateBudgetReport(division) {
+            const divisions = dashboardData?.divisionSummary || [];
+            let filtered = division === 'all' ? divisions : divisions.filter(d => d.division === division);
+
+            return filtered.map(d => ({
+                Division: d.name,
+                'Budget Allocated': '$' + d.allocated.toLocaleString(),
+                'Budget Spent': '$' + d.spent.toLocaleString(),
+                'Encumbered': '$' + d.encumbered.toLocaleString(),
+                'Available': '$' + d.available.toLocaleString(),
+                'Utilization Rate': d.utilization + '%',
+                'Status': d.utilization > 75 ? 'Warning' : 'On Track'
+            }));
+        }
+
+        function generateTransactionReport(division, status) {
+            let transactions = dashboardData?.transactions || [];
+
+            if (division !== 'all') {
+                transactions = transactions.filter(t => t.division === division);
+            }
+            if (status !== 'all') {
+                transactions = transactions.filter(t => t.status.toLowerCase() === status);
+            }
+
+            return transactions.map(t => ({
+                Date: new Date(t.date).toLocaleDateString(),
+                'Transaction ID': t.transactionId,
+                Division: t.division,
+                Department: t.department,
+                Vendor: t.vendor,
+                Description: t.description,
+                Amount: '$' + t.amount.toLocaleString(),
+                Status: t.status
+            }));
+        }
+
+        function generateTACReport(division) {
+            const tac = dashboardData?.tacSummary || {};
+            const categories = tac.byCategory || {};
+
+            const report = [
+                { Category: 'Technology', Allocation: '55%', Allocated: '$' + (categories.technology?.allocated || 0).toLocaleString(), Spent: '$' + (categories.technology?.spent || 0).toLocaleString(), Available: '$' + ((categories.technology?.allocated || 0) - (categories.technology?.spent || 0)).toLocaleString() },
+                { Category: 'Activities', Allocation: '25%', Allocated: '$' + (categories.activities?.allocated || 0).toLocaleString(), Spent: '$' + (categories.activities?.spent || 0).toLocaleString(), Available: '$' + ((categories.activities?.allocated || 0) - (categories.activities?.spent || 0)).toLocaleString() },
+                { Category: 'Curriculum', Allocation: '20%', Allocated: '$' + (categories.consumables?.allocated || 0).toLocaleString(), Spent: '$' + (categories.consumables?.spent || 0).toLocaleString(), Available: '$' + ((categories.consumables?.allocated || 0) - (categories.consumables?.spent || 0)).toLocaleString() }
+            ];
+
+            report.push({
+                Category: 'TOTAL',
+                Allocation: '100%',
+                Allocated: '$' + (tac.totalAllocated || 0).toLocaleString(),
+                Spent: '$' + (tac.totalSpent || 0).toLocaleString(),
+                Available: '$' + (tac.totalAvailable || 0).toLocaleString()
+            });
+
+            return report;
+        }
+
+        function showReportPreview(data, reportType) {
+            const preview = document.getElementById('reportPreview');
+            if (!preview || !data || data.length === 0) return;
+
+            const headers = Object.keys(data[0]);
+            const displayData = data.slice(0, 5); // Show first 5 rows
+
+            preview.innerHTML = `
+                <div style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+                    <span style="color: var(--text-secondary); font-size: 13px;">Showing ${displayData.length} of ${data.length} rows</span>
+                </div>
+                <div class="table-wrapper">
+                    <table class="data-table">
+                        <thead>
+                            <tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>
+                        </thead>
+                        <tbody>
+                            ${displayData.map(row => `
+                                <tr>${headers.map(h => `<td>${row[h]}</td>`).join('')}</tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+                ${data.length > 5 ? '<p style="text-align: center; color: var(--text-secondary); margin-top: 12px; font-size: 13px;">... and ' + (data.length - 5) + ' more rows in download</p>' : ''}
+            `;
+        }
+
+        function downloadJSON(data, filename) {
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `${filename}-${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+        }
+
+        // ============================================================================
+        // ANALYTICS RENDERING
+        // ============================================================================
+
+        function renderAnalyticsTab() {
+            if (!dashboardData) {
+                dashDebugger.warn('No data for analytics', null, 'render');
+                return;
+            }
+
+            // Render analytics KPIs
+            renderAnalyticsKPIs();
+
+            // Render monthly trend chart
+            renderMonthlyTrendChart();
+
+            // Render categorical spending chart
+            renderCategoricalChart();
+
+            // Render division comparison
+            renderDivisionComparisonChart();
+
+            // Render forecast cards
+            renderForecastCards();
+
+            // Render health metrics
+            renderHealthMetrics();
+        }
+
+        function renderAnalyticsKPIs() {
+            const grid = document.getElementById('analyticsKpiGrid');
+            if (!grid) return;
+
+            const trends = dashboardData?.trends?.monthly || [];
+            const totalBudget = trends.reduce((sum, m) => sum + (m.budget || 0), 0) || 2500000;
+            const totalActual = trends.reduce((sum, m) => sum + (m.actual || 0), 0) || 2100000;
+            const variance = totalBudget - totalActual;
+            const burnRate = trends.length > 0 ? Math.round(totalActual / trends.length) : 350000;
+
+            const kpis = [
+                { label: 'YTD Budget', value: totalBudget, format: 'currency', description: 'Planned spending to date' },
+                { label: 'YTD Actual', value: totalActual, format: 'currency', description: 'Actual spending to date' },
+                { label: 'Variance', value: variance, format: 'currency', description: variance >= 0 ? 'Under budget' : 'Over budget', trend: variance >= 0 ? 'down' : 'up' },
+                { label: 'Monthly Burn Rate', value: burnRate, format: 'currency', description: 'Average monthly spending' }
+            ];
+
+            grid.innerHTML = '';
+            kpis.forEach(kpi => {
+                const card = createKPICard(kpi);
+                grid.appendChild(card);
+            });
+        }
+
+        function renderMonthlyTrendChart() {
+            const ctx = document.getElementById('monthlyTrendChart');
+            if (!ctx) return;
+
+            const trends = dashboardData?.trends?.monthly || [
+                { month: 'Aug', budget: 416667, actual: 380000 },
+                { month: 'Sep', budget: 416667, actual: 420000 },
+                { month: 'Oct', budget: 416667, actual: 395000 },
+                { month: 'Nov', budget: 416667, actual: 410000 },
+                { month: 'Dec', budget: 416667, actual: 380000 },
+                { month: 'Jan', budget: 416667, actual: 415000 }
+            ];
+
+            if (charts.monthlyTrend) {
+                charts.monthlyTrend.destroy();
+            }
+
+            charts.monthlyTrend = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: trends.map(t => t.month),
+                    datasets: [
+                        {
+                            label: 'Budget',
+                            data: trends.map(t => t.budget),
+                            borderColor: '#13381f',
+                            backgroundColor: 'rgba(19, 56, 31, 0.1)',
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            fill: false,
+                            tension: 0.3
+                        },
+                        {
+                            label: 'Actual',
+                            data: trends.map(t => t.actual),
+                            borderColor: '#2d6a4f',
+                            backgroundColor: 'rgba(45, 106, 79, 0.2)',
+                            borderWidth: 3,
+                            fill: true,
+                            tension: 0.3
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top' },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': $' + context.raw.toLocaleString();
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            ticks: {
+                                callback: function(value) {
+                                    return '$' + (value / 1000) + 'k';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderCategoricalChart() {
+            const ctx = document.getElementById('categoricalChart');
+            if (!ctx) return;
+
+            const categorical = dashboardData?.trends?.categorical || [
+                { category: 'Technology', amount: 450000, percentage: 21.4 },
+                { category: 'Curriculum', amount: 380000, percentage: 18.1 },
+                { category: 'Supplies', amount: 320000, percentage: 15.2 },
+                { category: 'Prof. Dev.', amount: 280000, percentage: 13.3 },
+                { category: 'Facilities', amount: 240000, percentage: 11.4 },
+                { category: 'Activities', amount: 220000, percentage: 10.5 },
+                { category: 'Other', amount: 210000, percentage: 10.0 }
+            ];
+
+            if (charts.categorical) {
+                charts.categorical.destroy();
+            }
+
+            charts.categorical = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: categorical.map(c => c.category),
+                    datasets: [{
+                        data: categorical.map(c => c.amount),
+                        backgroundColor: ['#13381f', '#1b4332', '#2d6a4f', '#40916c', '#52b788', '#74c69d', '#95d5b2'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'right', labels: { boxWidth: 12, padding: 8, font: { size: 11 } } },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const cat = categorical[context.dataIndex];
+                                    return `${context.label}: $${context.raw.toLocaleString()} (${cat.percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderDivisionComparisonChart() {
+            const ctx = document.getElementById('divisionComparisonChart');
+            if (!ctx) return;
+
+            const divisions = dashboardData?.divisionSummary || [];
+
+            if (charts.divisionComparison) {
+                charts.divisionComparison.destroy();
+            }
+
+            charts.divisionComparison = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: divisions.map(d => d.name),
+                    datasets: [
+                        {
+                            label: 'Utilization %',
+                            data: divisions.map(d => d.utilization),
+                            backgroundColor: divisions.map(d => d.utilization > 75 ? '#e63946' : '#13381f'),
+                            borderRadius: 4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return 'Utilization: ' + context.raw + '%';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderForecastCards() {
+            const container = document.getElementById('forecastGrid');
+            if (!container) return;
+
+            const divisions = dashboardData?.divisionSummary || [];
+            const monthsRemaining = 6; // Assume 6 months left in FY
+
+            container.innerHTML = divisions.map(div => {
+                const monthlyRate = div.spent / 6; // Assume 6 months elapsed
+                const projected = div.spent + (monthlyRate * monthsRemaining);
+                const variance = div.allocated - projected;
+                const status = variance >= 0 ? 'On Track' : 'Over Budget';
+                const statusColor = variance >= 0 ? 'var(--primary-green)' : '#e63946';
+
+                return `
+                    <div style="background: var(--bg-secondary); border-radius: 8px; padding: 16px;">
+                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
+                            <h4 style="margin: 0; font-size: 14px;">${div.name}</h4>
+                            <span style="font-size: 11px; padding: 2px 8px; border-radius: 4px; background: ${statusColor}20; color: ${statusColor};">${status}</span>
+                        </div>
+                        <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 8px;">
+                            Budget: $${div.allocated.toLocaleString()}
+                        </div>
+                        <div style="font-size: 20px; font-weight: 600; margin-bottom: 8px;">
+                            $${Math.round(projected).toLocaleString()}
+                        </div>
+                        <div style="font-size: 12px; color: ${statusColor};">
+                            ${variance >= 0 ? '↓' : '↑'} $${Math.abs(Math.round(variance)).toLocaleString()} ${variance >= 0 ? 'under' : 'over'} budget
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderHealthMetrics() {
+            const container = document.getElementById('healthMetrics');
+            if (!container) return;
+
+            const health = dashboardData?.financialHealth || {
+                status: 'healthy',
+                metrics: {
+                    cashFlow: 'positive',
+                    burnRate: 'normal',
+                    runway: '8 months',
+                    risk: 'low'
+                }
+            };
+
+            const metrics = [
+                { label: 'Overall Status', value: health.status, icon: 'fa-heartbeat', color: health.status === 'healthy' ? '#13381f' : '#e63946' },
+                { label: 'Cash Flow', value: health.metrics?.cashFlow || 'N/A', icon: 'fa-money-bill-wave', color: health.metrics?.cashFlow === 'positive' ? '#13381f' : '#e63946' },
+                { label: 'Burn Rate', value: health.metrics?.burnRate || 'N/A', icon: 'fa-fire', color: health.metrics?.burnRate === 'normal' ? '#13381f' : '#f77f00' },
+                { label: 'Risk Level', value: health.metrics?.risk || 'N/A', icon: 'fa-exclamation-triangle', color: health.metrics?.risk === 'low' ? '#13381f' : '#e63946' }
+            ];
+
+            container.innerHTML = metrics.map(m => `
+                <div style="background: var(--bg-secondary); border-radius: 8px; padding: 16px; display: flex; align-items: center; gap: 12px;">
+                    <div style="width: 40px; height: 40px; background: ${m.color}15; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                        <i class="fas ${m.icon}" style="color: ${m.color};"></i>
+                    </div>
+                    <div>
+                        <div style="font-size: 12px; color: var(--text-secondary);">${m.label}</div>
+                        <div style="font-weight: 600; text-transform: capitalize; color: ${m.color};">${m.value}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
         function toggleChartType() {
             dashDebugger.log('📊 Toggling chart type...', null, 'action');
             // TODO: Implement chart type toggle
@@ -2579,7 +3546,46 @@
                         message: 'Science department at 85% budget utilization',
                         timestamp: new Date()
                     }
-                ]
+                ],
+                tacSummary: {
+                    totalCollected: 850000,
+                    totalAllocated: 800000,
+                    totalSpent: 340000,
+                    totalAvailable: 460000,
+                    byCategory: {
+                        technology: { allocated: 440000, spent: 187000 },
+                        activities: { allocated: 200000, spent: 85000 },
+                        consumables: { allocated: 160000, spent: 68000 }
+                    }
+                },
+                trends: {
+                    monthly: [
+                        { month: 'Aug', budget: 416667, actual: 380000 },
+                        { month: 'Sep', budget: 416667, actual: 420000 },
+                        { month: 'Oct', budget: 416667, actual: 395000 },
+                        { month: 'Nov', budget: 416667, actual: 410000 },
+                        { month: 'Dec', budget: 416667, actual: 380000 },
+                        { month: 'Jan', budget: 416667, actual: 415000 }
+                    ],
+                    categorical: [
+                        { category: 'Technology', amount: 450000, percentage: 21.4 },
+                        { category: 'Curriculum', amount: 380000, percentage: 18.1 },
+                        { category: 'Supplies', amount: 320000, percentage: 15.2 },
+                        { category: 'Prof. Dev.', amount: 280000, percentage: 13.3 },
+                        { category: 'Facilities', amount: 240000, percentage: 11.4 },
+                        { category: 'Activities', amount: 220000, percentage: 10.5 },
+                        { category: 'Other', amount: 210000, percentage: 10.0 }
+                    ]
+                },
+                financialHealth: {
+                    status: 'healthy',
+                    metrics: {
+                        cashFlow: 'positive',
+                        burnRate: 'normal',
+                        runway: '8 months',
+                        risk: 'low'
+                    }
+                }
             };
         }
         
