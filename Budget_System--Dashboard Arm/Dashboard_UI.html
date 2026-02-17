@@ -1075,9 +1075,63 @@
         .hidden { display: none !important; }
         
         /* ============================================================================ */
-        /* DEMO MODE BANNER */
+        /* DATA MODE BANNER (DEMO / LIVE) */
         /* ============================================================================ */
-        
+
+        .data-mode-banner {
+            padding: 10px 24px;
+            text-align: center;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+        }
+
+        .data-mode-banner.demo-mode {
+            background-color: #fff3e0;
+            border-bottom: 2px solid #ff9800;
+            color: #e65100;
+        }
+
+        .data-mode-banner.live-mode {
+            background-color: #e8f5e9;
+            border-bottom: 2px solid #4caf50;
+            color: #2e7d32;
+        }
+
+        .data-mode-banner strong {
+            font-weight: 600;
+        }
+
+        .data-mode-banner .mode-icon {
+            font-size: 16px;
+        }
+
+        .data-mode-banner .toggle-btn {
+            padding: 4px 12px;
+            border-radius: 4px;
+            border: 1px solid currentColor;
+            background: transparent;
+            color: inherit;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .data-mode-banner .toggle-btn:hover {
+            background: rgba(0,0,0,0.1);
+        }
+
+        .data-mode-banner.demo-mode .toggle-btn {
+            border-color: #e65100;
+        }
+
+        .data-mode-banner.live-mode .toggle-btn {
+            border-color: #2e7d32;
+        }
+
+        /* Legacy demo-banner class for compatibility */
         .demo-banner {
             background-color: #fff3e0;
             border: 1px solid #ffe0b2;
@@ -1086,7 +1140,7 @@
             font-size: 14px;
             color: #e65100;
         }
-        
+
         .demo-banner strong {
             font-weight: 600;
         }
@@ -1217,7 +1271,18 @@
                 </div>
             </header>
             
-            <!-- Demo Mode Banner -->
+            <!-- Data Mode Banner (Demo/Live) -->
+            <div id="dataModeBanner" class="data-mode-banner demo-mode hidden">
+                <i class="fas fa-info-circle mode-icon"></i>
+                <span id="dataModeMessage">
+                    <strong>Demo Mode:</strong> You're viewing sample data. Some features may be limited.
+                </span>
+                <button id="toggleModeBtn" class="toggle-btn hidden" onclick="toggleDataMode()">
+                    <i class="fas fa-exchange-alt"></i> Switch to Live
+                </button>
+            </div>
+
+            <!-- Legacy demo banner for backward compatibility -->
             <div id="demoBanner" class="demo-banner hidden">
                 <i class="fas fa-info-circle"></i>
                 <strong>Demo Mode:</strong> You're viewing sample data. Some features may be limited.
@@ -2173,41 +2238,58 @@
         
         function handleDashboardResponse(response) {
             dashDebugger.log('Processing dashboard response', response, 'data');
-            
+
             if (!response) {
                 handleDashboardError(new Error('Empty response from server'));
                 return;
             }
-            
+
             if (response.success) {
                 currentUser = response.user;
                 dashboardData = response.data;
-                
+
+                // Check if server returned demo/warning data
+                const hasWarning = !!response.warning;
+                const isServerDemo = response.warning?.toLowerCase().includes('demo') ||
+                                    response.warning?.toLowerCase().includes('fallback');
+
+                // Set demo mode flag
+                isDemoMode = isServerDemo;
+
                 dashDebugger.log('Dashboard data loaded successfully', {
                     user: currentUser?.email,
                     role: currentUser?.role,
-                    dataKeys: dashboardData ? Object.keys(dashboardData) : []
+                    dataKeys: dashboardData ? Object.keys(dashboardData) : [],
+                    isDemo: isDemoMode,
+                    warning: response.warning
                 }, 'data');
-                
+
                 // Update UI with user info
                 updateUserInterface();
-                
+
                 // Render dashboard
                 renderDashboard();
-                
+
+                // Show data mode banner (check server demo mode async)
+                checkServerDemoMode().then((serverMode) => {
+                    // Use server mode if available, otherwise use response indicator
+                    const showAsDemo = serverMode !== null ? serverMode : isDemoMode;
+                    updateDataModeBanner(showAsDemo);
+                });
+
                 // Hide loading, show dashboard
                 hideLoading();
                 showDashboard();
-                
+
             } else if (response.fallbackData) {
                 // Use fallback data
                 dashDebugger.warn('⚠️ Using fallback data', response, 'data');
                 isDemoMode = true;
                 currentUser = response.fallbackData.user;
-                
+
                 // Load demo dashboard
                 loadDemoMode();
-                
+
             } else {
                 handleDashboardError(new Error(response.error || 'Failed to load dashboard'));
             }
@@ -2252,7 +2334,7 @@
         function loadDemoMode() {
             dashDebugger.log('🎭 Loading demo mode...', null, 'data');
             isDemoMode = true;
-            
+
             // Create demo user if not provided
             if (!currentUser) {
                 currentUser = {
@@ -2262,28 +2344,138 @@
                     role: 'executive'
                 };
             }
-            
+
             // Generate demo data
             dashboardData = generateDemoData();
-            
+
             dashDebugger.log('Demo data generated', {
                 kpis: dashboardData.kpis.length,
                 divisions: dashboardData.divisionSummary.length,
                 transactions: dashboardData.transactions.length
             }, 'data');
-            
+
             // Update UI
             updateUserInterface();
             renderDashboard();
-            
-            // Show demo banner
-            document.getElementById('demoBanner').classList.remove('hidden');
-            
+
+            // Show data mode banner
+            updateDataModeBanner(true);
+
             // Hide loading, show dashboard
             hideLoading();
             showDashboard();
         }
-        
+
+        // ============================================================================
+        // DATA MODE (DEMO/LIVE) FUNCTIONS
+        // ============================================================================
+
+        let serverDemoMode = null; // Track server-side demo mode
+
+        /**
+         * Check demo mode status from server
+         */
+        async function checkServerDemoMode() {
+            if (typeof google === 'undefined' || !google.script || !google.script.run) {
+                return null; // Can't check - running locally
+            }
+
+            return new Promise((resolve) => {
+                google.script.run
+                    .withSuccessHandler((response) => {
+                        serverDemoMode = response?.demoMode ?? null;
+                        resolve(serverDemoMode);
+                    })
+                    .withFailureHandler(() => {
+                        resolve(null);
+                    })
+                    .getDemoMode();
+            });
+        }
+
+        /**
+         * Update the data mode banner display
+         */
+        function updateDataModeBanner(isDemo) {
+            const banner = document.getElementById('dataModeBanner');
+            const message = document.getElementById('dataModeMessage');
+            const toggleBtn = document.getElementById('toggleModeBtn');
+            const legacyBanner = document.getElementById('demoBanner');
+
+            if (!banner) return;
+
+            // Update banner class and content
+            banner.classList.remove('hidden');
+            if (isDemo) {
+                banner.classList.remove('live-mode');
+                banner.classList.add('demo-mode');
+                message.innerHTML = '<strong>Demo Mode:</strong> You\'re viewing sample data. Some features may be limited.';
+                toggleBtn.innerHTML = '<i class="fas fa-exchange-alt"></i> Switch to Live';
+            } else {
+                banner.classList.remove('demo-mode');
+                banner.classList.add('live-mode');
+                message.innerHTML = '<strong>Live Mode:</strong> Displaying real-time data from Budget Hub.';
+                toggleBtn.innerHTML = '<i class="fas fa-exchange-alt"></i> Switch to Demo';
+            }
+
+            // Show toggle button for executives
+            if (currentUser?.role === 'executive') {
+                toggleBtn.classList.remove('hidden');
+            }
+
+            // Hide legacy banner
+            if (legacyBanner) {
+                legacyBanner.classList.add('hidden');
+            }
+        }
+
+        /**
+         * Toggle between demo and live mode (executive only)
+         */
+        function toggleDataMode() {
+            if (currentUser?.role !== 'executive') {
+                alert('Only executives can toggle data mode.');
+                return;
+            }
+
+            const newMode = !isDemoMode;
+            const action = newMode ? 'demo' : 'live';
+
+            if (!confirm(`Switch to ${action.toUpperCase()} mode?\n\n${newMode ? 'This will show sample data.' : 'This will show real data from Budget Hub.'}`)) {
+                return;
+            }
+
+            // If running locally, just toggle client-side
+            if (typeof google === 'undefined' || !google.script || !google.script.run) {
+                isDemoMode = newMode;
+                if (newMode) {
+                    dashboardData = generateDemoData();
+                }
+                updateDataModeBanner(newMode);
+                renderDashboard();
+                return;
+            }
+
+            // Toggle on server
+            google.script.run
+                .withSuccessHandler((response) => {
+                    if (response.success) {
+                        isDemoMode = response.demoMode;
+                        serverDemoMode = response.demoMode;
+                        updateDataModeBanner(isDemoMode);
+
+                        // Reload data
+                        loadDashboard();
+                    } else {
+                        alert('Failed to toggle mode: ' + (response.error || 'Unknown error'));
+                    }
+                })
+                .withFailureHandler((error) => {
+                    alert('Failed to toggle mode: ' + error.message);
+                })
+                .setDemoMode(newMode);
+        }
+
         // ============================================================================
         // UI UPDATE FUNCTIONS
         // ============================================================================

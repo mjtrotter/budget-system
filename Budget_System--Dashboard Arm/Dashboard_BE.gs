@@ -9,6 +9,11 @@
 // CONFIGURATION
 // ============================================================================
 const CONFIG = {
+  // ========== DEMO MODE TOGGLE ==========
+  // Set to true to show demo/mock data, false for live spreadsheet data
+  // Toggle this when presenting to stakeholders vs production use
+  DEMO_MODE: false,
+
   // Hub Spreadsheet IDs - invoicing@keswickchristian.org account
   BUDGET_HUB_ID: '1wbv44RU18vJXlImWwxf4VRX932LgWCTBEn6JNws9HhQ',
   AUTOMATED_HUB_ID: '1mGcKhEehd4OwqUy1_zN40SWJ7O_aL5ax-6B_oZDddfM',
@@ -674,7 +679,67 @@ class KeswickDashboardService {
   }
 
   getFinancialHealthMetrics(filters) {
-    return this.getMockExecutiveDashboard().financialHealth;
+    // Demo mode check
+    if (CONFIG.DEMO_MODE) {
+      return this.getMockExecutiveDashboard().financialHealth;
+    }
+
+    try {
+      // Calculate live financial health from actual data
+      const orgData = this.getOrganizationBudgetData();
+      const transactions = this.sheets.transactionLedger ?
+        this.sheets.transactionLedger.getDataRange().getValues().slice(1) : [];
+
+      // Calculate totals
+      let totalBudget = 0, totalSpent = 0, totalEncumbered = 0;
+      orgData.forEach(org => {
+        totalBudget += org.allocated || 0;
+        totalSpent += org.spent || 0;
+        totalEncumbered += org.encumbered || 0;
+      });
+
+      // Calculate burn rate (monthly average spending)
+      const monthsElapsed = this.getMonthsElapsedInFiscalYear();
+      const monthlyBurnRate = monthsElapsed > 0 ? totalSpent / monthsElapsed : 0;
+      const budgetRemaining = totalBudget - totalSpent - totalEncumbered;
+      const runwayMonths = monthlyBurnRate > 0 ? Math.floor(budgetRemaining / monthlyBurnRate) : 12;
+
+      // Determine health status
+      const utilizationRate = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0;
+      const expectedUtilization = (monthsElapsed / 12) * 100;
+
+      let status = 'healthy';
+      let risk = 'low';
+      if (utilizationRate > expectedUtilization + 15) {
+        status = 'warning';
+        risk = 'medium';
+      }
+      if (utilizationRate > expectedUtilization + 25) {
+        status = 'critical';
+        risk = 'high';
+      }
+
+      return {
+        status: status,
+        metrics: {
+          cashFlow: budgetRemaining > totalBudget * 0.3 ? 'positive' : 'constrained',
+          burnRate: monthlyBurnRate > (totalBudget / 12) * 1.1 ? 'elevated' : 'normal',
+          runway: `${runwayMonths} months`,
+          risk: risk
+        },
+        details: {
+          totalBudget: totalBudget,
+          totalSpent: totalSpent,
+          totalEncumbered: totalEncumbered,
+          utilizationRate: Math.round(utilizationRate * 10) / 10,
+          monthlyBurnRate: Math.round(monthlyBurnRate),
+          expectedUtilization: Math.round(expectedUtilization * 10) / 10
+        }
+      };
+    } catch (error) {
+      console.error('Financial health calculation error:', error);
+      return this.getMockExecutiveDashboard().financialHealth;
+    }
   }
 
   getSystemHealthMetrics(filters) {
@@ -682,10 +747,115 @@ class KeswickDashboardService {
   }
 
   getTACSummary(filters) {
-    return this.getMockExecutiveDashboard().tacSummary;
+    // Demo mode check
+    if (CONFIG.DEMO_MODE) {
+      return this.getMockExecutiveDashboard().tacSummary;
+    }
+
+    try {
+      if (!this.sheets.transactionLedger) {
+        console.warn('TransactionLedger not available, using mock TAC data');
+        return this.getMockExecutiveDashboard().tacSummary;
+      }
+
+      const transactions = this.sheets.transactionLedger.getDataRange().getValues();
+      const headers = transactions[0];
+      const data = transactions.slice(1);
+
+      const cols = this.columns.TransactionLedger;
+
+      // TAC categories are identified by Organization field containing TAC keywords
+      // or by Form type indicating TAC expense
+      const tacKeywords = ['TAC', 'Technology', 'Activities', 'Curriculum', 'Field Trip', 'Supplies'];
+
+      let tacTransactions = data.filter(row => {
+        const org = String(row[cols.Organization] || '').toLowerCase();
+        const desc = String(row[cols.Description] || '').toLowerCase();
+        const form = String(row[cols.Form] || '').toLowerCase();
+        return tacKeywords.some(kw =>
+          org.includes(kw.toLowerCase()) ||
+          desc.includes(kw.toLowerCase()) ||
+          form.includes(kw.toLowerCase())
+        );
+      });
+
+      // Categorize TAC expenses
+      let techSpent = 0, activitiesSpent = 0, curriculumSpent = 0;
+
+      tacTransactions.forEach(row => {
+        const amount = parseFloat(row[cols.Amount]) || 0;
+        const org = String(row[cols.Organization] || '').toLowerCase();
+        const desc = String(row[cols.Description] || '').toLowerCase();
+
+        if (org.includes('tech') || desc.includes('tech') || desc.includes('computer') || desc.includes('software')) {
+          techSpent += amount;
+        } else if (org.includes('activit') || desc.includes('field trip') || desc.includes('activit')) {
+          activitiesSpent += amount;
+        } else {
+          curriculumSpent += amount; // Default to curriculum/supplies
+        }
+      });
+
+      const totalSpent = techSpent + activitiesSpent + curriculumSpent;
+
+      // Get TAC collected from OrganizationBudgets (look for TAC-related orgs)
+      const orgData = this.getOrganizationBudgetData();
+      let totalCollected = 0;
+      orgData.forEach(org => {
+        if (String(org.name || '').toLowerCase().includes('tac')) {
+          totalCollected += org.allocated || 0;
+        }
+      });
+
+      // If no TAC org found, estimate from student count * avg fee
+      if (totalCollected === 0) {
+        const estimatedStudents = 750; // Approximate enrollment
+        const avgFee = 1100; // Average TAC fee
+        totalCollected = estimatedStudents * avgFee;
+      }
+
+      // Apply category weights for allocation
+      const techAllocated = Math.round(totalCollected * CONFIG.TAC_CATEGORY_WEIGHTS.technology);
+      const activitiesAllocated = Math.round(totalCollected * CONFIG.TAC_CATEGORY_WEIGHTS.activities);
+      const curriculumAllocated = Math.round(totalCollected * CONFIG.TAC_CATEGORY_WEIGHTS.consumables);
+
+      return {
+        totalCollected: totalCollected,
+        totalAllocated: totalCollected, // All collected is allocated
+        totalSpent: Math.round(totalSpent),
+        totalAvailable: Math.round(totalCollected - totalSpent),
+        byCategory: {
+          technology: {
+            allocated: techAllocated,
+            spent: Math.round(techSpent),
+            available: techAllocated - Math.round(techSpent)
+          },
+          activities: {
+            allocated: activitiesAllocated,
+            spent: Math.round(activitiesSpent),
+            available: activitiesAllocated - Math.round(activitiesSpent)
+          },
+          consumables: {
+            allocated: curriculumAllocated,
+            spent: Math.round(curriculumSpent),
+            available: curriculumAllocated - Math.round(curriculumSpent)
+          }
+        },
+        transactionCount: tacTransactions.length,
+        lastUpdated: new Date().toISOString()
+      };
+    } catch (error) {
+      console.error('TAC summary calculation error:', error);
+      return this.getMockExecutiveDashboard().tacSummary;
+    }
   }
 
   getRecentTransactions(filters, limit) {
+    // Demo mode check
+    if (CONFIG.DEMO_MODE) {
+      return this.getMockTransactions(limit);
+    }
+
     try {
       if (this.sheets.transactionLedger) {
         return this.getTransactionData(limit);
@@ -702,7 +872,154 @@ class KeswickDashboardService {
   }
 
   getSpendingTrends(filters) {
-    return this.getMockExecutiveDashboard().trends;
+    // Demo mode check
+    if (CONFIG.DEMO_MODE) {
+      return this.getMockExecutiveDashboard().trends;
+    }
+
+    try {
+      if (!this.sheets.transactionLedger) {
+        console.warn('TransactionLedger not available, using mock trends');
+        return this.getMockExecutiveDashboard().trends;
+      }
+
+      const transactions = this.sheets.transactionLedger.getDataRange().getValues();
+      const data = transactions.slice(1);
+      const cols = this.columns.TransactionLedger;
+
+      // Get monthly spending trends
+      const monthlyData = {};
+      const categoryData = {};
+      const fiscalYearStart = this.getFiscalYearStart();
+
+      data.forEach(row => {
+        const processedDate = row[cols.ProcessedOn];
+        const amount = parseFloat(row[cols.Amount]) || 0;
+        const org = String(row[cols.Organization] || 'Other');
+
+        if (processedDate && processedDate >= fiscalYearStart) {
+          // Monthly aggregation
+          const date = new Date(processedDate);
+          const monthKey = date.toLocaleString('en-US', { month: 'short' });
+
+          if (!monthlyData[monthKey]) {
+            monthlyData[monthKey] = { actual: 0, count: 0 };
+          }
+          monthlyData[monthKey].actual += amount;
+          monthlyData[monthKey].count++;
+
+          // Category aggregation (use Organization as category proxy)
+          const category = this.categorizeTransaction(org, row[cols.Description]);
+          if (!categoryData[category]) {
+            categoryData[category] = 0;
+          }
+          categoryData[category] += amount;
+        }
+      });
+
+      // Build monthly trend array
+      const months = ['Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'];
+      const orgData = this.getOrganizationBudgetData();
+      const totalBudget = orgData.reduce((sum, org) => sum + (org.allocated || 0), 0);
+      const monthlyBudget = Math.round(totalBudget / 12);
+
+      const monthly = months.map(month => ({
+        month: month,
+        budget: monthlyBudget,
+        actual: Math.round(monthlyData[month]?.actual || 0)
+      })).filter(m => m.actual > 0 || months.indexOf(m.month) <= this.getCurrentFiscalMonth());
+
+      // Build categorical breakdown
+      const totalSpending = Object.values(categoryData).reduce((sum, amt) => sum + amt, 0);
+      const categorical = Object.entries(categoryData)
+        .map(([category, amount]) => ({
+          category: category,
+          amount: Math.round(amount),
+          percentage: totalSpending > 0 ? Math.round((amount / totalSpending) * 1000) / 10 : 0
+        }))
+        .sort((a, b) => b.amount - a.amount)
+        .slice(0, 7); // Top 7 categories
+
+      return {
+        monthly: monthly.length > 0 ? monthly : this.getMockMonthlyTrend(),
+        categorical: categorical.length > 0 ? categorical : this.getMockCategoricalSpending(),
+        lastUpdated: new Date().toISOString()
+      };
+    } catch (error) {
+      console.error('Spending trends calculation error:', error);
+      return this.getMockExecutiveDashboard().trends;
+    }
+  }
+
+  // Helper: Categorize transaction based on org/description
+  categorizeTransaction(org, description) {
+    const orgLower = String(org).toLowerCase();
+    const descLower = String(description || '').toLowerCase();
+
+    if (orgLower.includes('tech') || descLower.includes('computer') || descLower.includes('software')) {
+      return 'Technology';
+    }
+    if (orgLower.includes('curriculum') || descLower.includes('textbook') || descLower.includes('book')) {
+      return 'Curriculum';
+    }
+    if (orgLower.includes('supply') || orgLower.includes('supplies') || descLower.includes('supply')) {
+      return 'Supplies';
+    }
+    if (descLower.includes('training') || descLower.includes('conference') || descLower.includes('workshop')) {
+      return 'Prof. Dev.';
+    }
+    if (orgLower.includes('facilit') || descLower.includes('maintenance') || descLower.includes('repair')) {
+      return 'Facilities';
+    }
+    if (orgLower.includes('activit') || descLower.includes('field trip') || descLower.includes('event')) {
+      return 'Activities';
+    }
+    return 'Other';
+  }
+
+  // Helper: Get fiscal year start date
+  getFiscalYearStart() {
+    const now = new Date();
+    const year = now.getMonth() >= 6 ? now.getFullYear() : now.getFullYear() - 1;
+    return new Date(year, 6, 1); // July 1
+  }
+
+  // Helper: Get months elapsed in fiscal year
+  getMonthsElapsedInFiscalYear() {
+    const now = new Date();
+    const fyStart = this.getFiscalYearStart();
+    const monthsDiff = (now.getFullYear() - fyStart.getFullYear()) * 12 +
+                       (now.getMonth() - fyStart.getMonth());
+    return Math.max(1, monthsDiff);
+  }
+
+  // Helper: Get current fiscal month index (0 = July, 6 = Jan, etc.)
+  getCurrentFiscalMonth() {
+    const now = new Date();
+    const month = now.getMonth();
+    // Fiscal year starts in July (index 6)
+    return month >= 6 ? month - 6 : month + 6;
+  }
+
+  // Helper: Get organization budget data
+  getOrganizationBudgetData() {
+    try {
+      if (!this.sheets.organizationBudgets) return [];
+
+      const data = this.sheets.organizationBudgets.getDataRange().getValues();
+      const cols = this.columns.OrganizationBudgets;
+
+      return data.slice(1).map(row => ({
+        name: row[cols.Organization],
+        allocated: parseFloat(row[cols.BudgetAllocated]) || 0,
+        spent: parseFloat(row[cols.BudgetSpent]) || 0,
+        encumbered: parseFloat(row[cols.BudgetEncumbered]) || 0,
+        available: parseFloat(row[cols.BudgetAvailable]) || 0
+      })).filter(org => org.name && org.allocated > 0);
+    } catch (error) {
+      console.error('Organization budget fetch error:', error);
+      return [];
+    }
   }
 
   logAccess(email, action, details) {

@@ -519,6 +519,93 @@ function generateCategoricalSpending() {
 }
 
 // ============================================================================
+// DEMO MODE API
+// ============================================================================
+
+/**
+ * Get current demo mode status
+ * Called by frontend to show demo/live indicator
+ */
+function getDemoMode() {
+  try {
+    // Import CONFIG from Dashboard_BE.gs
+    return {
+      success: true,
+      demoMode: CONFIG.DEMO_MODE,
+      message: CONFIG.DEMO_MODE ? 'Dashboard is showing DEMO data' : 'Dashboard is showing LIVE data',
+      timestamp: new Date().toISOString()
+    };
+  } catch (error) {
+    console.error('getDemoMode error:', error);
+    return {
+      success: false,
+      demoMode: true, // Default to demo on error
+      error: error.message
+    };
+  }
+}
+
+/**
+ * Toggle demo mode (executive users only)
+ * NOTE: This changes the CONFIG value but requires redeployment to persist
+ * For dynamic toggling, consider using PropertiesService
+ */
+function setDemoMode(enabled) {
+  try {
+    // Verify user has executive role
+    const email = Session.getActiveUser().getEmail();
+    const userAccess = CONFIG.USER_ACCESS[email] || CONFIG.USER_ACCESS['DEFAULT'];
+
+    if (userAccess.role !== 'executive') {
+      return {
+        success: false,
+        error: 'Unauthorized: Only executives can toggle demo mode',
+        demoMode: CONFIG.DEMO_MODE
+      };
+    }
+
+    // Use PropertiesService for dynamic toggle (persists without redeployment)
+    const props = PropertiesService.getScriptProperties();
+    props.setProperty('DEMO_MODE', String(enabled));
+
+    // Also update CONFIG for current session
+    CONFIG.DEMO_MODE = enabled;
+
+    console.log(`Demo mode ${enabled ? 'ENABLED' : 'DISABLED'} by ${email}`);
+
+    return {
+      success: true,
+      demoMode: enabled,
+      message: enabled ? 'Switched to DEMO mode' : 'Switched to LIVE mode',
+      changedBy: email,
+      timestamp: new Date().toISOString()
+    };
+  } catch (error) {
+    console.error('setDemoMode error:', error);
+    return {
+      success: false,
+      error: error.message,
+      demoMode: CONFIG.DEMO_MODE
+    };
+  }
+}
+
+/**
+ * Initialize demo mode from stored property (called on service init)
+ */
+function initDemoModeFromProperty() {
+  try {
+    const props = PropertiesService.getScriptProperties();
+    const storedMode = props.getProperty('DEMO_MODE');
+    if (storedMode !== null) {
+      CONFIG.DEMO_MODE = storedMode === 'true';
+    }
+  } catch (error) {
+    console.error('initDemoModeFromProperty error:', error);
+  }
+}
+
+// ============================================================================
 // API REQUEST ROUTER
 // ============================================================================
 
