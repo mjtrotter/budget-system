@@ -396,18 +396,20 @@ function testEmailConfiguration() {
 /**
  * Setup Office 365 credentials for email sending
  * Run this once to configure the script properties
+ *
+ * Uses invoicing@keswickchristian.org as the sender account
  */
 function setupOffice365Email() {
     const props = PropertiesService.getScriptProperties();
 
-    // Set Office 365 credentials (same as school emailer DNR account)
-    props.setProperty('O365_EMAIL', 'do-not-reply@keswickchristian.org');
-    props.setProperty('O365_PASSWORD', 'DNR@kcs2023');
-    props.setProperty('O365_TENANT_ID', 'common');
+    // Set Office 365 credentials for invoicing account
+    props.setProperty('O365_EMAIL', 'invoicing@keswickchristian.org');
+    props.setProperty('O365_PASSWORD', 'bo@999paper');
+    props.setProperty('O365_TENANT_ID', 'organizations');
     props.setProperty('SMTP_ENABLED', 'true');
 
     console.log('✅ Office 365 email credentials configured!');
-    console.log('   Email: do-not-reply@keswickchristian.org');
+    console.log('   Email: invoicing@keswickchristian.org');
     console.log('   Provider: OFFICE365');
     console.log('');
     console.log('Run testEmailConfiguration() to verify it works.');

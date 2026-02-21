@@ -255,6 +255,36 @@ function ensureApproversInDirectory() {
       active: true
     },
     {
+      email: 'mtrotter@keswickchristian.org',
+      firstName: 'Matt',
+      lastName: 'Trotter',
+      role: 'Administrator',
+      department: 'Administration',
+      division: 'AD',
+      approver: 'mtrotter@keswickchristian.org', // Self
+      budgetAllocated: 10000,
+      budgetSpent: 0,
+      budgetEncumbered: 0,
+      budgetRemaining: 10000,
+      utilizationRate: 0,
+      active: true
+    },
+    {
+      email: 'nstratis@keswickchristian.org',
+      firstName: 'Nick',
+      lastName: 'Stratis',
+      role: 'Administrator',
+      department: 'Administration',
+      division: 'AD',
+      approver: 'nstratis@keswickchristian.org', // Self
+      budgetAllocated: 10000,
+      budgetSpent: 0,
+      budgetEncumbered: 0,
+      budgetRemaining: 10000,
+      utilizationRate: 0,
+      active: true
+    },
+    {
       email: 'sneel@keswickchristian.org',
       firstName: 'Sherilyn',
       lastName: 'Neel',
@@ -262,10 +292,10 @@ function ensureApproversInDirectory() {
       department: 'Administration',
       division: 'AD',
       approver: 'sneel@keswickchristian.org', // Self
-      budgetAllocated: 0,
+      budgetAllocated: 10000,
       budgetSpent: 0,
       budgetEncumbered: 0,
-      budgetRemaining: 0,
+      budgetRemaining: 10000,
       utilizationRate: 0,
       active: true
     },
@@ -277,10 +307,10 @@ function ensureApproversInDirectory() {
       department: 'Administration',
       division: 'AD',
       approver: 'bendrulat@keswickchristian.org', // Self
-      budgetAllocated: 0,
+      budgetAllocated: 10000,
       budgetSpent: 0,
       budgetEncumbered: 0,
-      budgetRemaining: 0,
+      budgetRemaining: 10000,
       utilizationRate: 0,
       active: true
     }

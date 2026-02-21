@@ -134,15 +134,222 @@ function doPost(e) {
  * Main function called by the dashboard frontend
  * This is the primary entry point for google.script.run calls
  * CRITICAL: This function must ALWAYS return data, never throw errors
+ *
+ * Checks CONFIG.DEMO_MODE to determine whether to return live or demo data
  */
 function getDashboardData() {
+  // Check DEMO_MODE flag from CONFIG (Dashboard_BE.gs)
+  // When DEMO_MODE is false, use live data from spreadsheets
+  if (CONFIG.DEMO_MODE === false) {
+    console.log('📊 Dashboard loading LIVE data (DEMO_MODE=false)');
+    return getDashboardData_LiveMode();
+  }
+
+  // DEMO VERSION - Returns demo data when DEMO_MODE is true
+  console.log('📊 Dashboard loading DEMO data (DEMO_MODE=true)');
+
+  try {
+    var email = '';
+    try { email = Session.getActiveUser().getEmail() || ''; } catch(e) {}
+    if (!email) { try { email = Session.getEffectiveUser().getEmail() || ''; } catch(e) {} }
+
+    var response = {
+      success: true,
+      user: {
+        email: email || 'demo@keswickchristian.org',
+        firstName: email ? email.split('@')[0] : 'Demo',
+        lastName: 'User',
+        role: 'executive',
+        divisions: ['US', 'LS', 'KK', 'AD'],
+        departments: ['ALL']
+      },
+      data: generateCompleteFallbackData('executive'),
+      isDemo: true,
+      timestamp: new Date().toISOString()
+    };
+
+    // Force JSON serialization to catch any issues
+    var serialized = JSON.stringify(response);
+    return JSON.parse(serialized);
+
+  } catch (e) {
+    // Ultimate fallback
+    return {
+      success: true,
+      user: { email: 'demo@keswickchristian.org', firstName: 'Demo', lastName: 'User', role: 'executive' },
+      data: generateCompleteFallbackData('executive'),
+      isDemo: true,
+      error: e.message
+    };
+  }
+}
+
+// ============================================================================
+// TAC GRADE-LEVEL TRACKING API FUNCTIONS
+// ============================================================================
+
+/**
+ * Get TAC data by grade level for the TAC Tracker
+ * Returns enrollment, fees, spending, and variance for each grade
+ */
+function getTACByGradeData() {
+  try {
+    const service = new KeswickDashboardService();
+    const tacByGrade = service.getTACByGrade({});
+    const stepUp = service.getStepUpPaymentStatus();
+    const enrollment = service.getEnrollmentData();
+
+    return {
+      success: true,
+      grades: tacByGrade.grades,
+      totals: tacByGrade.totals,
+      enrollment: enrollment,
+      stepUp: stepUp,
+      lastUpdated: tacByGrade.lastUpdated
+    };
+  } catch (error) {
+    console.error('getTACByGradeData error:', error);
+    // Return mock data on error
+    return getMockTACByGradeData();
+  }
+}
+
+/**
+ * Save enrollment data to Script Properties
+ * Called when user saves enrollment numbers in the TAC Tracker
+ */
+function saveEnrollmentData(enrollmentByGrade) {
+  try {
+    const service = new KeswickDashboardService();
+    const result = service.saveEnrollmentData(enrollmentByGrade);
+    return result;
+  } catch (error) {
+    console.error('saveEnrollmentData error:', error);
+    return { success: false, message: 'Failed to save enrollment: ' + error.message };
+  }
+}
+
+/**
+ * Get enhanced analytics data
+ * Returns department variance, approval metrics, cost per student, Step Up status
+ */
+function getEnhancedAnalytics() {
+  try {
+    const service = new KeswickDashboardService();
+    return {
+      success: true,
+      departmentVariance: service.getSpendingVarianceByDepartment(),
+      approvalMetrics: service.getApprovalTurnaroundMetrics(),
+      costPerStudent: service.getCostPerStudentMetrics(),
+      stepUp: service.getStepUpPaymentStatus()
+    };
+  } catch (error) {
+    console.error('getEnhancedAnalytics error:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Get specific report data
+ * Supports: admin, curriculum, fieldtrip, supply report types
+ */
+function getReportData(reportType, filters) {
+  try {
+    const service = new KeswickDashboardService();
+    let reportData;
+
+    switch (reportType) {
+      case 'admin':
+        reportData = service.getAdminExpensesReport(filters || {});
+        break;
+      case 'curriculum':
+        reportData = service.getCurriculumReport(filters || {});
+        break;
+      case 'fieldtrip':
+        reportData = service.getFieldTripReport(filters || {});
+        break;
+      case 'supply':
+        reportData = service.getSupplyReport(filters || {}, filters?.aggregateLevel || 'teacher');
+        break;
+      default:
+        return { success: false, error: 'Unknown report type: ' + reportType };
+    }
+
+    return { success: true, data: reportData };
+  } catch (error) {
+    console.error('getReportData error:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Mock TAC data for demo/fallback
+ */
+function getMockTACByGradeData() {
+  const grades = ['Infants', 'PK2', 'PK3', 'PK4', 'K', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
+  const divisions = { 'Infants': 'KK', 'PK2': 'KK', 'PK3': 'KK', 'PK4': 'KK', 'K': 'LS', '1': 'LS', '2': 'LS', '3': 'LS', '4': 'LS', '5': 'LS', '6': 'MS', '7': 'MS', '8': 'MS', '9': 'US', '10': 'US', '11': 'US', '12': 'US' };
+  const fees = { 'Infants': 850, 'PK2': 850, 'PK3': 850, 'PK4': 850, 'K': 950, '1': 1000, '2': 1000, '3': 1050, '4': 1050, '5': 1100, '6': 1150, '7': 1200, '8': 1200, '9': 1250, '10': 1250, '11': 1300, '12': 1300 };
+
+  const gradeData = grades.map(grade => {
+    const enrollment = Math.floor(Math.random() * 40) + 30;
+    const tacFee = fees[grade];
+    const tacBudgeted = enrollment * tacFee;
+    const tacSpent = Math.floor(tacBudgeted * (0.3 + Math.random() * 0.4));
+    const variance = tacBudgeted - tacSpent;
+    const variancePercent = Math.round((variance / tacBudgeted) * 100);
+
+    return {
+      grade: grade,
+      division: divisions[grade],
+      enrollment: enrollment,
+      tacFee: tacFee,
+      tacBudgeted: tacBudgeted,
+      tacSpent: tacSpent,
+      variance: variance,
+      variancePercent: variancePercent,
+      curricular: Math.floor(tacSpent * 0.4),
+      fieldTrip: Math.floor(tacSpent * 0.3),
+      techCost: Math.floor(tacSpent * 0.3),
+      status: variancePercent < -10 ? 'over_budget' : variancePercent < 0 ? 'warning' : 'on_track'
+    };
+  });
+
+  const totals = gradeData.reduce((acc, g) => ({
+    enrollment: acc.enrollment + g.enrollment,
+    tacBudgeted: acc.tacBudgeted + g.tacBudgeted,
+    tacSpent: acc.tacSpent + g.tacSpent,
+    variance: acc.variance + g.variance,
+    curricular: acc.curricular + g.curricular,
+    fieldTrip: acc.fieldTrip + g.fieldTrip,
+    techCost: acc.techCost + g.techCost
+  }), { enrollment: 0, tacBudgeted: 0, tacSpent: 0, variance: 0, curricular: 0, fieldTrip: 0, techCost: 0 });
+
+  const enrollment = {};
+  gradeData.forEach(g => enrollment[g.grade] = g.enrollment);
+
+  return {
+    success: true,
+    grades: gradeData,
+    totals: totals,
+    enrollment: enrollment,
+    stepUp: {
+      quarterlyExpected: 1500000,
+      currentQuarter: 2,
+      quarters: {
+        q1: { expected: 1500000, received: 1500000 },
+        q2: { expected: 1500000, received: 1425000 },
+        q3: { expected: 1500000, received: 0 },
+        q4: { expected: 1500000, received: 0 }
+      }
+    },
+    lastUpdated: new Date().toISOString()
+  };
+}
+
+// Keep the old complex version commented out for when live data is needed
+function getDashboardData_LiveMode() {
   const startTime = Date.now();
-  
-  console.log('=====================================');
-  console.log('getDashboardData called');
-  console.log('Time:', new Date().toISOString());
-  console.log('=====================================');
-  
+
   try {
     // Step 1: Initialize service with fallback
     let service;
@@ -201,7 +408,19 @@ function getDashboardData() {
         departments: ['ALL']
       };
     }
-    
+
+    // Step 3b: Check for ACCESS_DENIED - return error for unauthorized users
+    if (user.error === 'ACCESS_DENIED' || user.authenticated === false) {
+      console.warn('⚠ User access denied:', user.email);
+      return {
+        success: false,
+        error: 'ACCESS_DENIED',
+        message: 'You do not have permission to access this dashboard. Please contact your administrator.',
+        user: { email: user.email },
+        timestamp: new Date().toISOString()
+      };
+    }
+
     // Step 4: Get dashboard data based on role with fallback
     let dashboardData;
     let dataError = null;
@@ -606,6 +825,158 @@ function initDemoModeFromProperty() {
 }
 
 // ============================================================================
+// ROLE SWITCHER API (Demo Mode Only)
+// ============================================================================
+
+/**
+ * Get available divisions for role switcher dropdown
+ * @return {object} Response with divisions array
+ */
+function getAvailableDivisions() {
+  try {
+    const divisions = Object.entries(CONFIG.DIVISIONS).map(([code, info]) => ({
+      code: code,
+      name: info.name,
+      grades: info.grades
+    }));
+
+    return {
+      success: true,
+      divisions: divisions
+    };
+  } catch (error) {
+    console.error('getAvailableDivisions error:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Get departments for a specific division
+ * @param {string} divisionCode - Division code (US, LS, KK, AD)
+ * @return {object} Response with departments array
+ */
+function getDepartmentsByDivision(divisionCode) {
+  try {
+    // Map division code to department list
+    const divisionDepartments = {
+      'US': ['Math', 'Science', 'English', 'History', 'Foreign Language', 'Fine Arts', 'Athletics'],
+      'LS': ['Elementary', 'Art', 'Music', 'PE', 'Library'],
+      'KK': ['Keswick Kids', 'Early Childhood'],
+      'AD': ['Administration', 'Finance', 'HR', 'Facilities', 'IT']
+    };
+
+    const depts = divisionDepartments[divisionCode] || [];
+    const departments = depts.map(d => ({
+      code: d,
+      name: d
+    }));
+
+    return {
+      success: true,
+      division: divisionCode,
+      departments: departments
+    };
+  } catch (error) {
+    console.error('getDepartmentsByDivision error:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Get dashboard data for a simulated role (demo mode only)
+ * Allows viewing dashboard as different roles during demos
+ * @param {string} simulatedRole - Role to simulate (executive, principal, department_head)
+ * @param {string} division - Division code for principal/dept_head view
+ * @param {string} department - Department name for dept_head view
+ * @return {object} Dashboard data for the simulated role
+ */
+function getDashboardDataAsRole(simulatedRole, division, department) {
+  const startTime = Date.now();
+
+  try {
+    // Role switcher is always available for demo purposes
+    // (We're serving demo data by default now)
+
+    // Get actual user email for logging
+    var email = '';
+    try { email = Session.getActiveUser().getEmail() || ''; } catch(e) {}
+    if (!email) { try { email = Session.getEffectiveUser().getEmail() || ''; } catch(e) {} }
+    console.log(`Role simulation requested: ${simulatedRole} (division: ${division}, dept: ${department}) by ${email}`);
+
+    // Build simulated user context
+    const divisionName = CONFIG.DIVISIONS[division]?.name || division;
+    const simulatedUser = {
+      email: email,
+      firstName: 'Demo',
+      lastName: simulatedRole === 'executive' ? 'Executive' :
+                simulatedRole === 'principal' ? `Principal (${divisionName})` :
+                `Dept Head (${department || 'N/A'})`,
+      role: simulatedRole,
+      divisions: division ? [division] : ['US', 'LS', 'KK', 'AD'],
+      departments: department ? [department] : ['ALL'],
+      isSimulated: true
+    };
+
+    // Generate dashboard data for the simulated role
+    let dashboardData = generateCompleteFallbackData(simulatedRole);
+
+    // Customize data based on selected division/department
+    if (simulatedRole === 'principal' && division) {
+      // Filter to show only selected division
+      dashboardData.divisionSummary = dashboardData.divisionSummary.filter(
+        d => d.division === division
+      );
+      // Update KPIs to reflect division
+      dashboardData.kpis = [
+        { id: 'division_budget', label: `${divisionName} Budget`, value: 1800000, format: 'currency' },
+        { id: 'division_spent', label: 'Spent to Date', value: 756000, format: 'currency' },
+        { id: 'division_utilization', label: 'Utilization Rate', value: 42, format: 'percentage' },
+        { id: 'pending_requests', label: 'Pending Requests', value: 8, format: 'number' }
+      ];
+    } else if (simulatedRole === 'department_head' && department) {
+      // Update KPIs to reflect department
+      dashboardData.kpis = [
+        { id: 'dept_budget', label: `${department} Budget`, value: 250000, format: 'currency' },
+        { id: 'dept_spent', label: 'Spent to Date', value: 105000, format: 'currency' },
+        { id: 'dept_available', label: 'Available Budget', value: 145000, format: 'currency' },
+        { id: 'dept_utilization', label: 'Utilization Rate', value: 42, format: 'percentage' }
+      ];
+      dashboardData.budget = {
+        department: department,
+        division: division,
+        fiscalYear: '2024-25',
+        allocated: 250000,
+        spent: 105000,
+        encumbered: 20000,
+        available: 125000
+      };
+    }
+
+    var response = {
+      success: true,
+      user: simulatedUser,
+      data: dashboardData,
+      isSimulated: true,
+      simulatedRole: simulatedRole,
+      simulatedDivision: division,
+      simulatedDepartment: department,
+      loadTime: Date.now() - startTime,
+      timestamp: new Date().toISOString()
+    };
+
+    // Force JSON serialization to ensure clean return
+    return JSON.parse(JSON.stringify(response));
+
+  } catch (error) {
+    console.error('getDashboardDataAsRole error:', error);
+    return {
+      success: false,
+      error: error.message || 'Unknown error'
+    };
+  }
+}
+
+// ============================================================================
 // API REQUEST ROUTER
 // ============================================================================
 
@@ -727,36 +1098,77 @@ function getBrandAsset(filename) {
       return { success: false, error: 'Invalid asset name. Must be school-name.png or crest.png' };
     }
 
-    // Try to find _scratch folder in Drive
+    // Method 1: Check if there's a configured file ID for this asset
+    if (CONFIG.BRAND_ASSETS && CONFIG.BRAND_ASSETS[filename]) {
+      try {
+        const fileId = CONFIG.BRAND_ASSETS[filename];
+        const file = DriveApp.getFileById(fileId);
+        const blob = file.getBlob();
+        const base64 = Utilities.base64Encode(blob.getBytes());
+        console.log('Loaded asset from configured file ID:', filename);
+        return {
+          success: true,
+          data: base64,
+          fileName: filename,
+          mimeType: blob.getContentType()
+        };
+      } catch (idError) {
+        console.warn('Failed to load from configured ID:', idError.message);
+      }
+    }
+
+    // Method 2: For crest, try the signatures folder (same as invoicing)
+    if (filename === 'crest.png') {
+      try {
+        const folderName = CONFIG.SIGNATURES_FOLDER || 'Budget_System_Signatures';
+        const folders = DriveApp.getFoldersByName(folderName);
+        if (folders.hasNext()) {
+          const folder = folders.next();
+          // Try seal.jpg first (used in invoicing), then crest.png
+          for (const sealName of ['seal.jpg', 'seal.png', 'crest.jpg', 'crest.png']) {
+            const files = folder.getFilesByName(sealName);
+            if (files.hasNext()) {
+              const file = files.next();
+              const blob = file.getBlob();
+              const base64 = Utilities.base64Encode(blob.getBytes());
+              console.log('Loaded crest/seal from signatures folder:', sealName);
+              return {
+                success: true,
+                data: base64,
+                fileName: sealName,
+                mimeType: blob.getContentType()
+              };
+            }
+          }
+        }
+      } catch (sigError) {
+        console.warn('Failed to load from signatures folder:', sigError.message);
+      }
+    }
+
+    // Method 3: Try _scratch folder as fallback
     const scratchFolders = DriveApp.getFoldersByName('_scratch');
-    if (!scratchFolders.hasNext()) {
-      console.error('_scratch folder not found in Drive');
-      return { success: false, error: '_scratch folder not found in Google Drive' };
+    if (scratchFolders.hasNext()) {
+      const folder = scratchFolders.next();
+      const files = folder.getFilesByName(filename);
+      if (files.hasNext()) {
+        const file = files.next();
+        const blob = file.getBlob();
+        const base64 = Utilities.base64Encode(blob.getBytes());
+        console.log('Loaded from _scratch folder:', filename);
+        return {
+          success: true,
+          data: base64,
+          fileName: filename,
+          mimeType: blob.getContentType()
+        };
+      }
     }
 
-    const folder = scratchFolders.next();
-    console.log('Found _scratch folder:', folder.getName());
+    // Method 4: Return failure - UI will handle with text fallback
+    console.warn('Brand asset not found, UI will use text fallback:', filename);
+    return { success: false, error: 'Asset not found - using text fallback' };
 
-    // Find the asset file
-    const files = folder.getFilesByName(filename);
-    if (!files.hasNext()) {
-      console.error('Asset file not found:', filename);
-      return { success: false, error: 'Asset file not found: ' + filename };
-    }
-
-    const file = files.next();
-    console.log('Found asset file:', file.getName());
-
-    // Encode file as base64
-    const blob = file.getBlob();
-    const base64 = Utilities.base64Encode(blob.getBytes());
-
-    return {
-      success: true,
-      data: base64,
-      fileName: filename,
-      mimeType: blob.getContentType()
-    };
   } catch (error) {
     console.error('getBrandAsset error:', error.message);
     return { success: false, error: error.message };

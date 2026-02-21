@@ -325,7 +325,21 @@ function processWarehouseFormSubmission(e) {
     
     // Process the found submission row
     const email = submissionRow[1].toString().trim();
-    const totalCost = parseFloat(String(submissionRow[27]).replace(/[$,]/g, '')) || 0;
+
+    // FIX: Calculate total from individual item prices instead of relying on column 27
+    // Column 27 may be empty if form doesn't have an "Estimated Total" field
+    const priceColumns = [18, 20, 22, 24, 26]; // Item 1-5 price columns
+    let totalCost = 0;
+    priceColumns.forEach(col => {
+      totalCost += parseFloat(String(submissionRow[col] || '0').replace(/[$,]/g, '')) || 0;
+    });
+
+    // Fallback to column 27 if calculated total is 0 but column 27 has a value
+    if (totalCost === 0) {
+      totalCost = parseFloat(String(submissionRow[27]).replace(/[$,]/g, '')) || 0;
+    }
+
+    console.log(`📊 Warehouse total: $${totalCost} (calculated from item prices)`);
     
     if (!email || !email.includes('@')) {
       throw new Error(`Invalid email: ${email}`);

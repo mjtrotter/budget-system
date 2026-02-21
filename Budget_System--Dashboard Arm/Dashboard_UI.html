@@ -310,12 +310,55 @@
         /* ============================================================================ */
         /* LAYOUT COMPONENTS */
         /* ============================================================================ */
-        
+
+        /* Unified Top Header - spans full width */
+        .unified-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 24px;
+            background: var(--bg-primary);
+            border-bottom: 2px solid var(--primary-color);
+            gap: 24px;
+        }
+
+        .unified-header-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .unified-header-logo img {
+            height: 45px;
+            width: auto;
+        }
+
+        .logo-text-fallback {
+            font-family: 'Lucida Bright', Georgia, serif;
+            font-weight: 600;
+            font-size: 18px;
+            color: #13381f;
+        }
+
+        .unified-header-title {
+            font-size: 22pt;
+            font-weight: 600;
+            color: #13381f;
+            margin: 0;
+            margin-left: 20px;
+        }
+
+        .unified-header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
         .dashboard-container {
             display: flex;
-            min-height: 100vh;
+            min-height: calc(100vh - 70px); /* Account for unified header */
         }
-        
+
         /* Sidebar */
         .sidebar {
             width: 260px;
@@ -325,14 +368,9 @@
             flex-direction: column;
             transition: margin-left var(--transition-normal);
         }
-        
+
         .sidebar.collapsed {
             margin-left: -260px;
-        }
-        
-        .sidebar-header {
-            padding: 24px;
-            border-bottom: 1px solid var(--border-color);
         }
         
         .logo {
@@ -917,7 +955,109 @@
             background-color: rgba(244, 67, 54, 0.1);
             color: var(--danger-color);
         }
-        
+
+        .status-badge.processing {
+            background-color: rgba(33, 150, 243, 0.1);
+            color: #1976D2;
+        }
+
+        /* Sortable Tables */
+        .sortable-table th.sortable {
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+            padding-right: 24px;
+        }
+
+        .sortable-table th.sortable:hover {
+            background-color: rgba(19, 56, 31, 0.05);
+        }
+
+        .sortable-table th.sortable .sort-icon::after {
+            content: '';
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            opacity: 0.3;
+        }
+
+        .sortable-table th.sortable.sort-asc .sort-icon::after {
+            content: '\25B2';
+            opacity: 1;
+            color: var(--primary-color);
+        }
+
+        .sortable-table th.sortable.sort-desc .sort-icon::after {
+            content: '\25BC';
+            opacity: 1;
+            color: var(--primary-color);
+        }
+
+        /* Table Filters */
+        .table-filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            align-items: flex-end;
+            padding: 16px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+
+        .table-filters .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .table-filters .filter-group label {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .table-filters select,
+        .table-filters input[type="date"] {
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 14px;
+            background: white;
+            min-width: 140px;
+        }
+
+        .table-filters select:focus,
+        .table-filters input[type="date"]:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(19, 56, 31, 0.1);
+        }
+
+        .filter-clear-btn {
+            padding: 8px 16px;
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+
+        .filter-clear-btn:hover {
+            background: var(--primary-light);
+            border-color: var(--primary-color);
+            color: var(--primary-color);
+        }
+
+        .filter-count {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-left: auto;
+            padding: 8px 0;
+        }
+
         /* Tabs */
         .tabs-container {
             margin-bottom: 32px;
@@ -1021,6 +1161,25 @@
         }
 
         @media (max-width: 768px) {
+            /* Unified header responsive */
+            .unified-header {
+                padding: 10px 16px;
+                flex-wrap: wrap;
+                gap: 12px;
+            }
+
+            .unified-header-title {
+                font-size: 16pt;
+            }
+
+            .unified-header-logo img {
+                height: 35px;
+            }
+
+            .unified-header-right .header-button span {
+                display: none;
+            }
+
             /* Smaller header images on mobile */
             .dashboard-title-text .main-word {
                 font-size: 24pt;
@@ -1037,15 +1196,11 @@
             .widget-grid {
                 grid-template-columns: 1fr;
             }
-            
-            .header {
-                padding: 16px;
-            }
-            
+
             .content {
                 padding: 16px;
             }
-            
+
             .page-title {
                 font-size: 20px;
             }
@@ -1131,6 +1286,47 @@
             border-color: #2e7d32;
         }
 
+        /* Role Switcher Styles */
+        .role-switcher-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: 16px;
+            padding-left: 16px;
+            border-left: 1px solid rgba(0,0,0,0.2);
+        }
+
+        .role-switcher-container.hidden {
+            display: none;
+        }
+
+        .role-switcher-label {
+            font-size: 12px;
+            font-weight: 500;
+            color: inherit;
+            white-space: nowrap;
+        }
+
+        .role-switcher-select {
+            padding: 4px 8px;
+            border-radius: 4px;
+            border: 1px solid currentColor;
+            background: white;
+            font-size: 12px;
+            cursor: pointer;
+            min-width: 110px;
+            color: #333;
+        }
+
+        .role-switcher-select:focus {
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(230, 81, 0, 0.3);
+        }
+
+        .role-switcher-select.hidden {
+            display: none;
+        }
+
         /* Legacy demo-banner class for compatibility */
         .demo-banner {
             background-color: #fff3e0;
@@ -1178,19 +1374,45 @@
     </div>
     
     <!-- Main Dashboard -->
-    <div id="dashboardContainer" class="dashboard-container hidden">
-        <!-- Sidebar -->
-        <aside id="sidebar" class="sidebar">
-            <div class="sidebar-header">
-                <a href="#" class="logo">
-                    <img id="schoolLogo" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' fill='%231b5e20' rx='8'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.35em' fill='white' font-family='Arial' font-size='20' font-weight='bold'%3EK%3C/text%3E%3C/svg%3E" alt="Keswick">
-                    <div class="logo-text">
-                        Keswick<br>
-                        <span style="font-size: 12px; font-weight: 400;">Budget Dashboard</span>
-                    </div>
-                </a>
+    <div id="dashboardContainer" class="hidden">
+        <!-- Unified Top Header -->
+        <header class="unified-header">
+            <div class="unified-header-left">
+                <button id="menuToggle" class="menu-toggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div class="unified-header-logo">
+                    <img id="sidebarLogo" src="" alt="Keswick Christian School" style="display:none;" onerror="this.style.display='none';" onload="this.style.display='block';" />
+                    <span id="sidebarLogoText" class="logo-text-fallback">Keswick</span>
+                </div>
+                <h1 id="pageTitle" class="unified-header-title">Budget Dashboard</h1>
             </div>
-            <nav class="nav-menu">
+            <div class="unified-header-right">
+                <button class="header-button" onclick="refreshDashboard()">
+                    <i class="fas fa-sync-alt"></i>
+                    <span>Refresh</span>
+                </button>
+                <button class="header-button" onclick="exportDashboard()">
+                    <i class="fas fa-download"></i>
+                    <span>Export</span>
+                </button>
+                <div class="user-menu" id="userMenu">
+                    <div class="user-avatar" id="userAvatar">
+                        <span id="userInitials">JD</span>
+                    </div>
+                    <div class="user-info">
+                        <div id="userName" class="user-name">John Doe</div>
+                        <div id="userRole" class="user-role">Executive</div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Content Area (Sidebar + Main) -->
+        <div class="dashboard-container">
+            <!-- Sidebar -->
+            <aside id="sidebar" class="sidebar">
+                <nav class="nav-menu">
                 <button class="nav-item active" data-tab="overview">
                     <i class="fas fa-chart-line nav-icon"></i>
                     <span>Overview</span>
@@ -1216,67 +1438,35 @@
         
         <!-- Main Content -->
         <main class="main-content">
-            <!-- Header -->
-            <header class="header">
-                <!-- Three-element institutional header -->
-                <div class="header-institutional">
-                    <!-- Left: School name IMAGE -->
-                    <div class="school-name-img">
-                        <img id="schoolNameLogo"
-                             src=""
-                             alt="Keswick Christian School"
-                             style="height: 81px; width: auto;" />
-                    </div>
+            <!-- Hidden elements for image loading compatibility -->
+            <img id="schoolNameLogo" src="" alt="" style="display: none;" />
+            <img id="schoolCrest" src="" alt="" style="display: none;" />
 
-                    <!-- Center: Crest IMAGE -->
-                    <div class="shield-crest">
-                        <img id="schoolCrest"
-                             src=""
-                             alt="KCS Crest"
-                             style="height: 102px; width: auto;" />
-                    </div>
-
-                    <!-- Right: "Dashboard" TEXT -->
-                    <div class="dashboard-title">
-                        <div class="dashboard-title-text">
-                            <div class="main-word">Dashboard</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Secondary row: menu toggle + page title + actions + user -->
-                <div class="header-actions">
-                    <button id="menuToggle" class="menu-toggle">
-                        <i class="fas fa-bars"></i>
-                    </button>
-                    <h1 id="pageTitle" class="page-subtitle">Dashboard Overview</h1>
-                    <div class="header-spacer"></div>
-                    <button class="header-button" onclick="refreshDashboard()">
-                        <i class="fas fa-sync-alt"></i>
-                        <span>Refresh</span>
-                    </button>
-                    <button class="header-button" onclick="exportDashboard()">
-                        <i class="fas fa-download"></i>
-                        <span>Export</span>
-                    </button>
-                    <div class="user-menu" id="userMenu">
-                        <div class="user-avatar" id="userAvatar">
-                            <span id="userInitials">JD</span>
-                        </div>
-                        <div class="user-info">
-                            <div id="userName" class="user-name">John Doe</div>
-                            <div id="userRole" class="user-role">Executive</div>
-                        </div>
-                    </div>
-                </div>
-            </header>
-            
             <!-- Data Mode Banner (Demo/Live) -->
             <div id="dataModeBanner" class="data-mode-banner demo-mode hidden">
                 <i class="fas fa-info-circle mode-icon"></i>
                 <span id="dataModeMessage">
-                    <strong>Demo Mode:</strong> You're viewing sample data. Some features may be limited.
+                    <strong>Demo Mode:</strong> You're viewing sample data.
                 </span>
+
+                <!-- Role Switcher (only visible in demo mode) -->
+                <div id="roleSwitcherContainer" class="role-switcher-container hidden">
+                    <label class="role-switcher-label">View as:</label>
+                    <select id="roleSelect" class="role-switcher-select" onchange="onRoleChange(this.value)">
+                        <option value="executive">Executive</option>
+                        <option value="principal">Principal</option>
+                        <option value="department_head">Department Head</option>
+                    </select>
+
+                    <select id="divisionSelect" class="role-switcher-select hidden" onchange="onDivisionChange(this.value)">
+                        <option value="">Select Division...</option>
+                    </select>
+
+                    <select id="departmentSelect" class="role-switcher-select hidden" onchange="onDepartmentChange(this.value)">
+                        <option value="">Select Department...</option>
+                    </select>
+                </div>
+
                 <button id="toggleModeBtn" class="toggle-btn hidden" onclick="toggleDataMode()">
                     <i class="fas fa-exchange-alt"></i> Switch to Live
                 </button>
@@ -1327,15 +1517,15 @@
                             <h2 class="table-title">Division Summary</h2>
                         </div>
                         <div class="table-wrapper">
-                            <table id="divisionTable">
+                            <table id="divisionTable" class="sortable-table">
                                 <thead>
                                     <tr>
-                                        <th>Division</th>
-                                        <th>Allocated</th>
-                                        <th>Spent</th>
-                                        <th>Encumbered</th>
-                                        <th>Available</th>
-                                        <th>Utilization</th>
+                                        <th class="sortable" data-sort="name" onclick="sortTable('divisionTable', 'name', 'string')">Division <span class="sort-icon"></span></th>
+                                        <th class="sortable" data-sort="allocated" onclick="sortTable('divisionTable', 'allocated', 'currency')">Allocated <span class="sort-icon"></span></th>
+                                        <th class="sortable" data-sort="spent" onclick="sortTable('divisionTable', 'spent', 'currency')">Spent <span class="sort-icon"></span></th>
+                                        <th class="sortable" data-sort="encumbered" onclick="sortTable('divisionTable', 'encumbered', 'currency')">Encumbered <span class="sort-icon"></span></th>
+                                        <th class="sortable" data-sort="available" onclick="sortTable('divisionTable', 'available', 'currency')">Available <span class="sort-icon"></span></th>
+                                        <th class="sortable" data-sort="utilization" onclick="sortTable('divisionTable', 'utilization', 'number')">Utilization <span class="sort-icon"></span></th>
                                         <th>Status</th>
                                     </tr>
                                 </thead>
@@ -1353,18 +1543,52 @@
                         <div class="table-header">
                             <h2 class="table-title">Recent Transactions</h2>
                         </div>
+                        <!-- Transaction Filters -->
+                        <div class="table-filters" id="transactionFilters">
+                            <div class="filter-group">
+                                <label>Division</label>
+                                <select id="txnFilterDivision" onchange="applyTransactionFilters()">
+                                    <option value="">All Divisions</option>
+                                    <option value="US">Upper School</option>
+                                    <option value="LS">Lower School</option>
+                                    <option value="KK">Keswick Kids</option>
+                                    <option value="AD">Administration</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label>Status</label>
+                                <select id="txnFilterStatus" onchange="applyTransactionFilters()">
+                                    <option value="">All Statuses</option>
+                                    <option value="Approved">Approved</option>
+                                    <option value="Pending">Pending</option>
+                                    <option value="Processing">Processing</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label>From</label>
+                                <input type="date" id="txnFilterDateStart" onchange="applyTransactionFilters()">
+                            </div>
+                            <div class="filter-group">
+                                <label>To</label>
+                                <input type="date" id="txnFilterDateEnd" onchange="applyTransactionFilters()">
+                            </div>
+                            <div class="filter-group">
+                                <button class="filter-clear-btn" onclick="clearTransactionFilters()">Clear Filters</button>
+                            </div>
+                            <div class="filter-count" id="txnFilterCount"></div>
+                        </div>
                         <div class="table-wrapper">
-                            <table id="transactionsTable">
+                            <table id="transactionsTable" class="sortable-table">
                                 <thead>
                                     <tr>
-                                        <th>Date</th>
-                                        <th>ID</th>
-                                        <th>Division</th>
-                                        <th>Department</th>
-                                        <th>Vendor</th>
+                                        <th class="sortable" data-sort="date" onclick="sortTable('transactionsTable', 'date', 'date')">Date <span class="sort-icon"></span></th>
+                                        <th class="sortable" data-sort="id" onclick="sortTable('transactionsTable', 'id', 'string')">ID <span class="sort-icon"></span></th>
+                                        <th class="sortable" data-sort="division" onclick="sortTable('transactionsTable', 'division', 'string')">Division <span class="sort-icon"></span></th>
+                                        <th class="sortable" data-sort="department" onclick="sortTable('transactionsTable', 'department', 'string')">Department <span class="sort-icon"></span></th>
+                                        <th class="sortable" data-sort="vendor" onclick="sortTable('transactionsTable', 'vendor', 'string')">Vendor <span class="sort-icon"></span></th>
                                         <th>Description</th>
-                                        <th>Amount</th>
-                                        <th>Status</th>
+                                        <th class="sortable" data-sort="amount" onclick="sortTable('transactionsTable', 'amount', 'currency')">Amount <span class="sort-icon"></span></th>
+                                        <th class="sortable" data-sort="status" onclick="sortTable('transactionsTable', 'status', 'string')">Status <span class="sort-icon"></span></th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -1376,83 +1600,110 @@
                 </div>
                 
                 <div id="tacTab" class="tab-content">
-                    <!-- TAC Calculator content -->
+                    <!-- TAC Tracker - Grade Level Tracking -->
+
                     <!-- TAC Summary KPIs -->
                     <div id="tacKpiGrid" class="widget-grid">
                         <!-- TAC KPIs will be inserted here -->
                     </div>
 
-                    <!-- TAC by Category -->
+                    <!-- Grade-Level TAC Tracking Table -->
                     <div class="chart-container">
                         <div class="chart-header">
-                            <h2 class="chart-title">TAC Expenses by Category</h2>
-                            <p style="color: var(--text-secondary); font-size: 12px; margin-top: 4px;">Technology, Activities, Curriculum breakdown</p>
-                        </div>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; padding: 16px;">
-                            <div>
-                                <canvas id="tacCategoryChart" height="250"></canvas>
+                            <h2 class="chart-title">TAC Tracking by Grade Level</h2>
+                            <div class="chart-actions">
+                                <select id="tacDivisionFilter" onchange="filterTACByDivision()" style="padding: 6px 12px; border-radius: 4px; border: 1px solid var(--border-color); font-size: 13px;">
+                                    <option value="ALL">All Divisions</option>
+                                    <option value="KK">Keswick Kids</option>
+                                    <option value="LS">Lower School</option>
+                                    <option value="MS">Middle School</option>
+                                    <option value="US">Upper School</option>
+                                </select>
+                                <button onclick="exportTACData()" class="btn-secondary" style="margin-left: 8px;">
+                                    <i class="fas fa-download"></i> Export
+                                </button>
                             </div>
-                            <div id="tacCategoryBreakdown">
-                                <!-- Category breakdown cards -->
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- TAC by Division/Grade -->
-                    <div class="chart-container">
-                        <div class="chart-header">
-                            <h2 class="chart-title">TAC Cost Analysis by Division</h2>
-                            <p style="color: var(--text-secondary); font-size: 12px; margin-top: 4px;">Average cost per student by division</p>
                         </div>
                         <div class="table-wrapper">
-                            <table class="data-table" id="tacDivisionTable">
+                            <table class="data-table" id="tacGradeTable">
                                 <thead>
                                     <tr>
+                                        <th>Grade</th>
                                         <th>Division</th>
-                                        <th>Est. Students</th>
-                                        <th>TAC Allocated</th>
+                                        <th>Enrollment</th>
+                                        <th>TAC Fee</th>
+                                        <th>TAC Budgeted</th>
                                         <th>TAC Spent</th>
-                                        <th>Available</th>
-                                        <th>Avg Cost/Student</th>
-                                        <th>Utilization</th>
+                                        <th>Variance</th>
+                                        <th>Curricular</th>
+                                        <th>Field Trips</th>
+                                        <th>Tech Cost</th>
+                                        <th>Status</th>
                                     </tr>
                                 </thead>
-                                <tbody>
-                                    <!-- Data will be inserted here -->
+                                <tbody id="tacGradeTableBody">
+                                    <!-- 17 grade rows will be inserted here -->
                                 </tbody>
+                                <tfoot id="tacGradeTableFooter">
+                                    <!-- Totals row -->
+                                </tfoot>
                             </table>
                         </div>
                     </div>
 
-                    <!-- TAC Fee Calculator -->
+                    <!-- Enrollment Editor (Collapsible) -->
+                    <div class="chart-container">
+                        <div class="chart-header" style="cursor: pointer;" onclick="toggleEnrollmentEditor()">
+                            <h2 class="chart-title">
+                                <i class="fas fa-edit" style="margin-right: 8px;"></i>
+                                Edit Enrollment Numbers
+                                <i id="enrollmentToggleIcon" class="fas fa-chevron-down" style="margin-left: 8px; font-size: 12px;"></i>
+                            </h2>
+                            <p style="color: var(--text-secondary); font-size: 12px; margin-top: 4px;">Click to expand and update student counts per grade</p>
+                        </div>
+                        <div id="enrollmentEditor" style="display: none; padding: 16px;">
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 12px; margin-bottom: 16px;">
+                                <!-- Enrollment inputs will be generated dynamically -->
+                            </div>
+                            <div style="display: flex; gap: 12px; margin-top: 16px;">
+                                <button onclick="saveTACEnrollment()" class="btn-primary">
+                                    <i class="fas fa-save"></i> Save Enrollment
+                                </button>
+                                <button onclick="resetEnrollmentToDefaults()" class="btn-secondary">
+                                    <i class="fas fa-undo"></i> Reset to Defaults
+                                </button>
+                            </div>
+                            <div id="enrollmentSaveStatus" style="margin-top: 12px; display: none;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Step Up Payment Tracker -->
                     <div class="chart-container">
                         <div class="chart-header">
-                            <h2 class="chart-title">TAC Fee Calculator</h2>
-                            <p style="color: var(--text-secondary); font-size: 12px; margin-top: 4px;">Estimate TAC revenue based on enrollment</p>
+                            <h2 class="chart-title">FL Step Up Payment Tracker</h2>
+                            <p style="color: var(--text-secondary); font-size: 12px; margin-top: 4px;">Quarterly scholarship payments from Florida Step Up for Students</p>
                         </div>
                         <div style="padding: 16px;">
-                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px;">
-                                <div class="form-group">
-                                    <label style="display: block; font-weight: 600; margin-bottom: 8px; color: var(--text-primary);">PreK-2 Students</label>
-                                    <input type="number" id="tacStudentsPreK2" value="150" min="0"
-                                           style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 14px;"
-                                           onchange="calculateTACProjection()">
-                                </div>
-                                <div class="form-group">
-                                    <label style="display: block; font-weight: 600; margin-bottom: 8px; color: var(--text-primary);">Grades 3-8 Students</label>
-                                    <input type="number" id="tacStudents38" value="300" min="0"
-                                           style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 14px;"
-                                           onchange="calculateTACProjection()">
-                                </div>
-                                <div class="form-group">
-                                    <label style="display: block; font-weight: 600; margin-bottom: 8px; color: var(--text-primary);">Grades 9-12 Students</label>
-                                    <input type="number" id="tacStudents912" value="350" min="0"
-                                           style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 14px;"
-                                           onchange="calculateTACProjection()">
-                                </div>
+                            <div id="stepUpSummary" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; margin-bottom: 20px;">
+                                <!-- Step Up KPIs -->
                             </div>
-                            <div id="tacProjectionResults" style="background: var(--bg-secondary); padding: 20px; border-radius: 8px;">
-                                <!-- Projection results will be inserted here -->
+                            <div id="stepUpQuarters" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;">
+                                <!-- Quarterly progress bars -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAC Category Summary (Compact) -->
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <h2 class="chart-title">TAC Expenses by Category</h2>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; padding: 16px;">
+                            <div>
+                                <canvas id="tacCategoryChart" height="200"></canvas>
+                            </div>
+                            <div id="tacCategoryBreakdown">
+                                <!-- Category breakdown cards -->
                             </div>
                         </div>
                     </div>
@@ -1514,6 +1765,81 @@
                                         </div>
                                     </div>
                                     <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">TAC fee collection and expense report by category. Shows cost per student analysis and budget utilization.</p>
+                                    <button class="header-button" style="width: 100%;">
+                                        <i class="fas fa-download"></i> Generate Report
+                                    </button>
+                                </div>
+
+                                <!-- Admin Expenses Report (NEW) -->
+                                <div class="report-card" style="border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; cursor: pointer; transition: all 0.2s;" onclick="generateReport('admin')">
+                                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                                        <div style="width: 48px; height: 48px; background: rgba(19, 56, 31, 0.1); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                                            <i class="fas fa-building" style="font-size: 24px; color: var(--primary-green);"></i>
+                                        </div>
+                                        <div>
+                                            <h3 style="font-size: 16px; font-weight: 600; margin: 0;">Admin Expenses</h3>
+                                            <p style="font-size: 12px; color: var(--text-secondary); margin: 0;">Administrative costs breakdown</p>
+                                        </div>
+                                    </div>
+                                    <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">Administrative expenses grouped by department. Includes office supplies, professional services, and operational costs.</p>
+                                    <button class="header-button" style="width: 100%;">
+                                        <i class="fas fa-download"></i> Generate Report
+                                    </button>
+                                </div>
+
+                                <!-- Curriculum Report (NEW) -->
+                                <div class="report-card" style="border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; cursor: pointer; transition: all 0.2s;" onclick="generateReport('curriculum')">
+                                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                                        <div style="width: 48px; height: 48px; background: rgba(19, 56, 31, 0.1); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                                            <i class="fas fa-book-open" style="font-size: 24px; color: var(--primary-green);"></i>
+                                        </div>
+                                        <div>
+                                            <h3 style="font-size: 16px; font-weight: 600; margin: 0;">Curriculum Report</h3>
+                                            <p style="font-size: 12px; color: var(--text-secondary); margin: 0;">By subject/grade level</p>
+                                        </div>
+                                    </div>
+                                    <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">Curriculum spending by department: subject areas for Upper School, grade levels for Lower School.</p>
+                                    <button class="header-button" style="width: 100%;">
+                                        <i class="fas fa-download"></i> Generate Report
+                                    </button>
+                                </div>
+
+                                <!-- Field Trip Report (NEW) -->
+                                <div class="report-card" style="border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; cursor: pointer; transition: all 0.2s;" onclick="generateReport('fieldtrip')">
+                                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                                        <div style="width: 48px; height: 48px; background: rgba(19, 56, 31, 0.1); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                                            <i class="fas fa-bus" style="font-size: 24px; color: var(--primary-green);"></i>
+                                        </div>
+                                        <div>
+                                            <h3 style="font-size: 16px; font-weight: 600; margin: 0;">Field Trip Report</h3>
+                                            <p style="font-size: 12px; color: var(--text-secondary); margin: 0;">By division</p>
+                                        </div>
+                                    </div>
+                                    <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">Field trip expenses by division including destination, transportation, and admission costs.</p>
+                                    <button class="header-button" style="width: 100%;">
+                                        <i class="fas fa-download"></i> Generate Report
+                                    </button>
+                                </div>
+
+                                <!-- Amazon/Warehouse Report (NEW) -->
+                                <div class="report-card" style="border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; cursor: pointer; transition: all 0.2s;" onclick="generateSupplyReportWithOptions()">
+                                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                                        <div style="width: 48px; height: 48px; background: rgba(19, 56, 31, 0.1); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                                            <i class="fas fa-shopping-cart" style="font-size: 24px; color: var(--primary-green);"></i>
+                                        </div>
+                                        <div>
+                                            <h3 style="font-size: 16px; font-weight: 600; margin: 0;">Amazon/Warehouse</h3>
+                                            <p style="font-size: 12px; color: var(--text-secondary); margin: 0;">Classroom supplies</p>
+                                        </div>
+                                    </div>
+                                    <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 8px;">Classroom supply orders by teacher, aggregatable to department or division.</p>
+                                    <div style="margin-bottom: 12px;">
+                                        <select id="supplyAggregateLevel" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 13px;" onclick="event.stopPropagation()">
+                                            <option value="teacher">By Teacher</option>
+                                            <option value="department">By Department</option>
+                                            <option value="division">By Division</option>
+                                        </select>
+                                    </div>
                                     <button class="header-button" style="width: 100%;">
                                         <i class="fas fa-download"></i> Generate Report
                                     </button>
@@ -1584,9 +1910,47 @@
                 
                 <div id="analyticsTab" class="tab-content">
                     <!-- Analytics content -->
-                    <!-- Analytics KPIs -->
+                    <!-- Enhanced Analytics KPIs -->
                     <div id="analyticsKpiGrid" class="widget-grid">
-                        <!-- Analytics KPIs will be inserted here -->
+                        <!-- Analytics KPIs: Variance, Approval Time, Cost/Student, Step Up -->
+                    </div>
+
+                    <!-- Department Variance Chart (NEW) -->
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <h2 class="chart-title">Spending Variance by Department</h2>
+                            <p style="color: var(--text-secondary); font-size: 12px; margin-top: 4px;">Over/under budget by department</p>
+                        </div>
+                        <div style="padding: 16px;">
+                            <canvas id="departmentVarianceChart" height="300"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Two-column layout: Approval Turnaround & Cost Per Student -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <!-- Approval Turnaround Metrics (NEW) -->
+                        <div class="chart-container">
+                            <div class="chart-header">
+                                <h2 class="chart-title">Approval Turnaround</h2>
+                                <p style="color: var(--text-secondary); font-size: 12px; margin-top: 4px;">Time to process approvals</p>
+                            </div>
+                            <div style="padding: 16px;">
+                                <div id="approvalMetricsGrid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                                    <!-- Approval metrics cards -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Cost Per Student by Division (NEW) -->
+                        <div class="chart-container">
+                            <div class="chart-header">
+                                <h2 class="chart-title">Cost Per Student</h2>
+                                <p style="color: var(--text-secondary); font-size: 12px; margin-top: 4px;">Spending normalized by enrollment</p>
+                            </div>
+                            <div style="padding: 16px;">
+                                <canvas id="costPerStudentChart" height="200"></canvas>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Monthly Spending Trend -->
@@ -1596,7 +1960,7 @@
                             <p style="color: var(--text-secondary); font-size: 12px; margin-top: 4px;">Budget vs Actual spending over time</p>
                         </div>
                         <div style="padding: 16px;">
-                            <canvas id="monthlyTrendChart" height="300"></canvas>
+                            <canvas id="monthlyTrendChart" height="250"></canvas>
                         </div>
                     </div>
 
@@ -1608,7 +1972,7 @@
                                 <h2 class="chart-title">Spending by Category</h2>
                             </div>
                             <div style="padding: 16px;">
-                                <canvas id="categoricalChart" height="280"></canvas>
+                                <canvas id="categoricalChart" height="250"></canvas>
                             </div>
                         </div>
 
@@ -1618,21 +1982,21 @@
                                 <h2 class="chart-title">Division Comparison</h2>
                             </div>
                             <div style="padding: 16px;">
-                                <canvas id="divisionComparisonChart" height="280"></canvas>
+                                <canvas id="divisionComparisonChart" height="250"></canvas>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Year-End Forecasting -->
+                    <!-- Historical Comparison Placeholder -->
                     <div class="chart-container">
                         <div class="chart-header">
-                            <h2 class="chart-title">Year-End Forecast</h2>
-                            <p style="color: var(--text-secondary); font-size: 12px; margin-top: 4px;">Projected budget status at fiscal year end</p>
+                            <h2 class="chart-title">Historical Comparison</h2>
+                            <p style="color: var(--text-secondary); font-size: 12px; margin-top: 4px;">Year-over-year spending analysis</p>
                         </div>
-                        <div style="padding: 16px;">
-                            <div id="forecastGrid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px;">
-                                <!-- Forecast cards will be inserted here -->
-                            </div>
+                        <div style="padding: 24px; text-align: center; color: var(--text-secondary);">
+                            <i class="fas fa-chart-line" style="font-size: 48px; opacity: 0.3; margin-bottom: 16px;"></i>
+                            <p>Historical comparison data will be available after the first full fiscal year.</p>
+                            <p style="font-size: 12px;">Current fiscal year data is being collected for future analysis.</p>
                         </div>
                     </div>
 
@@ -1650,8 +2014,9 @@
                 </div>
             </div>
         </main>
-    </div>
-    
+        </div><!-- End dashboard-container (sidebar + main) -->
+    </div><!-- End dashboardContainer -->
+
     <!-- Debug Console will be injected here by JavaScript -->
 
     <script>
@@ -1688,7 +2053,8 @@
             
             error(message, data = null, category = 'general') {
                 this.addLog('error', message, data, category);
-                if (!this.isOpen) this.toggle();
+                // Don't auto-open debug console on errors in production
+                // if (!this.isOpen) this.toggle();
             }
             
             addLog(level, message, data, category) {
@@ -2135,6 +2501,13 @@
         let charts = {};
         let loadingTimeout = null;
         let dashDebugger = null;
+
+        // Role Switcher State (Demo Mode Only)
+        let simulatedRole = null;        // null = using real role
+        let simulatedDivision = null;
+        let simulatedDepartment = null;
+        let availableDivisions = [];
+        let availableDepartments = [];
         
         // ============================================================================
         // INITIALIZATION
@@ -2248,13 +2621,19 @@
                 currentUser = response.user;
                 dashboardData = response.data;
 
-                // Check if server returned demo/warning data
-                const hasWarning = !!response.warning;
-                const isServerDemo = response.warning?.toLowerCase().includes('demo') ||
+                // Check if server returned demo mode explicitly or via warning
+                const isServerDemo = response.isDemo === true ||
+                                    response.warning?.toLowerCase().includes('demo') ||
                                     response.warning?.toLowerCase().includes('fallback');
 
                 // Set demo mode flag
                 isDemoMode = isServerDemo;
+
+                // Hide error alert in demo mode (demo data is intentional, not an error)
+                if (isDemoMode) {
+                    const errorAlert = document.getElementById('errorAlert');
+                    if (errorAlert) errorAlert.classList.add('hidden');
+                }
 
                 dashDebugger.log('Dashboard data loaded successfully', {
                     user: currentUser?.email,
@@ -2270,12 +2649,9 @@
                 // Render dashboard
                 renderDashboard();
 
-                // Show data mode banner (check server demo mode async)
-                checkServerDemoMode().then((serverMode) => {
-                    // Use server mode if available, otherwise use response indicator
-                    const showAsDemo = serverMode !== null ? serverMode : isDemoMode;
-                    updateDataModeBanner(showAsDemo);
-                });
+                // Show data mode banner - use response.isDemo flag directly
+                // (Don't check server mode - just trust the response)
+                updateDataModeBanner(isDemoMode);
 
                 // Hide loading, show dashboard
                 hideLoading();
@@ -2290,18 +2666,46 @@
                 // Load demo dashboard
                 loadDemoMode();
 
+            } else if (response.error === 'ACCESS_DENIED') {
+                // User not authorized - show access denied message
+                dashDebugger.error('🚫 Access denied', response, 'auth');
+                handleAccessDenied(response.message || 'You do not have permission to access this dashboard.');
+
             } else {
                 handleDashboardError(new Error(response.error || 'Failed to load dashboard'));
             }
         }
-        
+
+        function handleAccessDenied(message) {
+            clearTimeout(loadingTimeout);
+            updateLoadingStatus('Access Denied');
+
+            const errorContainer = document.getElementById('loadingError');
+            errorContainer.classList.remove('hidden');
+
+            // Update error display for access denied
+            const errorTitle = errorContainer.querySelector('.loading-error-title') ||
+                              errorContainer.querySelector('h3') ||
+                              document.createElement('div');
+            if (errorTitle) errorTitle.textContent = 'Access Denied';
+
+            const errorMessage = document.querySelector('.loading-error-message');
+            if (errorMessage) {
+                errorMessage.textContent = message;
+            }
+
+            // Hide retry button for access denied (won't help)
+            const retryBtn = errorContainer.querySelector('button[onclick*="retry"]');
+            if (retryBtn) retryBtn.style.display = 'none';
+        }
+
         function handleDashboardError(error) {
             clearTimeout(loadingTimeout);
             dashDebugger.error('❌ Dashboard error', error, 'error');
-            
+
             updateLoadingStatus('Connection failed');
             document.getElementById('loadingError').classList.remove('hidden');
-            
+
             // Show error in loading screen
             const errorMessage = document.querySelector('.loading-error-message');
             if (error.message) {
@@ -2427,12 +2831,17 @@
             if (legacyBanner) {
                 legacyBanner.classList.add('hidden');
             }
+
+            // Initialize role switcher (only shows in demo mode)
+            initRoleSwitcher();
         }
 
         /**
          * Toggle between demo and live mode (executive only)
          */
         function toggleDataMode() {
+            // Reset role switcher state when toggling modes
+            resetRoleSwitcher();
             if (currentUser?.role !== 'executive') {
                 alert('Only executives can toggle data mode.');
                 return;
@@ -2474,6 +2883,273 @@
                     alert('Failed to toggle mode: ' + error.message);
                 })
                 .setDemoMode(newMode);
+        }
+
+        // ============================================================================
+        // ROLE SWITCHER FUNCTIONS (Demo Mode Only)
+        // ============================================================================
+
+        /**
+         * Initialize role switcher when demo mode is active
+         */
+        function initRoleSwitcher() {
+            const container = document.getElementById('roleSwitcherContainer');
+            if (!container) return;
+
+            // Only show in demo mode
+            if (!isDemoMode) {
+                container.classList.add('hidden');
+                return;
+            }
+
+            // Show role switcher in demo mode
+            container.classList.remove('hidden');
+            loadAvailableDivisions();
+
+            // Reset dropdowns to executive
+            const roleSelect = document.getElementById('roleSelect');
+            if (roleSelect) roleSelect.value = 'executive';
+            document.getElementById('divisionSelect')?.classList.add('hidden');
+            document.getElementById('departmentSelect')?.classList.add('hidden');
+        }
+
+        /**
+         * Load available divisions from backend
+         */
+        function loadAvailableDivisions() {
+            if (typeof google === 'undefined' || !google.script || !google.script.run) {
+                // Hardcoded divisions for local testing
+                availableDivisions = [
+                    { code: 'US', name: 'Upper School' },
+                    { code: 'LS', name: 'Lower School' },
+                    { code: 'KK', name: 'Keswick Kids' },
+                    { code: 'AD', name: 'Administration' }
+                ];
+                populateDivisionDropdown();
+                return;
+            }
+
+            google.script.run
+                .withSuccessHandler((response) => {
+                    if (response.success) {
+                        availableDivisions = response.divisions;
+                        populateDivisionDropdown();
+                    }
+                })
+                .withFailureHandler((error) => {
+                    console.error('Failed to load divisions:', error);
+                })
+                .getAvailableDivisions();
+        }
+
+        /**
+         * Populate division dropdown with available divisions
+         */
+        function populateDivisionDropdown() {
+            const select = document.getElementById('divisionSelect');
+            if (!select) return;
+
+            select.innerHTML = '<option value="">Select Division...</option>';
+            availableDivisions.forEach(div => {
+                const option = document.createElement('option');
+                option.value = div.code;
+                option.textContent = div.name;
+                select.appendChild(option);
+            });
+        }
+
+        /**
+         * Load departments for selected division
+         */
+        function loadDepartmentsForDivision(divisionCode) {
+            if (typeof google === 'undefined' || !google.script || !google.script.run) {
+                // Mock departments for local testing
+                const mockDepts = {
+                    'US': ['Math', 'Science', 'English', 'History', 'Fine Arts', 'Athletics'],
+                    'LS': ['Elementary', 'Art', 'Music', 'PE', 'Library'],
+                    'KK': ['Keswick Kids', 'Early Childhood'],
+                    'AD': ['Administration', 'Finance', 'HR', 'Facilities']
+                };
+                availableDepartments = (mockDepts[divisionCode] || []).map(d => ({ code: d, name: d }));
+                populateDepartmentDropdown();
+                return;
+            }
+
+            google.script.run
+                .withSuccessHandler((response) => {
+                    if (response.success) {
+                        availableDepartments = response.departments;
+                        populateDepartmentDropdown();
+                    }
+                })
+                .withFailureHandler((error) => {
+                    console.error('Failed to load departments:', error);
+                })
+                .getDepartmentsByDivision(divisionCode);
+        }
+
+        /**
+         * Populate department dropdown
+         */
+        function populateDepartmentDropdown() {
+            const select = document.getElementById('departmentSelect');
+            if (!select) return;
+
+            select.innerHTML = '<option value="">Select Department...</option>';
+            availableDepartments.forEach(dept => {
+                const option = document.createElement('option');
+                option.value = dept.code;
+                option.textContent = dept.name;
+                select.appendChild(option);
+            });
+        }
+
+        /**
+         * Handle role dropdown change
+         */
+        function onRoleChange(role) {
+            simulatedRole = role;
+            simulatedDivision = null;
+            simulatedDepartment = null;
+
+            const divisionSelect = document.getElementById('divisionSelect');
+            const departmentSelect = document.getElementById('departmentSelect');
+
+            // Reset dropdowns
+            if (divisionSelect) divisionSelect.value = '';
+            if (departmentSelect) departmentSelect.value = '';
+            departmentSelect?.classList.add('hidden');
+
+            if (role === 'executive') {
+                divisionSelect?.classList.add('hidden');
+                reloadDashboardAsRole();
+            } else {
+                // Principal or Department Head need division selection
+                divisionSelect?.classList.remove('hidden');
+            }
+        }
+
+        /**
+         * Handle division dropdown change
+         */
+        function onDivisionChange(division) {
+            if (!division) return;
+
+            simulatedDivision = division;
+            simulatedDepartment = null;
+
+            const departmentSelect = document.getElementById('departmentSelect');
+
+            if (simulatedRole === 'department_head') {
+                departmentSelect?.classList.remove('hidden');
+                loadDepartmentsForDivision(division);
+            } else if (simulatedRole === 'principal') {
+                departmentSelect?.classList.add('hidden');
+                reloadDashboardAsRole();
+            }
+        }
+
+        /**
+         * Handle department dropdown change
+         */
+        function onDepartmentChange(department) {
+            if (!department) return;
+
+            simulatedDepartment = department;
+            reloadDashboardAsRole();
+        }
+
+        /**
+         * Reload dashboard with simulated role
+         */
+        function reloadDashboardAsRole() {
+            if (!simulatedRole || simulatedRole === 'executive') {
+                // Reset to actual user view
+                simulatedRole = null;
+                simulatedDivision = null;
+                simulatedDepartment = null;
+                loadDashboard();
+                return;
+            }
+
+            dashDebugger?.log('Reloading dashboard as role', {
+                role: simulatedRole,
+                division: simulatedDivision,
+                department: simulatedDepartment
+            }, 'role-switcher');
+
+            if (typeof google === 'undefined' || !google.script || !google.script.run) {
+                // Local testing: generate mock data filtered by role
+                const fullData = generateDemoData();
+                const filteredData = filterDataForRole(fullData, simulatedRole, simulatedDivision, simulatedDepartment);
+
+                handleSimulatedRoleResponse({
+                    success: true,
+                    user: {
+                        ...currentUser,
+                        role: simulatedRole,
+                        divisions: simulatedDivision ? [simulatedDivision] : currentUser?.divisions,
+                        departments: simulatedDepartment ? [simulatedDepartment] : currentUser?.departments,
+                        isSimulated: true
+                    },
+                    data: filteredData,
+                    isSimulated: true
+                });
+                return;
+            }
+
+            google.script.run
+                .withSuccessHandler(handleSimulatedRoleResponse)
+                .withFailureHandler((error) => {
+                    dashDebugger?.error('Role simulation failed', error, 'role-switcher');
+                    alert('Failed to switch role: ' + error.message);
+                })
+                .getDashboardDataAsRole(simulatedRole, simulatedDivision, simulatedDepartment);
+        }
+
+        /**
+         * Handle response from simulated role request
+         */
+        function handleSimulatedRoleResponse(response) {
+            if (response.success) {
+                currentUser = response.user;
+                dashboardData = response.data;
+
+                updateUserInterface();
+                renderDashboard();
+
+                // Update role display to show simulated state
+                const userRoleEl = document.getElementById('userRole');
+                if (userRoleEl && response.isSimulated) {
+                    const roleLabel = response.user.role.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+                    userRoleEl.textContent = `Viewing as: ${roleLabel}`;
+                }
+            } else {
+                alert('Failed to switch role: ' + response.error);
+            }
+        }
+
+        /**
+         * Reset role switcher state
+         */
+        function resetRoleSwitcher() {
+            simulatedRole = null;
+            simulatedDivision = null;
+            simulatedDepartment = null;
+
+            const roleSelect = document.getElementById('roleSelect');
+            const divisionSelect = document.getElementById('divisionSelect');
+            const departmentSelect = document.getElementById('departmentSelect');
+
+            if (roleSelect) roleSelect.value = 'executive';
+            if (divisionSelect) {
+                divisionSelect.value = '';
+                divisionSelect.classList.add('hidden');
+            }
+            if (departmentSelect) {
+                departmentSelect.value = '';
+                departmentSelect.classList.add('hidden');
+            }
         }
 
         // ============================================================================
@@ -2523,62 +3199,57 @@
         }
 
         /**
-         * Load brand assets (school-name.png and crest.png) into institutional header
+         * Load brand assets (school logo) into sidebar
          */
         function loadBrandAssets() {
-            dashDebugger.debug('Loading brand assets for institutional header...', null, 'ui');
+            dashDebugger.debug('Loading brand assets...', null, 'ui');
+
+            // Helper to show text fallback when image fails
+            function showTextFallback(elementId, fallbackText) {
+                const img = document.getElementById(elementId);
+                if (img && img.parentNode) {
+                    const textDiv = document.createElement('div');
+                    textDiv.style.cssText = 'font-family: "Lucida Bright", Georgia, serif; font-weight: 600; color: #13381f; font-size: 14px; padding: 8px 0;';
+                    textDiv.textContent = fallbackText;
+                    img.parentNode.replaceChild(textDiv, img);
+                }
+            }
 
             // Check if google.script is available
             if (typeof google === 'undefined' || !google.script || !google.script.run) {
-                dashDebugger.warn('google.script not available, loading from local _scratch folder', null, 'ui');
-                // Load actual PNG files from _scratch folder for local testing
-                const schoolNameLogo = document.getElementById('schoolNameLogo');
-                const schoolCrest = document.getElementById('schoolCrest');
-
-                if (schoolNameLogo) {
-                    schoolNameLogo.src = 'school-name.png';
-                }
-                if (schoolCrest) {
-                    schoolCrest.src = 'crest.png';
-                }
+                dashDebugger.warn('google.script not available, using text fallback', null, 'ui');
+                showTextFallback('sidebarLogo', 'Keswick Christian School');
                 return;
             }
 
-            // Load school name logo
+            // Load school logo into sidebar
             google.script.run
                 .withSuccessHandler(function(response) {
                     if (response && response.success && response.data) {
-                        const img = document.getElementById('schoolNameLogo');
-                        if (img) {
-                            img.src = 'data:image/png;base64,' + response.data;
-                            dashDebugger.info('School name logo loaded successfully', { fileName: response.fileName }, 'ui');
+                        // Set sidebar logo
+                        const sidebarLogo = document.getElementById('sidebarLogo');
+                        const logoText = document.getElementById('sidebarLogoText');
+                        if (sidebarLogo) {
+                            sidebarLogo.src = 'data:image/png;base64,' + response.data;
+                            sidebarLogo.style.display = 'block';
+                            if (logoText) logoText.style.display = 'none';
+                            dashDebugger.info('Sidebar logo loaded', { fileName: response.fileName }, 'ui');
+                        }
+                        // Also set hidden schoolNameLogo for compatibility
+                        const hiddenLogo = document.getElementById('schoolNameLogo');
+                        if (hiddenLogo) {
+                            hiddenLogo.src = 'data:image/png;base64,' + response.data;
                         }
                     } else {
-                        dashDebugger.warn('School name logo load failed', response, 'ui');
+                        dashDebugger.warn('Logo load failed, using text fallback', response, 'ui');
+                        showTextFallback('sidebarLogo', 'Keswick Christian School');
                     }
                 })
                 .withFailureHandler(function(error) {
-                    dashDebugger.error('School name logo error', { error: error.message }, 'ui');
+                    dashDebugger.error('Logo error, using text fallback', { error: error.message }, 'ui');
+                    showTextFallback('sidebarLogo', 'Keswick Christian School');
                 })
                 .getBrandAsset('school-name.png');
-
-            // Load crest
-            google.script.run
-                .withSuccessHandler(function(response) {
-                    if (response && response.success && response.data) {
-                        const img = document.getElementById('schoolCrest');
-                        if (img) {
-                            img.src = 'data:image/png;base64,' + response.data;
-                            dashDebugger.info('School crest loaded successfully', { fileName: response.fileName }, 'ui');
-                        }
-                    } else {
-                        dashDebugger.warn('Crest load failed', response, 'ui');
-                    }
-                })
-                .withFailureHandler(function(error) {
-                    dashDebugger.error('Crest error', { error: error.message }, 'ui');
-                })
-                .getBrandAsset('crest.png');
         }
         
         function hideLoading() {
@@ -2627,7 +3298,15 @@
                 }
                 
                 dashDebugger.log('✅ Dashboard rendered successfully', null, 'render');
-                
+
+                // Force chart update after short delay to fix initial render issue
+                setTimeout(() => {
+                    if (charts.division) {
+                        charts.division.update();
+                        dashDebugger.debug('Division chart updated (post-render fix)', null, 'render');
+                    }
+                }, 100);
+
             } catch (error) {
                 dashDebugger.error('Render error', error, 'render');
                 showDataError();
@@ -2635,7 +3314,18 @@
         }
         
         function showDataError() {
-            document.getElementById('errorAlert').classList.remove('hidden');
+            // Don't show error in demo mode - demo data is intentional
+            if (isDemoMode) return;
+
+            // Show error alert but auto-hide after 5 seconds
+            const errorAlert = document.getElementById('errorAlert');
+            if (errorAlert) {
+                errorAlert.classList.remove('hidden');
+                // Auto-hide after 5 seconds so it's not permanently obstructive
+                setTimeout(() => {
+                    errorAlert.classList.add('hidden');
+                }, 5000);
+            }
         }
         
         // ============================================================================
@@ -2788,56 +3478,89 @@
         
         function renderDivisionTable(divisions) {
             dashDebugger.debug('Rendering division table', { divisions: divisions.length }, 'render');
-            
+
             const tbody = document.querySelector('#divisionTable tbody');
             tbody.innerHTML = '';
-            
+
             if (!divisions || divisions.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No division data available</td></tr>';
                 return;
             }
-            
+
             divisions.forEach(division => {
                 const row = document.createElement('tr');
+                // Add data attributes for sorting
+                row.dataset.name = division.name;
+                row.dataset.allocated = division.allocated;
+                row.dataset.spent = division.spent;
+                row.dataset.encumbered = division.encumbered;
+                row.dataset.available = division.available;
+                row.dataset.utilization = division.utilization;
+
                 row.innerHTML = `
-                    <td><strong>${division.name}</strong></td>
-                    <td>$${division.allocated.toLocaleString()}</td>
-                    <td>$${division.spent.toLocaleString()}</td>
-                    <td>$${division.encumbered.toLocaleString()}</td>
-                    <td>$${division.available.toLocaleString()}</td>
-                    <td>${division.utilization}%</td>
-                    <td>
+                    <td data-col="name"><strong>${division.name}</strong></td>
+                    <td data-col="allocated">$${division.allocated.toLocaleString()}</td>
+                    <td data-col="spent">$${division.spent.toLocaleString()}</td>
+                    <td data-col="encumbered">$${division.encumbered.toLocaleString()}</td>
+                    <td data-col="available">$${division.available.toLocaleString()}</td>
+                    <td data-col="utilization">${division.utilization}%</td>
+                    <td data-col="status">
                         <span class="status-badge ${getUtilizationStatus(division.utilization)}">
-                            ${getUtilizationStatus(division.utilization)}
+                            ${getUtilizationStatusLabel(division.utilization)}
                         </span>
                     </td>
                 `;
                 tbody.appendChild(row);
             });
         }
+
+        function getUtilizationStatusLabel(utilization) {
+            if (utilization >= 90) return 'Over Budget';
+            if (utilization >= 75) return 'Monitor';
+            return 'On Track';
+        }
         
-        function renderTransactions(transactions) {
+        // Store full transaction data for filtering
+        let allTransactions = [];
+
+        function renderTransactions(transactions, applyCurrentFilters = false) {
             dashDebugger.debug('Rendering transactions', { count: transactions.length }, 'render');
-            
+
+            // Store for filtering
+            allTransactions = transactions || [];
+
             const tbody = document.querySelector('#transactionsTable tbody');
             tbody.innerHTML = '';
-            
+
             if (!transactions || transactions.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No recent transactions</td></tr>';
+                updateFilterCount('transactionsTable', 0, 0);
                 return;
             }
-            
-            transactions.slice(0, 10).forEach(transaction => {
+
+            // Apply filters if requested
+            let displayTransactions = applyCurrentFilters ? getFilteredTransactions(transactions) : transactions;
+
+            displayTransactions.forEach(transaction => {
                 const row = document.createElement('tr');
+                // Add data attributes for sorting and filtering
+                row.dataset.date = transaction.date;
+                row.dataset.id = transaction.transactionId;
+                row.dataset.division = transaction.division;
+                row.dataset.department = transaction.department;
+                row.dataset.vendor = transaction.vendor;
+                row.dataset.amount = transaction.amount;
+                row.dataset.status = transaction.status;
+
                 row.innerHTML = `
-                    <td>${formatDate(transaction.date)}</td>
-                    <td><code>${transaction.transactionId}</code></td>
-                    <td>${transaction.division}</td>
-                    <td>${transaction.department}</td>
-                    <td>${transaction.vendor}</td>
-                    <td>${transaction.description}</td>
-                    <td>$${transaction.amount.toLocaleString()}</td>
-                    <td>
+                    <td data-col="date">${formatDate(transaction.date)}</td>
+                    <td data-col="id"><code>${transaction.transactionId}</code></td>
+                    <td data-col="division">${transaction.division}</td>
+                    <td data-col="department">${transaction.department}</td>
+                    <td data-col="vendor">${transaction.vendor}</td>
+                    <td data-col="description">${transaction.description}</td>
+                    <td data-col="amount">$${transaction.amount.toLocaleString()}</td>
+                    <td data-col="status">
                         <span class="status-badge ${transaction.status.toLowerCase()}">
                             ${transaction.status}
                         </span>
@@ -2845,6 +3568,8 @@
                 `;
                 tbody.appendChild(row);
             });
+
+            updateFilterCount('transactionsTable', displayTransactions.length, transactions.length);
         }
         
         // ============================================================================
@@ -2860,13 +3585,235 @@
         function formatDate(date) {
             if (!date) return '';
             const d = new Date(date);
-            return d.toLocaleDateString('en-US', { 
-                year: 'numeric', 
-                month: 'short', 
-                day: 'numeric' 
+            return d.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
             });
         }
-        
+
+        // ============================================================================
+        // TABLE SORTING FUNCTIONS
+        // ============================================================================
+
+        function sortTable(tableId, column, dataType) {
+            const table = document.getElementById(tableId);
+            if (!table) return;
+
+            const tbody = table.querySelector('tbody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+
+            // Determine sort direction
+            const currentCol = table.dataset.sortCol;
+            const currentDir = table.dataset.sortDir;
+            const isAscending = currentCol === column ? currentDir !== 'asc' : true;
+
+            // Sort rows
+            rows.sort((a, b) => {
+                const aVal = a.dataset[column];
+                const bVal = b.dataset[column];
+
+                let comparison = 0;
+                switch (dataType) {
+                    case 'number':
+                        comparison = parseFloat(aVal || 0) - parseFloat(bVal || 0);
+                        break;
+                    case 'currency':
+                        comparison = parseFloat(aVal || 0) - parseFloat(bVal || 0);
+                        break;
+                    case 'date':
+                        comparison = new Date(aVal || 0) - new Date(bVal || 0);
+                        break;
+                    default: // string
+                        comparison = (aVal || '').localeCompare(bVal || '');
+                }
+
+                return isAscending ? comparison : -comparison;
+            });
+
+            // Update table state
+            table.dataset.sortCol = column;
+            table.dataset.sortDir = isAscending ? 'asc' : 'desc';
+
+            // Re-append sorted rows
+            rows.forEach(row => tbody.appendChild(row));
+
+            // Update sort indicators
+            updateSortIndicators(tableId, column, isAscending);
+
+            dashDebugger.debug('Table sorted', { tableId, column, direction: isAscending ? 'asc' : 'desc' }, 'ui');
+        }
+
+        function updateSortIndicators(tableId, column, isAscending) {
+            const table = document.getElementById(tableId);
+            if (!table) return;
+
+            // Remove all sort indicators
+            table.querySelectorAll('th.sortable').forEach(th => {
+                th.classList.remove('sort-asc', 'sort-desc');
+            });
+
+            // Add indicator to sorted column
+            const sortedTh = table.querySelector(`th[data-sort="${column}"]`);
+            if (sortedTh) {
+                sortedTh.classList.add(isAscending ? 'sort-asc' : 'sort-desc');
+            }
+        }
+
+        // ============================================================================
+        // TABLE FILTERING FUNCTIONS
+        // ============================================================================
+
+        function getFilteredTransactions(transactions) {
+            const division = document.getElementById('txnFilterDivision')?.value;
+            const status = document.getElementById('txnFilterStatus')?.value;
+            const dateStart = document.getElementById('txnFilterDateStart')?.value;
+            const dateEnd = document.getElementById('txnFilterDateEnd')?.value;
+
+            return transactions.filter(t => {
+                if (division && t.division !== division) return false;
+                if (status && t.status !== status) return false;
+                if (dateStart) {
+                    const txnDate = new Date(t.date);
+                    const startDate = new Date(dateStart);
+                    if (txnDate < startDate) return false;
+                }
+                if (dateEnd) {
+                    const txnDate = new Date(t.date);
+                    const endDate = new Date(dateEnd);
+                    endDate.setHours(23, 59, 59); // Include full end day
+                    if (txnDate > endDate) return false;
+                }
+                return true;
+            });
+        }
+
+        function applyTransactionFilters() {
+            renderTransactions(allTransactions, true);
+            dashDebugger.debug('Transaction filters applied', null, 'ui');
+        }
+
+        function clearTransactionFilters() {
+            document.getElementById('txnFilterDivision').value = '';
+            document.getElementById('txnFilterStatus').value = '';
+            document.getElementById('txnFilterDateStart').value = '';
+            document.getElementById('txnFilterDateEnd').value = '';
+            renderTransactions(allTransactions, false);
+            dashDebugger.debug('Transaction filters cleared', null, 'ui');
+        }
+
+        function updateFilterCount(tableId, shown, total) {
+            const countEl = document.getElementById(tableId === 'transactionsTable' ? 'txnFilterCount' : 'filterCount');
+            if (countEl) {
+                if (shown === total) {
+                    countEl.textContent = `Showing all ${total} records`;
+                } else {
+                    countEl.textContent = `Showing ${shown} of ${total} records`;
+                }
+            }
+        }
+
+        // ============================================================================
+        // ROLE-BASED DATA FILTERING
+        // ============================================================================
+
+        function filterDataForRole(data, role, division, department) {
+            if (!role || role === 'executive') {
+                return data;  // Executive sees everything
+            }
+
+            const filtered = JSON.parse(JSON.stringify(data));  // Deep clone
+
+            if (role === 'principal' && division) {
+                // Principal sees only their division
+                filtered.divisionSummary = data.divisionSummary.filter(d =>
+                    d.division === division || d.code === division
+                );
+                filtered.transactions = data.transactions.filter(t =>
+                    t.division === division
+                );
+
+                // Recalculate KPIs from filtered division
+                const divData = filtered.divisionSummary[0];
+                if (divData && filtered.kpis) {
+                    filtered.kpis = filtered.kpis.map(kpi => {
+                        switch (kpi.id) {
+                            case 'total_budget':
+                                return { ...kpi, value: divData.allocated, description: `${divData.name} allocated budget` };
+                            case 'ytd_spending':
+                                const pct = Math.round((divData.spent / divData.allocated) * 100);
+                                return { ...kpi, value: divData.spent, description: `${pct}% of division budget` };
+                            case 'budget_utilization':
+                                return { ...kpi, value: divData.utilization, description: getDivisionPaceDescription(divData.utilization) };
+                            case 'pending_approvals':
+                                const pending = filtered.transactions.filter(t => t.status === 'Pending').length;
+                                return { ...kpi, value: pending };
+                            default:
+                                return kpi;
+                        }
+                    });
+                }
+            }
+
+            if (role === 'department_head' && division && department) {
+                // Department head sees only their department
+                filtered.divisionSummary = data.divisionSummary.filter(d =>
+                    d.division === division || d.code === division
+                );
+                filtered.transactions = data.transactions.filter(t =>
+                    t.division === division && t.department === department
+                );
+
+                // Recalculate KPIs from filtered transactions
+                const totalSpent = filtered.transactions.reduce((sum, t) => sum + (t.amount || 0), 0);
+                const pending = filtered.transactions.filter(t => t.status === 'Pending').length;
+
+                if (filtered.kpis) {
+                    filtered.kpis = filtered.kpis.map(kpi => {
+                        switch (kpi.id) {
+                            case 'total_budget':
+                                return { ...kpi, value: 100000, description: `${department} department budget` };
+                            case 'ytd_spending':
+                                return { ...kpi, value: totalSpent, description: `${department} spending` };
+                            case 'budget_utilization':
+                                const util = Math.round((totalSpent / 100000) * 100);
+                                return { ...kpi, value: util, description: getDivisionPaceDescription(util) };
+                            case 'pending_approvals':
+                                return { ...kpi, value: pending };
+                            default:
+                                return kpi;
+                        }
+                    });
+                }
+            }
+
+            return filtered;
+        }
+
+        function getDivisionPaceDescription(utilization) {
+            // Based on current fiscal month, determine if on track
+            const now = new Date();
+            const month = now.getMonth();
+            const fiscalMonth = month >= 6 ? month - 6 : month + 6;
+
+            // Expected milestones (matching backend)
+            const milestones = {
+                0: 5, 1: 30, 2: 45, 3: 52, 4: 58, 5: 65,
+                6: 72, 7: 78, 8: 84, 9: 90, 10: 95, 11: 100
+            };
+
+            const expected = milestones[fiscalMonth] || 50;
+            const tolerance = 12;
+
+            if (utilization >= expected - tolerance && utilization <= expected + tolerance) {
+                return 'On track for fiscal year';
+            } else if (utilization > expected + tolerance) {
+                return 'Over pace - monitor spending';
+            } else {
+                return 'Under pace - spending available';
+            }
+        }
+
         function toggleSidebar() {
             document.getElementById('sidebar').classList.toggle('collapsed');
             dashDebugger.debug('Sidebar toggled', null, 'ui');
@@ -2988,42 +3935,109 @@
         }
 
         // ============================================================================
-        // TAC CALCULATOR RENDERING
+        // TAC GRADE-LEVEL TRACKING
         // ============================================================================
 
+        // TAC Grade Order for display
+        const TAC_GRADE_ORDER = ['Infants', 'PK2', 'PK3', 'PK4', 'K', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
+
+        // TAC Grade data storage
+        let tacGradeData = null;
+        let tacEnrollmentData = {};
+
         function renderTACTab() {
-            if (!dashboardData?.tacSummary) {
-                dashDebugger.warn('No TAC data available', null, 'render');
-                return;
-            }
-
-            const tac = dashboardData.tacSummary;
-
-            // Render TAC KPIs
-            renderTACKPIs(tac);
-
-            // Render category chart
-            renderTACCategoryChart(tac);
-
-            // Render category breakdown
-            renderTACCategoryBreakdown(tac);
-
-            // Render division table
-            renderTACDivisionTable();
-
-            // Calculate initial projection
-            calculateTACProjection();
+            // Load TAC grade data from backend
+            loadTACGradeData();
         }
 
-        function renderTACKPIs(tac) {
+        async function loadTACGradeData() {
+            try {
+                // Call backend to get TAC by grade data
+                const result = await new Promise((resolve, reject) => {
+                    google.script.run
+                        .withSuccessHandler(resolve)
+                        .withFailureHandler(reject)
+                        .getTACByGradeData();
+                });
+                tacGradeData = result;
+                tacEnrollmentData = result.enrollment || {};
+
+                // Render all TAC components
+                renderTACKPIs(result);
+                renderTACGradeTable(result);
+                renderEnrollmentEditor();
+                renderStepUpTracker(result.stepUp);
+                renderTACCategoryChart(dashboardData?.tacSummary);
+                renderTACCategoryBreakdown(dashboardData?.tacSummary);
+            } catch (error) {
+                console.error('Error loading TAC data:', error);
+                // Use mock data for demo
+                renderTACWithMockData();
+            }
+        }
+
+        function renderTACWithMockData() {
+            // Mock data for demo mode
+            const mockData = {
+                grades: TAC_GRADE_ORDER.map((grade, i) => ({
+                    grade: grade,
+                    division: i < 4 ? 'KK' : i < 10 ? 'LS' : i < 13 ? 'MS' : 'US',
+                    enrollment: Math.floor(Math.random() * 50) + 20,
+                    tacFee: 850 + (i * 30),
+                    tacBudgeted: 0,
+                    tacSpent: Math.floor(Math.random() * 10000) + 5000,
+                    variance: 0,
+                    variancePercent: 0,
+                    curricular: Math.floor(Math.random() * 3000),
+                    fieldTrip: Math.floor(Math.random() * 2000),
+                    techCost: Math.floor(Math.random() * 2000),
+                    status: 'on_track'
+                })),
+                totals: { enrollment: 750, tacBudgeted: 825000, tacSpent: 340000, variance: 485000 },
+                stepUp: {
+                    quarterlyExpected: 1500000,
+                    currentQuarter: 2,
+                    quarters: {
+                        q1: { expected: 1500000, received: 1500000 },
+                        q2: { expected: 1500000, received: 1425000 },
+                        q3: { expected: 1500000, received: 0 },
+                        q4: { expected: 1500000, received: 0 }
+                    }
+                }
+            };
+
+            // Calculate budgeted and variance
+            mockData.grades.forEach(g => {
+                g.tacBudgeted = g.enrollment * g.tacFee;
+                g.variance = g.tacBudgeted - g.tacSpent;
+                g.variancePercent = g.tacBudgeted > 0 ? Math.round((g.variance / g.tacBudgeted) * 100) : 0;
+                g.status = g.variancePercent < -10 ? 'over_budget' : g.variancePercent < 0 ? 'warning' : 'on_track';
+            });
+
+            tacGradeData = mockData;
+            tacEnrollmentData = {};
+            mockData.grades.forEach(g => tacEnrollmentData[g.grade] = g.enrollment);
+
+            renderTACKPIs({ totals: mockData.totals });
+            renderTACGradeTable(mockData);
+            renderEnrollmentEditor();
+            renderStepUpTracker(mockData.stepUp);
+            renderTACCategoryChart(dashboardData?.tacSummary);
+            renderTACCategoryBreakdown(dashboardData?.tacSummary);
+        }
+
+        function renderTACKPIs(data) {
             const grid = document.getElementById('tacKpiGrid');
             if (!grid) return;
 
+            const totals = data?.totals || { enrollment: 750, tacBudgeted: 825000, tacSpent: 340000, variance: 485000 };
+            const utilization = totals.tacBudgeted > 0 ? Math.round((totals.tacSpent / totals.tacBudgeted) * 100) : 0;
+
             const kpis = [
-                { label: 'Total TAC Collected', value: tac.totalCollected || 850000, format: 'currency', description: 'FY 2024-25 fees collected' },
-                { label: 'TAC Allocated', value: tac.totalAllocated || 800000, format: 'currency', description: 'Distributed to categories' },
-                { label: 'TAC Spent', value: tac.totalSpent || 340000, format: 'currency', description: '42.5% utilized' },
-                { label: 'TAC Available', value: tac.totalAvailable || 460000, format: 'currency', description: 'Remaining balance' }
+                { label: 'Total Enrollment', value: totals.enrollment, format: 'number', description: 'Students across all grades' },
+                { label: 'TAC Budgeted', value: totals.tacBudgeted, format: 'currency', description: 'Enrollment × TAC fee' },
+                { label: 'TAC Spent', value: totals.tacSpent, format: 'currency', description: `${utilization}% utilized` },
+                { label: 'TAC Available', value: totals.variance, format: 'currency', description: 'Remaining balance' }
             ];
 
             grid.innerHTML = '';
@@ -3033,11 +4047,243 @@
             });
         }
 
+        function renderTACGradeTable(data) {
+            const tbody = document.getElementById('tacGradeTableBody');
+            const tfoot = document.getElementById('tacGradeTableFooter');
+            if (!tbody) return;
+
+            const grades = data?.grades || [];
+            const filter = document.getElementById('tacDivisionFilter')?.value || 'ALL';
+
+            const filteredGrades = filter === 'ALL' ? grades : grades.filter(g => g.division === filter);
+
+            tbody.innerHTML = filteredGrades.map(g => {
+                const statusClass = g.status === 'over_budget' ? 'status-rejected' :
+                                   g.status === 'warning' ? 'status-pending' :
+                                   g.status === 'under_utilized' ? 'status-processing' : 'status-approved';
+                const statusText = g.status === 'over_budget' ? 'Over' :
+                                  g.status === 'warning' ? 'Warning' :
+                                  g.status === 'under_utilized' ? 'Under' : 'On Track';
+                const varianceColor = g.variance < 0 ? '#dc3545' : g.variance > 0 ? 'var(--primary-green)' : 'inherit';
+
+                return `
+                    <tr>
+                        <td><strong>${g.grade}</strong></td>
+                        <td>${g.division}</td>
+                        <td>${g.enrollment}</td>
+                        <td>$${g.tacFee?.toLocaleString()}</td>
+                        <td>$${g.tacBudgeted?.toLocaleString()}</td>
+                        <td>$${g.tacSpent?.toLocaleString()}</td>
+                        <td style="color: ${varianceColor}; font-weight: 500;">
+                            ${g.variance >= 0 ? '+' : ''}$${g.variance?.toLocaleString()}
+                            <span style="font-size: 11px; opacity: 0.8;">(${g.variancePercent}%)</span>
+                        </td>
+                        <td>$${g.curricular?.toLocaleString()}</td>
+                        <td>$${g.fieldTrip?.toLocaleString()}</td>
+                        <td>$${g.techCost?.toLocaleString()}</td>
+                        <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                    </tr>
+                `;
+            }).join('');
+
+            // Calculate filtered totals
+            const totals = filteredGrades.reduce((acc, g) => ({
+                enrollment: acc.enrollment + (g.enrollment || 0),
+                tacBudgeted: acc.tacBudgeted + (g.tacBudgeted || 0),
+                tacSpent: acc.tacSpent + (g.tacSpent || 0),
+                variance: acc.variance + (g.variance || 0),
+                curricular: acc.curricular + (g.curricular || 0),
+                fieldTrip: acc.fieldTrip + (g.fieldTrip || 0),
+                techCost: acc.techCost + (g.techCost || 0)
+            }), { enrollment: 0, tacBudgeted: 0, tacSpent: 0, variance: 0, curricular: 0, fieldTrip: 0, techCost: 0 });
+
+            if (tfoot) {
+                const varianceColor = totals.variance < 0 ? '#dc3545' : 'var(--primary-green)';
+                tfoot.innerHTML = `
+                    <tr style="background: var(--bg-secondary); font-weight: 600;">
+                        <td colspan="2">TOTALS</td>
+                        <td>${totals.enrollment.toLocaleString()}</td>
+                        <td>-</td>
+                        <td>$${totals.tacBudgeted.toLocaleString()}</td>
+                        <td>$${totals.tacSpent.toLocaleString()}</td>
+                        <td style="color: ${varianceColor};">${totals.variance >= 0 ? '+' : ''}$${totals.variance.toLocaleString()}</td>
+                        <td>$${totals.curricular.toLocaleString()}</td>
+                        <td>$${totals.fieldTrip.toLocaleString()}</td>
+                        <td>$${totals.techCost.toLocaleString()}</td>
+                        <td>-</td>
+                    </tr>
+                `;
+            }
+        }
+
+        function filterTACByDivision() {
+            if (tacGradeData) {
+                renderTACGradeTable(tacGradeData);
+            }
+        }
+
+        function renderEnrollmentEditor() {
+            const container = document.getElementById('enrollmentEditor');
+            if (!container) return;
+
+            const inputsHTML = TAC_GRADE_ORDER.map(grade => `
+                <div style="text-align: center;">
+                    <label style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px;">${grade}</label>
+                    <input type="number" id="enrollment_${grade}" value="${tacEnrollmentData[grade] || 0}" min="0"
+                           style="width: 70px; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 14px; text-align: center;"
+                           onchange="updateEnrollmentPreview()">
+                </div>
+            `).join('');
+
+            container.querySelector('div')?.remove();
+            container.insertAdjacentHTML('afterbegin', `<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: 12px; margin-bottom: 16px;">${inputsHTML}</div>`);
+        }
+
+        function toggleEnrollmentEditor() {
+            const editor = document.getElementById('enrollmentEditor');
+            const icon = document.getElementById('enrollmentToggleIcon');
+            if (editor) {
+                const isHidden = editor.style.display === 'none';
+                editor.style.display = isHidden ? 'block' : 'none';
+                if (icon) {
+                    icon.className = isHidden ? 'fas fa-chevron-up' : 'fas fa-chevron-down';
+                }
+            }
+        }
+
+        function updateEnrollmentPreview() {
+            // Update local enrollment data
+            TAC_GRADE_ORDER.forEach(grade => {
+                const input = document.getElementById(`enrollment_${grade}`);
+                if (input) {
+                    tacEnrollmentData[grade] = parseInt(input.value) || 0;
+                }
+            });
+        }
+
+        async function saveTACEnrollment() {
+            const statusDiv = document.getElementById('enrollmentSaveStatus');
+            updateEnrollmentPreview();
+
+            try {
+                statusDiv.style.display = 'block';
+                statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+                statusDiv.style.color = 'var(--text-secondary)';
+
+                const result = await new Promise((resolve, reject) => {
+                    google.script.run
+                        .withSuccessHandler(resolve)
+                        .withFailureHandler(reject)
+                        .saveEnrollmentData(tacEnrollmentData);
+                });
+
+                statusDiv.innerHTML = '<i class="fas fa-check-circle"></i> Enrollment saved successfully!';
+                statusDiv.style.color = 'var(--primary-green)';
+
+                // Reload TAC data
+                setTimeout(() => loadTACGradeData(), 1000);
+            } catch (error) {
+                statusDiv.innerHTML = '<i class="fas fa-exclamation-circle"></i> Error saving: ' + error.message;
+                statusDiv.style.color = '#dc3545';
+            }
+        }
+
+        function resetEnrollmentToDefaults() {
+            TAC_GRADE_ORDER.forEach(grade => {
+                const input = document.getElementById(`enrollment_${grade}`);
+                if (input) input.value = '0';
+            });
+            tacEnrollmentData = {};
+        }
+
+        function exportTACData() {
+            if (!tacGradeData?.grades) return;
+
+            const data = tacGradeData.grades.map(g => ({
+                Grade: g.grade,
+                Division: g.division,
+                Enrollment: g.enrollment,
+                'TAC Fee': g.tacFee,
+                'TAC Budgeted': g.tacBudgeted,
+                'TAC Spent': g.tacSpent,
+                Variance: g.variance,
+                'Variance %': g.variancePercent,
+                Curricular: g.curricular,
+                'Field Trips': g.fieldTrip,
+                'Tech Cost': g.techCost,
+                Status: g.status
+            }));
+
+            downloadCSV(data, `tac-by-grade-${new Date().toISOString().split('T')[0]}`);
+        }
+
+        function renderStepUpTracker(stepUpData) {
+            const summaryContainer = document.getElementById('stepUpSummary');
+            const quartersContainer = document.getElementById('stepUpQuarters');
+            if (!summaryContainer || !quartersContainer) return;
+
+            const stepUp = stepUpData || {
+                quarterlyExpected: 1500000,
+                currentQuarter: 2,
+                quarters: {
+                    q1: { expected: 1500000, received: 1500000 },
+                    q2: { expected: 1500000, received: 1425000 },
+                    q3: { expected: 1500000, received: 0 },
+                    q4: { expected: 1500000, received: 0 }
+                }
+            };
+
+            const ytdExpected = stepUp.quarterlyExpected * stepUp.currentQuarter;
+            const ytdReceived = Object.values(stepUp.quarters).reduce((sum, q) => sum + (q.received || 0), 0);
+
+            summaryContainer.innerHTML = `
+                <div style="background: var(--bg-secondary); padding: 16px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 12px; color: var(--text-secondary);">Quarterly Expected</div>
+                    <div style="font-size: 24px; font-weight: 700; color: var(--primary-green);">$${stepUp.quarterlyExpected.toLocaleString()}</div>
+                </div>
+                <div style="background: var(--bg-secondary); padding: 16px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 12px; color: var(--text-secondary);">YTD Expected</div>
+                    <div style="font-size: 24px; font-weight: 700;">$${ytdExpected.toLocaleString()}</div>
+                </div>
+                <div style="background: var(--bg-secondary); padding: 16px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 12px; color: var(--text-secondary);">YTD Received</div>
+                    <div style="font-size: 24px; font-weight: 700; color: ${ytdReceived >= ytdExpected ? 'var(--primary-green)' : '#f0ad4e'};">$${ytdReceived.toLocaleString()}</div>
+                </div>
+                <div style="background: var(--bg-secondary); padding: 16px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 12px; color: var(--text-secondary);">Current Quarter</div>
+                    <div style="font-size: 24px; font-weight: 700;">Q${stepUp.currentQuarter}</div>
+                </div>
+            `;
+
+            quartersContainer.innerHTML = ['q1', 'q2', 'q3', 'q4'].map((q, i) => {
+                const quarter = stepUp.quarters[q] || { expected: 0, received: 0 };
+                const percent = quarter.expected > 0 ? Math.min(100, Math.round((quarter.received / quarter.expected) * 100)) : 0;
+                const isCurrent = i + 1 === stepUp.currentQuarter;
+                const isPast = i + 1 < stepUp.currentQuarter;
+
+                return `
+                    <div style="background: var(--bg-secondary); padding: 16px; border-radius: 8px; ${isCurrent ? 'border: 2px solid var(--primary-green);' : ''}">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                            <span style="font-weight: 600;">Q${i + 1}</span>
+                            <span style="font-size: 12px; color: var(--text-secondary);">${isCurrent ? 'Current' : isPast ? 'Complete' : 'Upcoming'}</span>
+                        </div>
+                        <div style="height: 8px; background: #e0e0e0; border-radius: 4px; overflow: hidden; margin-bottom: 8px;">
+                            <div style="height: 100%; width: ${percent}%; background: ${percent >= 100 ? 'var(--primary-green)' : percent > 0 ? '#f0ad4e' : '#e0e0e0'}; border-radius: 4px;"></div>
+                        </div>
+                        <div style="font-size: 12px; display: flex; justify-content: space-between;">
+                            <span>$${quarter.received.toLocaleString()}</span>
+                            <span style="color: var(--text-secondary);">/ $${quarter.expected.toLocaleString()}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
         function renderTACCategoryChart(tac) {
             const ctx = document.getElementById('tacCategoryChart');
             if (!ctx) return;
 
-            const categories = tac.byCategory || {
+            const categories = tac?.byCategory || {
                 technology: { allocated: 440000, spent: 187000 },
                 activities: { allocated: 200000, spent: 85000 },
                 consumables: { allocated: 160000, spent: 68000 }
@@ -3088,136 +4334,33 @@
             ];
 
             container.innerHTML = categories.map(cat => {
-                const data = tac.byCategory?.[cat.key] || { allocated: 0, spent: 0 };
+                const data = tac?.byCategory?.[cat.key] || { allocated: 0, spent: 0 };
                 const utilization = data.allocated > 0 ? Math.round((data.spent / data.allocated) * 100) : 0;
                 const available = data.allocated - data.spent;
 
                 return `
-                    <div style="background: var(--bg-secondary); border-radius: 8px; padding: 16px; margin-bottom: 12px;">
-                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
-                            <div style="width: 40px; height: 40px; background: ${cat.color}20; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
-                                <i class="fas ${cat.icon}" style="color: ${cat.color};"></i>
+                    <div style="background: var(--bg-secondary); border-radius: 8px; padding: 12px; margin-bottom: 8px;">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                            <div style="width: 32px; height: 32px; background: ${cat.color}20; border-radius: 6px; display: flex; align-items: center; justify-content: center;">
+                                <i class="fas ${cat.icon}" style="color: ${cat.color}; font-size: 14px;"></i>
                             </div>
                             <div>
-                                <div style="font-weight: 600;">${cat.name}</div>
-                                <div style="font-size: 12px; color: var(--text-secondary);">${cat.percent}% of TAC budget</div>
+                                <div style="font-weight: 600; font-size: 13px;">${cat.name}</div>
+                                <div style="font-size: 11px; color: var(--text-secondary);">${cat.percent}%</div>
                             </div>
                         </div>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; font-size: 13px;">
-                            <div><span style="color: var(--text-secondary);">Allocated:</span><br><strong>$${data.allocated.toLocaleString()}</strong></div>
-                            <div><span style="color: var(--text-secondary);">Spent:</span><br><strong>$${data.spent.toLocaleString()}</strong></div>
-                            <div><span style="color: var(--text-secondary);">Available:</span><br><strong style="color: var(--primary-green);">$${available.toLocaleString()}</strong></div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 12px;">
+                            <div><span style="color: var(--text-secondary);">Spent:</span> <strong>$${data.spent.toLocaleString()}</strong></div>
+                            <div><span style="color: var(--text-secondary);">Avail:</span> <strong style="color: var(--primary-green);">$${available.toLocaleString()}</strong></div>
                         </div>
-                        <div style="margin-top: 12px;">
-                            <div style="height: 6px; background: #e0e0e0; border-radius: 3px; overflow: hidden;">
-                                <div style="height: 100%; width: ${utilization}%; background: ${cat.color}; border-radius: 3px;"></div>
+                        <div style="margin-top: 8px;">
+                            <div style="height: 4px; background: #e0e0e0; border-radius: 2px; overflow: hidden;">
+                                <div style="height: 100%; width: ${utilization}%; background: ${cat.color};"></div>
                             </div>
-                            <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">${utilization}% utilized</div>
                         </div>
                     </div>
                 `;
             }).join('');
-        }
-
-        function renderTACDivisionTable() {
-            const tbody = document.querySelector('#tacDivisionTable tbody');
-            if (!tbody) return;
-
-            // Using division data with TAC estimates
-            const divisions = dashboardData?.divisionSummary || [];
-            const tacTotal = dashboardData?.tacSummary?.totalAllocated || 800000;
-
-            // Estimate students per division
-            const studentEstimates = {
-                'Upper School': 350,
-                'Lower School': 300,
-                'Keswick Kids': 100,
-                'Administration': 0
-            };
-
-            tbody.innerHTML = divisions.map(div => {
-                const students = studentEstimates[div.name] || 100;
-                const tacAllocated = Math.round(tacTotal * (div.allocated / 5000000));
-                const tacSpent = Math.round(tacAllocated * 0.425);
-                const tacAvailable = tacAllocated - tacSpent;
-                const avgCost = students > 0 ? Math.round(tacSpent / students) : 0;
-                const utilization = tacAllocated > 0 ? Math.round((tacSpent / tacAllocated) * 100) : 0;
-
-                return `
-                    <tr>
-                        <td>${div.name}</td>
-                        <td>${students.toLocaleString()}</td>
-                        <td>$${tacAllocated.toLocaleString()}</td>
-                        <td>$${tacSpent.toLocaleString()}</td>
-                        <td style="color: var(--primary-green); font-weight: 500;">$${tacAvailable.toLocaleString()}</td>
-                        <td><strong>$${avgCost.toLocaleString()}</strong></td>
-                        <td><span class="status-badge status-approved">${utilization}%</span></td>
-                    </tr>
-                `;
-            }).join('');
-        }
-
-        function calculateTACProjection() {
-            const preK2 = parseInt(document.getElementById('tacStudentsPreK2')?.value) || 0;
-            const grades38 = parseInt(document.getElementById('tacStudents38')?.value) || 0;
-            const grades912 = parseInt(document.getElementById('tacStudents912')?.value) || 0;
-
-            // Average fees by grade band
-            const feePreK2 = 925;    // Avg of $850-$1000
-            const fee38 = 1125;      // Avg of $1050-$1200
-            const fee912 = 1275;     // Avg of $1250-$1300
-
-            const revenuePreK2 = preK2 * feePreK2;
-            const revenue38 = grades38 * fee38;
-            const revenue912 = grades912 * fee912;
-            const totalRevenue = revenuePreK2 + revenue38 + revenue912;
-            const totalStudents = preK2 + grades38 + grades912;
-            const avgFee = totalStudents > 0 ? Math.round(totalRevenue / totalStudents) : 0;
-
-            // Category allocation
-            const technology = Math.round(totalRevenue * 0.55);
-            const activities = Math.round(totalRevenue * 0.25);
-            const curriculum = Math.round(totalRevenue * 0.20);
-
-            const container = document.getElementById('tacProjectionResults');
-            if (!container) return;
-
-            container.innerHTML = `
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 20px;">
-                    <div style="text-align: center;">
-                        <div style="font-size: 12px; color: var(--text-secondary); text-transform: uppercase;">Total Students</div>
-                        <div style="font-size: 28px; font-weight: 700; color: var(--primary-green);">${totalStudents.toLocaleString()}</div>
-                    </div>
-                    <div style="text-align: center;">
-                        <div style="font-size: 12px; color: var(--text-secondary); text-transform: uppercase;">Projected Revenue</div>
-                        <div style="font-size: 28px; font-weight: 700; color: var(--primary-green);">$${totalRevenue.toLocaleString()}</div>
-                    </div>
-                    <div style="text-align: center;">
-                        <div style="font-size: 12px; color: var(--text-secondary); text-transform: uppercase;">Avg Fee/Student</div>
-                        <div style="font-size: 28px; font-weight: 700; color: var(--primary-green);">$${avgFee.toLocaleString()}</div>
-                    </div>
-                </div>
-                <div style="border-top: 1px solid var(--border-color); padding-top: 16px;">
-                    <h4 style="margin-bottom: 12px; font-size: 14px;">Projected Category Allocation</h4>
-                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
-                        <div style="background: white; padding: 12px; border-radius: 6px; text-align: center;">
-                            <i class="fas fa-laptop" style="color: #13381f; margin-bottom: 8px;"></i>
-                            <div style="font-size: 12px; color: var(--text-secondary);">Technology (55%)</div>
-                            <div style="font-weight: 600;">$${technology.toLocaleString()}</div>
-                        </div>
-                        <div style="background: white; padding: 12px; border-radius: 6px; text-align: center;">
-                            <i class="fas fa-bus" style="color: #2d6a4f; margin-bottom: 8px;"></i>
-                            <div style="font-size: 12px; color: var(--text-secondary);">Activities (25%)</div>
-                            <div style="font-weight: 600;">$${activities.toLocaleString()}</div>
-                        </div>
-                        <div style="background: white; padding: 12px; border-radius: 6px; text-align: center;">
-                            <i class="fas fa-book" style="color: #74c69d; margin-bottom: 8px;"></i>
-                            <div style="font-size: 12px; color: var(--text-secondary);">Curriculum (20%)</div>
-                            <div style="font-weight: 600;">$${curriculum.toLocaleString()}</div>
-                        </div>
-                    </div>
-                </div>
-            `;
         }
 
         // ============================================================================
@@ -3225,28 +4368,43 @@
         // ============================================================================
 
         function generateReport(reportType) {
-            dashDebugger.log('📊 Generating report: ' + reportType, null, 'action');
+            dashDebugger.log('Generating report: ' + reportType, null, 'action');
 
             const division = document.getElementById('reportDivision')?.value || 'all';
             const status = document.getElementById('reportStatus')?.value || 'all';
+            const dateRange = document.getElementById('reportDateRange')?.value || 'ytd';
             const format = document.getElementById('reportFormat')?.value || 'csv';
 
             let data = [];
             let filename = '';
+            const dateFilter = getReportDateFilter(dateRange);
 
             switch (reportType) {
                 case 'budget':
                     data = generateBudgetReport(division);
-                    filename = 'budget-summary-report';
+                    filename = `budget-summary-${dateRange}`;
                     break;
                 case 'transactions':
-                    data = generateTransactionReport(division, status);
-                    filename = 'transaction-report';
+                    data = generateTransactionReport(division, status, dateFilter);
+                    filename = `transactions-${dateRange}`;
                     break;
                 case 'tac':
                     data = generateTACReport(division);
-                    filename = 'tac-report';
+                    filename = `tac-report-${dateRange}`;
                     break;
+                case 'admin':
+                    generateBackendReport('admin', { division, status, dateFilter });
+                    return;
+                case 'curriculum':
+                    generateBackendReport('curriculum', { division, status, dateFilter });
+                    return;
+                case 'fieldtrip':
+                    generateBackendReport('fieldtrip', { division, status, dateFilter });
+                    return;
+                case 'supply':
+                    const aggregateLevel = document.getElementById('supplyAggregateLevel')?.value || 'teacher';
+                    generateBackendReport('supply', { division, status, dateFilter, aggregateLevel });
+                    return;
             }
 
             // Show preview
@@ -3257,6 +4415,187 @@
                 downloadCSV(data, filename);
             } else {
                 downloadJSON(data, filename);
+            }
+        }
+
+        // Generate supply report with aggregation options
+        function generateSupplyReportWithOptions() {
+            generateReport('supply');
+        }
+
+        // Generate reports via backend API
+        async function generateBackendReport(reportType, filters) {
+            const format = document.getElementById('reportFormat')?.value || 'csv';
+            const dateRange = document.getElementById('reportDateRange')?.value || 'ytd';
+
+            // Show loading state
+            const preview = document.getElementById('reportPreview');
+            if (preview) {
+                preview.innerHTML = `
+                    <div style="text-align: center; padding: 40px;">
+                        <i class="fas fa-spinner fa-spin" style="font-size: 32px; color: var(--primary-green);"></i>
+                        <p style="margin-top: 12px; color: var(--text-secondary);">Generating ${reportType} report...</p>
+                    </div>
+                `;
+            }
+
+            try {
+                const result = await new Promise((resolve, reject) => {
+                    google.script.run
+                        .withSuccessHandler(resolve)
+                        .withFailureHandler(reject)
+                        .getReportData(reportType, filters);
+                });
+
+                if (result.success && result.data) {
+                    const reportData = result.data;
+                    let exportData = [];
+                    let filename = `${reportType}-report-${dateRange}`;
+
+                    // Format data for export based on report type
+                    switch (reportType) {
+                        case 'admin':
+                            exportData = formatAdminReportData(reportData);
+                            break;
+                        case 'curriculum':
+                            exportData = formatCurriculumReportData(reportData);
+                            break;
+                        case 'fieldtrip':
+                            exportData = formatFieldTripReportData(reportData);
+                            break;
+                        case 'supply':
+                            exportData = formatSupplyReportData(reportData, filters.aggregateLevel);
+                            filename = `supply-by-${filters.aggregateLevel}-${dateRange}`;
+                            break;
+                    }
+
+                    showReportPreview(exportData, reportType);
+
+                    if (format === 'csv') {
+                        downloadCSV(exportData, filename);
+                    } else {
+                        downloadJSON(exportData, filename);
+                    }
+                } else {
+                    throw new Error(result.error || 'Failed to generate report');
+                }
+            } catch (error) {
+                console.error('Report generation error:', error);
+                if (preview) {
+                    preview.innerHTML = `
+                        <div style="text-align: center; padding: 40px; color: #dc3545;">
+                            <i class="fas fa-exclamation-circle" style="font-size: 32px;"></i>
+                            <p style="margin-top: 12px;">Error generating report: ${error.message}</p>
+                        </div>
+                    `;
+                }
+            }
+        }
+
+        function formatAdminReportData(reportData) {
+            if (!reportData.transactions) return [];
+            return reportData.transactions.map(t => ({
+                Date: t.date ? new Date(t.date).toLocaleDateString() : '',
+                'Transaction ID': t.transactionId,
+                Department: t.department,
+                Vendor: t.vendor,
+                Description: t.description,
+                Amount: `$${(t.amount || 0).toLocaleString()}`,
+                Status: t.status,
+                Requestor: t.requestor
+            }));
+        }
+
+        function formatCurriculumReportData(reportData) {
+            if (!reportData.transactions) return [];
+            return reportData.transactions.map(t => ({
+                Date: t.date ? new Date(t.date).toLocaleDateString() : '',
+                'Transaction ID': t.transactionId,
+                Division: t.division,
+                Department: t.department,
+                Vendor: t.vendor,
+                Description: t.description,
+                Amount: `$${(t.amount || 0).toLocaleString()}`,
+                Status: t.status
+            }));
+        }
+
+        function formatFieldTripReportData(reportData) {
+            if (!reportData.transactions) return [];
+            return reportData.transactions.map(t => ({
+                Date: t.date ? new Date(t.date).toLocaleDateString() : '',
+                Division: t.division,
+                Department: t.department,
+                Destination: t.description,
+                Vendor: t.vendor,
+                Amount: `$${(t.amount || 0).toLocaleString()}`,
+                Status: t.status,
+                Requestor: t.requestor
+            }));
+        }
+
+        function formatSupplyReportData(reportData, aggregateLevel) {
+            if (aggregateLevel === 'division' && reportData.byDivision) {
+                return reportData.byDivision.map(d => ({
+                    Division: d.division,
+                    'Division Name': d.divisionName,
+                    'Total Orders': d.amazonCount + d.warehouseCount,
+                    'Amazon Orders': d.amazonCount,
+                    'Warehouse Orders': d.warehouseCount,
+                    'Total Amount': `$${d.totalAmount.toLocaleString()}`
+                }));
+            } else if (aggregateLevel === 'department' && reportData.byDepartment) {
+                return reportData.byDepartment.map(d => ({
+                    Department: d.department,
+                    Division: d.division,
+                    'Total Orders': d.amazonCount + d.warehouseCount,
+                    'Amazon Orders': d.amazonCount,
+                    'Warehouse Orders': d.warehouseCount,
+                    'Total Amount': `$${d.totalAmount.toLocaleString()}`
+                }));
+            } else if (reportData.byTeacher) {
+                return reportData.byTeacher.map(t => ({
+                    Teacher: t.teacher,
+                    Department: t.department,
+                    Division: t.division,
+                    'Amazon Orders': t.amazonCount,
+                    'Warehouse Orders': t.warehouseCount,
+                    'Total Amount': `$${t.totalAmount.toLocaleString()}`
+                }));
+            }
+            return [];
+        }
+
+        function getReportDateFilter(range) {
+            const now = new Date();
+            const currentYear = now.getFullYear();
+            const currentMonth = now.getMonth();
+
+            // Fiscal year starts in July
+            const fyYear = currentMonth >= 6 ? currentYear : currentYear - 1;
+            const fyStart = new Date(fyYear, 6, 1);  // July 1
+
+            switch (range) {
+                case 'ytd':
+                    return { start: fyStart, end: now };
+                case 'q1':
+                    return { start: fyStart, end: new Date(fyYear, 8, 30) };  // Jul-Sep
+                case 'q2':
+                    return { start: new Date(fyYear, 9, 1), end: new Date(fyYear, 11, 31) };  // Oct-Dec
+                case 'q3':
+                    return { start: new Date(fyYear + 1, 0, 1), end: new Date(fyYear + 1, 2, 31) };  // Jan-Mar
+                case 'q4':
+                    return { start: new Date(fyYear + 1, 3, 1), end: new Date(fyYear + 1, 5, 30) };  // Apr-Jun
+                case 'last30':
+                    const d30 = new Date(now);
+                    d30.setDate(d30.getDate() - 30);
+                    return { start: d30, end: now };
+                case 'last90':
+                    const d90 = new Date(now);
+                    d90.setDate(d90.getDate() - 90);
+                    return { start: d90, end: now };
+                default:
+                    return { start: fyStart, end: now };
             }
         }
 
@@ -3275,12 +4614,23 @@
             }));
         }
 
-        function generateTransactionReport(division, status) {
+        function generateTransactionReport(division, status, dateFilter) {
             let transactions = dashboardData?.transactions || [];
 
+            // Apply date range filter
+            if (dateFilter) {
+                transactions = transactions.filter(t => {
+                    const txnDate = new Date(t.date);
+                    return txnDate >= dateFilter.start && txnDate <= dateFilter.end;
+                });
+            }
+
+            // Apply division filter
             if (division !== 'all') {
                 transactions = transactions.filter(t => t.division === division);
             }
+
+            // Apply status filter
             if (status !== 'all') {
                 transactions = transactions.filter(t => t.status.toLowerCase() === status);
             }
@@ -3354,8 +4704,11 @@
         }
 
         // ============================================================================
-        // ANALYTICS RENDERING
+        // ANALYTICS RENDERING (ENHANCED)
         // ============================================================================
+
+        // Analytics data cache
+        let analyticsData = null;
 
         function renderAnalyticsTab() {
             if (!dashboardData) {
@@ -3363,46 +4716,247 @@
                 return;
             }
 
-            // Render analytics KPIs
-            renderAnalyticsKPIs();
+            // Load enhanced analytics data
+            loadEnhancedAnalytics();
 
-            // Render monthly trend chart
+            // Render existing charts
             renderMonthlyTrendChart();
-
-            // Render categorical spending chart
             renderCategoricalChart();
-
-            // Render division comparison
             renderDivisionComparisonChart();
-
-            // Render forecast cards
-            renderForecastCards();
-
-            // Render health metrics
             renderHealthMetrics();
         }
 
-        function renderAnalyticsKPIs() {
+        async function loadEnhancedAnalytics() {
+            try {
+                const result = await new Promise((resolve, reject) => {
+                    google.script.run
+                        .withSuccessHandler(resolve)
+                        .withFailureHandler(reject)
+                        .getEnhancedAnalytics();
+                });
+                analyticsData = result;
+                renderEnhancedAnalyticsUI(result);
+            } catch (error) {
+                console.error('Error loading enhanced analytics:', error);
+                renderEnhancedAnalyticsUI(getMockEnhancedAnalytics());
+            }
+        }
+
+        function getMockEnhancedAnalytics() {
+            return {
+                departmentVariance: [
+                    { department: 'Math', division: 'US', allocated: 25000, spent: 28500, variance: -3500, percentVariance: -14, status: 'over_budget' },
+                    { department: 'Science', division: 'US', allocated: 30000, spent: 31200, variance: -1200, percentVariance: -4, status: 'warning' },
+                    { department: 'English', division: 'US', allocated: 22000, spent: 19800, variance: 2200, percentVariance: 10, status: 'on_track' },
+                    { department: 'Grade 3', division: 'LS', allocated: 15000, spent: 12500, variance: 2500, percentVariance: 16.7, status: 'on_track' },
+                    { department: 'Grade 4', division: 'LS', allocated: 15000, spent: 8500, variance: 6500, percentVariance: 43.3, status: 'under_utilized' },
+                    { department: 'Admin', division: 'AD', allocated: 50000, spent: 42000, variance: 8000, percentVariance: 16, status: 'on_track' }
+                ],
+                approvalMetrics: { avgHours: 18.5, medianHours: 12, maxHours: 96, pendingCount: 12, overdueCount: 3, overdueThreshold: 72 },
+                costPerStudent: {
+                    overall: 2800,
+                    byDivision: [
+                        { division: 'US', costPerStudent: 3200, enrollment: 350 },
+                        { division: 'MS', costPerStudent: 2900, enrollment: 200 },
+                        { division: 'LS', costPerStudent: 2600, enrollment: 300 },
+                        { division: 'KK', costPerStudent: 2200, enrollment: 100 }
+                    ]
+                },
+                stepUp: { quarterlyExpected: 1500000, ytdReceived: 2925000, currentQuarter: 2 }
+            };
+        }
+
+        function renderEnhancedAnalyticsUI(data) {
+            renderAnalyticsKPIs(data);
+            renderDepartmentVarianceChart(data.departmentVariance);
+            renderApprovalMetrics(data.approvalMetrics);
+            renderCostPerStudentChart(data.costPerStudent);
+        }
+
+        function renderAnalyticsKPIs(data) {
             const grid = document.getElementById('analyticsKpiGrid');
             if (!grid) return;
 
-            const trends = dashboardData?.trends?.monthly || [];
-            const totalBudget = trends.reduce((sum, m) => sum + (m.budget || 0), 0) || 2500000;
-            const totalActual = trends.reduce((sum, m) => sum + (m.actual || 0), 0) || 2100000;
-            const variance = totalBudget - totalActual;
-            const burnRate = trends.length > 0 ? Math.round(totalActual / trends.length) : 350000;
+            const variance = data?.departmentVariance || [];
+            const totalVariance = variance.reduce((sum, d) => sum + (d.variance || 0), 0);
+            const approvalMetrics = data?.approvalMetrics || { avgHours: 18, pendingCount: 12 };
+            const costPerStudent = data?.costPerStudent?.overall || 2800;
+            const stepUp = data?.stepUp || { ytdReceived: 2925000, currentQuarter: 2 };
 
             const kpis = [
-                { label: 'YTD Budget', value: totalBudget, format: 'currency', description: 'Planned spending to date' },
-                { label: 'YTD Actual', value: totalActual, format: 'currency', description: 'Actual spending to date' },
-                { label: 'Variance', value: variance, format: 'currency', description: variance >= 0 ? 'Under budget' : 'Over budget', trend: variance >= 0 ? 'down' : 'up' },
-                { label: 'Monthly Burn Rate', value: burnRate, format: 'currency', description: 'Average monthly spending' }
+                {
+                    label: 'Spending Variance',
+                    value: Math.abs(totalVariance),
+                    format: 'currency',
+                    description: totalVariance >= 0 ? 'Under budget overall' : 'Over budget overall',
+                    trend: totalVariance >= 0 ? 'down' : 'up'
+                },
+                {
+                    label: 'Avg Approval Time',
+                    value: approvalMetrics.avgHours,
+                    format: 'number',
+                    description: `${approvalMetrics.pendingCount} pending approvals`,
+                    suffix: ' hrs'
+                },
+                {
+                    label: 'Cost Per Student',
+                    value: costPerStudent,
+                    format: 'currency',
+                    description: 'All divisions average'
+                },
+                {
+                    label: 'Step Up YTD',
+                    value: stepUp.ytdReceived,
+                    format: 'currency',
+                    description: `Through Q${stepUp.currentQuarter}`
+                }
             ];
 
             grid.innerHTML = '';
             kpis.forEach(kpi => {
                 const card = createKPICard(kpi);
                 grid.appendChild(card);
+            });
+        }
+
+        function renderDepartmentVarianceChart(varianceData) {
+            const ctx = document.getElementById('departmentVarianceChart');
+            if (!ctx) return;
+
+            const data = varianceData || getMockEnhancedAnalytics().departmentVariance;
+
+            // Sort by variance (most over budget first)
+            const sorted = [...data].sort((a, b) => a.variance - b.variance);
+
+            if (charts.departmentVariance) {
+                charts.departmentVariance.destroy();
+            }
+
+            charts.departmentVariance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: sorted.map(d => d.department),
+                    datasets: [{
+                        label: 'Variance',
+                        data: sorted.map(d => d.variance),
+                        backgroundColor: sorted.map(d =>
+                            d.variance < 0 ? '#dc3545' :
+                            d.variance > d.allocated * 0.2 ? '#ffc107' : '#28a745'
+                        ),
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const value = context.raw;
+                                    const dept = sorted[context.dataIndex];
+                                    return [
+                                        `Variance: ${value >= 0 ? '+' : ''}$${value.toLocaleString()}`,
+                                        `Allocated: $${dept.allocated.toLocaleString()}`,
+                                        `Spent: $${dept.spent.toLocaleString()}`
+                                    ];
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: {
+                                callback: function(value) {
+                                    return (value >= 0 ? '+' : '') + '$' + (value / 1000).toFixed(0) + 'k';
+                                }
+                            },
+                            grid: { display: true }
+                        },
+                        y: { grid: { display: false } }
+                    }
+                }
+            });
+        }
+
+        function renderApprovalMetrics(metrics) {
+            const container = document.getElementById('approvalMetricsGrid');
+            if (!container) return;
+
+            const data = metrics || getMockEnhancedAnalytics().approvalMetrics;
+
+            container.innerHTML = `
+                <div style="background: var(--bg-secondary); padding: 16px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 28px; font-weight: 700; color: var(--primary-green);">${data.avgHours}h</div>
+                    <div style="font-size: 12px; color: var(--text-secondary);">Average</div>
+                </div>
+                <div style="background: var(--bg-secondary); padding: 16px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 28px; font-weight: 700; color: var(--primary-green);">${data.medianHours}h</div>
+                    <div style="font-size: 12px; color: var(--text-secondary);">Median</div>
+                </div>
+                <div style="background: var(--bg-secondary); padding: 16px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 28px; font-weight: 700; color: ${data.pendingCount > 10 ? '#f0ad4e' : 'var(--primary-green)'};">${data.pendingCount}</div>
+                    <div style="font-size: 12px; color: var(--text-secondary);">Pending</div>
+                </div>
+                <div style="background: var(--bg-secondary); padding: 16px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 28px; font-weight: 700; color: ${data.overdueCount > 0 ? '#dc3545' : 'var(--primary-green)'};">${data.overdueCount}</div>
+                    <div style="font-size: 12px; color: var(--text-secondary);">Overdue (&gt;${data.overdueThreshold}h)</div>
+                </div>
+            `;
+        }
+
+        function renderCostPerStudentChart(costData) {
+            const ctx = document.getElementById('costPerStudentChart');
+            if (!ctx) return;
+
+            const data = costData || getMockEnhancedAnalytics().costPerStudent;
+            const divisions = data.byDivision || [];
+
+            if (charts.costPerStudent) {
+                charts.costPerStudent.destroy();
+            }
+
+            charts.costPerStudent = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: divisions.map(d => d.division),
+                    datasets: [{
+                        label: 'Cost Per Student',
+                        data: divisions.map(d => d.costPerStudent),
+                        backgroundColor: ['#13381f', '#1e5631', '#2d6a4f', '#74c69d'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const div = divisions[context.dataIndex];
+                                    return [
+                                        `Cost/Student: $${context.raw.toLocaleString()}`,
+                                        `Enrollment: ${div.enrollment} students`
+                                    ];
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '$' + value.toLocaleString();
+                                }
+                            }
+                        }
+                    }
+                }
             });
         }
 

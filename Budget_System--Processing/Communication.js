@@ -1502,8 +1502,18 @@ function formatApproverName(email) {
 }
 
 function getEmailRecipient(email) {
-  // In test mode, redirect emails to admin
-  if (isTestMode() && CONFIG.ADMIN_EMAIL) {
+  // In test mode, emails go to the actual recipient (submitter/approver)
+  // This allows realistic testing while keeping TEST_MODE flag for other behaviors
+  if (isTestMode()) {
+    // Verify email is from the organization domain for safety
+    const normalizedEmail = String(email || '').toLowerCase().trim();
+    if (normalizedEmail.endsWith('@keswickchristian.org')) {
+      console.log(`🧪 [TEST MODE] Sending to actual recipient: ${email}`);
+      return email;  // Send to actual submitter/approver
+    }
+
+    // Only redirect non-organization emails to admin (safety measure)
+    console.log(`🧪 [TEST MODE] Non-org email, redirecting to admin: ${email} -> ${CONFIG.ADMIN_EMAIL}`);
     return CONFIG.ADMIN_EMAIL;
   }
   return email;

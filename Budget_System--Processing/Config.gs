@@ -26,18 +26,19 @@ function getDyn(key, defaultValue, type = 'string') {
 }
 
 const CONFIG = {
-  // Hub Spreadsheet IDs - invoicing@keswickchristian.org account
+  // Hub Spreadsheet IDs - Original working spreadsheets (shared with invoicing@keswickchristian.org)
   BUDGET_HUB_ID: getDyn('BUDGET_HUB_ID', '1wbv44RU18vJXlImWwxf4VRX932LgWCTBEn6JNws9HhQ'),
-  AUTOMATED_HUB_ID: getDyn('AUTOMATED_HUB_ID', '1mGcKhEehd4OwqUy1_zN40SWJ7O_aL5ax-6B_oZDddfM'),
+  AUTOMATED_HUB_ID: getDyn('AUTOMATED_HUB_ID', '1CfktVXDNTY499U7zgkBVJ0DyBePH_BsYJeMtwyaxolM'),
   MANUAL_HUB_ID: getDyn('MANUAL_HUB_ID', '1-t7YnyVvk0vxqbKGNteNHOQ92XOJNme4eJPjxVRVI5M'),
 
-  // Form IDs - Using original forms from mjtrotter6@gmail.com (shared with invoicing)
+  // Form IDs - Forms OWNED by invoicing@keswickchristian.org (can modify email settings)
+  // Updated 2026-02-19 from listAllForms() output
   FORMS: {
-    AMAZON: '1xPOiW6izitS9UW1YxpbAJTMnYnQP6l4P4WlfxKPjz_I', // Copy on invoicing account (working)
-    WAREHOUSE: '19G0wER7rh4sdswQD4vZbRxPnIc1DJpqw0j7dCLpn0YY', // Original shared form
-    FIELD_TRIP: '1akolIQr412xmroEdChLkoO4frTCa8SitbP7-DlO-HrI', // Original shared form
-    CURRICULUM: '1D2zRvTi2KZsGCHKGwnGFF2z0HWF-KGOcf6N2qKRIwmE', // Original shared form
-    ADMIN: '1K4AMJU75COtJfub4BbrRaRJJUgfNPvCh6vszvxiKTtg' // Original shared form
+    AMAZON: '1NqsPZeptLKTf8aKbRH9E6_pnB79DJnBs9tdUP0A2HKY',
+    WAREHOUSE: '19G0wER7rh4sdswQD4vZbRxPnIc1DJpqw0j7dCLpn0YY',
+    FIELD_TRIP: '1akolIQr412xmroEdChLkoO4frTCa8SitbP7-DlO-HrI',
+    CURRICULUM: '1D2zRvTi2KZsGCHKGwnGFF2z0HWF-KGOcf6N2qKRIwmE',
+    ADMIN: '1K4AMJU75COtJfub4BbrRaRJJUgfNPvCh6vszvxiKTtg'
   },
 
 

@@ -270,6 +270,17 @@ function runWeeklyCleanup() {
   console.log('⏳ Weekly Cleanup - Placeholder');
 }
 
+/**
+ * Process approval replies - stub function for legacy trigger
+ * Note: Actual approvals are processed via Web App (handleApprovalFromWebApp)
+ * This function exists to prevent "function not found" errors from the scheduled trigger
+ */
+function processApprovalReplies() {
+  // Approval workflow uses web app buttons, not email replies
+  // This is a stub to prevent trigger errors
+  console.log('✅ processApprovalReplies - No email-based approvals to process (using web app workflow)');
+}
+
 // ============================================================================
 // DEPLOYMENT UTILITIES
 // ============================================================================

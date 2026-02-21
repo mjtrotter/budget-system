@@ -22,38 +22,38 @@ const CONFIG = {
   // Authentication
   ORGANIZATION_DOMAIN: 'keswickchristian.org',
 
-  // User Access Matrix - ENHANCED WITH FALLBACK
+  // User Access Matrix - Authorized Demo Users Only
   USER_ACCESS: {
-    // Executives - Full Access
-    'cfo@keswickchristian.org': { role: 'executive', divisions: ['US', 'LS', 'KK', 'AD'], departments: ['ALL'] },
-    'admin@keswickchristian.org': { role: 'executive', divisions: ['US', 'LS', 'KK', 'AD'], departments: ['ALL'] },
-
-    // Test user - uses Keswick domain, not personal gmail
-    'mtrotter@keswickchristian.org': { role: 'executive', divisions: ['US', 'LS', 'KK', 'AD'], departments: ['ALL'] },
-
-    // Service account that runs the Dashboard web app
+    // Authorized Users - Full Executive Access
     'invoicing@keswickchristian.org': { role: 'executive', divisions: ['US', 'LS', 'KK', 'AD'], departments: ['ALL'] },
+    'nstratis@keswickchristian.org': { role: 'executive', divisions: ['US', 'LS', 'KK', 'AD'], departments: ['ALL'] },
+    'mtrotter@keswickchristian.org': { role: 'executive', divisions: ['US', 'LS', 'KK', 'AD'], departments: ['ALL'] },
+    'bendrulat@keswickchristian.org': { role: 'executive', divisions: ['US', 'LS', 'KK', 'AD'], departments: ['ALL'] },
+    'sneel@keswickchristian.org': { role: 'executive', divisions: ['US', 'LS', 'KK', 'AD'], departments: ['ALL'] },
 
-    // Principals - Division Access
-    'usprincipal@keswickchristian.org': { role: 'principal', divisions: ['US'], departments: ['Math', 'Science', 'English', 'History'] },
-    'lsprincipal@keswickchristian.org': { role: 'principal', divisions: ['LS'], departments: ['Elementary'] },
-    'kkprincipal@keswickchristian.org': { role: 'principal', divisions: ['KK'], departments: ['Keswick Kids'] },
-    'adprincipal@keswickchristian.org': { role: 'principal', divisions: ['AD'], departments: ['Administration'] },
-
-    // Department Heads - Department Access
-    'mathhead@keswickchristian.org': { role: 'department_head', divisions: ['US'], departments: ['Math'] },
-    'sciencehead@keswickchristian.org': { role: 'department_head', divisions: ['US'], departments: ['Science'] },
-
-    // DEFAULT ACCESS - Denies access to unknown users (production-safe)
+    // DEFAULT ACCESS - Denies access to all other users
     'DEFAULT': { role: 'denied', divisions: [], departments: [] }
   },
 
-  // School Logo (Google Drive file ID)
+  // School Logo (Google Drive file ID) - wide KCS text logo
   SCHOOL_LOGO_FILE_ID: '1HDkW_xGIc4jOBH4REnXb3VJcZaEjPHKj',
 
+  // Brand Assets - uses same sources as invoicing system
+  BRAND_ASSETS: {
+    'school-name.png': '1HDkW_xGIc4jOBH4REnXb3VJcZaEjPHKj',  // KCS wide text logo
+    'crest.png': null  // Will look in Budget_System_Signatures/seal.jpg
+  },
+
+  // Signatures folder name (for seal/crest)
+  SIGNATURES_FOLDER: 'Budget_System_Signatures',
+
   // TAC Technology Fee Matrix (Per Student Annual Fees)
+  // 17 grade levels: Infants through Grade 12
   TAC_TECHNOLOGY_FEES: {
-    'PreK': 850,
+    'Infants': 850,
+    'PK2': 850,
+    'PK3': 850,
+    'PK4': 850,
     'K': 950,
     '1': 1000,
     '2': 1000,
@@ -69,6 +69,31 @@ const CONFIG = {
     '12': 1300
   },
 
+  // Grade level ordering for display
+  TAC_GRADE_ORDER: ['Infants', 'PK2', 'PK3', 'PK4', 'K', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'],
+
+  // Step Up for Students (FL Scholarship) - configurable rates per grade
+  // Average ~$8,000/student annually, varies by program type
+  STEP_UP_RATES: {
+    'Infants': 0,      // No Step Up for infants
+    'PK2': 0,          // No Step Up for PK2
+    'PK3': 0,          // No Step Up for PK3
+    'PK4': 7500,       // FTC/FES-EO eligible
+    'K': 8000,
+    '1': 8000,
+    '2': 8000,
+    '3': 8000,
+    '4': 8000,
+    '5': 8000,
+    '6': 8200,
+    '7': 8200,
+    '8': 8200,
+    '9': 8500,
+    '10': 8500,
+    '11': 8500,
+    '12': 8500
+  },
+
   // TAC Category Allocation
   TAC_CATEGORY_WEIGHTS: {
     technology: 0.55,  // 55% for technology
@@ -79,8 +104,9 @@ const CONFIG = {
   // Division Mappings
   DIVISIONS: {
     'US': { name: 'Upper School', grades: ['9', '10', '11', '12'] },
+    'MS': { name: 'Middle School', grades: ['6', '7', '8'] },
     'LS': { name: 'Lower School', grades: ['K', '1', '2', '3', '4', '5'] },
-    'KK': { name: 'Keswick Kids', grades: ['PreK'] },
+    'KK': { name: 'Keswick Kids', grades: ['Infants', 'PK2', 'PK3', 'PK4'] },
     'AD': { name: 'Administration', grades: [] }
   },
 
@@ -99,6 +125,27 @@ const CONFIG = {
     budget_warning: 75,     // 75% budget utilization
     approval_delay: 72,     // 72 hours for approval
     large_transaction: 1000 // $1000+ transactions
+  },
+
+  // Budget Pacing - Expected cumulative spending % by fiscal month
+  // Accounts for front-loaded annual expenses (curriculum, licenses, etc.)
+  // Fiscal months: 0=Jul, 1=Aug, 2=Sep, 3=Oct, 4=Nov, 5=Dec, 6=Jan, 7=Feb, 8=Mar, 9=Apr, 10=May, 11=Jun
+  BUDGET_PACING: {
+    milestones: {
+      0: 5,    // Jul: 5% (minimal summer spending)
+      1: 30,   // Aug: 30% (school start - major purchases)
+      2: 45,   // Sep: 45% (settling in)
+      3: 52,   // Oct: 52%
+      4: 58,   // Nov: 58%
+      5: 65,   // Dec: 65%
+      6: 72,   // Jan: 72%
+      7: 78,   // Feb: 78%
+      8: 84,   // Mar: 84%
+      9: 90,   // Apr: 90%
+      10: 95,  // May: 95%
+      11: 100  // Jun: 100%
+    },
+    tolerance: 12  // +/- percentage points for "on track" status
   }
 };
 
@@ -704,23 +751,33 @@ class KeswickDashboardService {
       const budgetRemaining = totalBudget - totalSpent - totalEncumbered;
       const runwayMonths = monthlyBurnRate > 0 ? Math.floor(budgetRemaining / monthlyBurnRate) : 12;
 
-      // Determine health status
+      // Determine health status using configurable budget pacing
       const utilizationRate = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0;
-      const expectedUtilization = (monthsElapsed / 12) * 100;
+      const fiscalMonth = this.getCurrentFiscalMonth();
+      const expectedUtilization = CONFIG.BUDGET_PACING.milestones[fiscalMonth] || (monthsElapsed / 12) * 100;
+      const tolerance = CONFIG.BUDGET_PACING.tolerance || 10;
 
       let status = 'healthy';
       let risk = 'low';
-      if (utilizationRate > expectedUtilization + 15) {
+      let paceStatus = 'on_track';
+
+      if (utilizationRate > expectedUtilization + tolerance) {
         status = 'warning';
         risk = 'medium';
+        paceStatus = 'over_pace';
       }
-      if (utilizationRate > expectedUtilization + 25) {
+      if (utilizationRate > expectedUtilization + tolerance * 2) {
         status = 'critical';
         risk = 'high';
+        paceStatus = 'over_pace';
+      }
+      if (utilizationRate < expectedUtilization - tolerance) {
+        paceStatus = 'under_pace';
       }
 
       return {
         status: status,
+        paceStatus: paceStatus,  // on_track, over_pace, under_pace
         metrics: {
           cashFlow: budgetRemaining > totalBudget * 0.3 ? 'positive' : 'constrained',
           burnRate: monthlyBurnRate > (totalBudget / 12) * 1.1 ? 'elevated' : 'normal',
@@ -733,7 +790,9 @@ class KeswickDashboardService {
           totalEncumbered: totalEncumbered,
           utilizationRate: Math.round(utilizationRate * 10) / 10,
           monthlyBurnRate: Math.round(monthlyBurnRate),
-          expectedUtilization: Math.round(expectedUtilization * 10) / 10
+          expectedUtilization: Math.round(expectedUtilization * 10) / 10,
+          fiscalMonth: fiscalMonth,
+          tolerance: tolerance
         }
       };
     } catch (error) {
@@ -848,6 +907,411 @@ class KeswickDashboardService {
       console.error('TAC summary calculation error:', error);
       return this.getMockExecutiveDashboard().tacSummary;
     }
+  }
+
+  /**
+   * Get TAC tracking data by individual grade level
+   * Returns enrollment, fees, spending, and variance for each of the 17 grades
+   */
+  getTACByGrade(filters) {
+    const enrollment = this.getEnrollmentData();
+    const grades = CONFIG.TAC_GRADE_ORDER;
+    const tacFees = CONFIG.TAC_TECHNOLOGY_FEES;
+    const stepUpRates = CONFIG.STEP_UP_RATES;
+
+    // Get spending data by grade from transactions
+    let spendingByGrade = {};
+    grades.forEach(grade => {
+      spendingByGrade[grade] = { curricular: 0, fieldTrip: 0, techCost: 0, total: 0 };
+    });
+
+    // Query TransactionLedger for grade-tagged transactions
+    if (!CONFIG.DEMO_MODE && this.sheets.transactionLedger) {
+      try {
+        const transactions = this.sheets.transactionLedger.getDataRange().getValues();
+        const cols = this.columns.TransactionLedger;
+        const data = transactions.slice(1);
+
+        data.forEach(row => {
+          const amount = parseFloat(row[cols.Amount]) || 0;
+          const org = String(row[cols.Organization] || '').toLowerCase();
+          const desc = String(row[cols.Description] || '').toLowerCase();
+          const form = String(row[cols.Form] || '').toLowerCase();
+          const dept = String(row[cols.Department] || '');
+
+          // Try to identify grade from department or description
+          let matchedGrade = null;
+          grades.forEach(grade => {
+            const gradePattern = new RegExp(`\\b${grade}\\b|grade\\s*${grade}|gr\\.?\\s*${grade}`, 'i');
+            if (gradePattern.test(dept) || gradePattern.test(desc)) {
+              matchedGrade = grade;
+            }
+          });
+
+          if (matchedGrade && spendingByGrade[matchedGrade]) {
+            // Categorize by expense type
+            if (form.includes('curriculum') || desc.includes('textbook') || desc.includes('workbook')) {
+              spendingByGrade[matchedGrade].curricular += amount;
+            } else if (form.includes('field trip') || desc.includes('field trip') || desc.includes('excursion')) {
+              spendingByGrade[matchedGrade].fieldTrip += amount;
+            } else if (desc.includes('tech') || desc.includes('device') || desc.includes('chromebook')) {
+              spendingByGrade[matchedGrade].techCost += amount;
+            } else {
+              spendingByGrade[matchedGrade].curricular += amount; // Default to curricular
+            }
+            spendingByGrade[matchedGrade].total += amount;
+          }
+        });
+      } catch (error) {
+        console.error('Error fetching grade spending data:', error);
+      }
+    }
+
+    // Build grade-level TAC data
+    const gradeData = grades.map(grade => {
+      const enrollmentCount = enrollment[grade] || 0;
+      const tacFee = tacFees[grade] || 0;
+      const tacBudgeted = enrollmentCount * tacFee;
+      const spending = spendingByGrade[grade] || { curricular: 0, fieldTrip: 0, techCost: 0, total: 0 };
+      const tacSpent = spending.total;
+      const variance = tacBudgeted - tacSpent;
+      const variancePercent = tacBudgeted > 0 ? ((variance / tacBudgeted) * 100) : 0;
+
+      // Step Up calculations (quarterly payment = annual / 4)
+      const stepUpRate = stepUpRates[grade] || 0;
+      const stepUpExpectedAnnual = enrollmentCount * stepUpRate;
+      const stepUpExpectedQuarterly = Math.round(stepUpExpectedAnnual / 4);
+
+      // Determine status based on variance
+      let status = 'on_track';
+      if (variancePercent < -10) status = 'over_budget';
+      else if (variancePercent < 0) status = 'warning';
+      else if (variancePercent > 20) status = 'under_utilized';
+
+      // Get division for this grade
+      let division = 'AD';
+      Object.keys(CONFIG.DIVISIONS).forEach(div => {
+        if (CONFIG.DIVISIONS[div].grades.includes(grade)) {
+          division = div;
+        }
+      });
+
+      return {
+        grade: grade,
+        division: division,
+        enrollment: enrollmentCount,
+        tacFee: tacFee,
+        tacBudgeted: tacBudgeted,
+        tacSpent: Math.round(tacSpent),
+        variance: Math.round(variance),
+        variancePercent: Math.round(variancePercent * 10) / 10,
+        curricular: Math.round(spending.curricular),
+        fieldTrip: Math.round(spending.fieldTrip),
+        techCost: Math.round(spending.techCost),
+        stepUpExpectedQuarterly: stepUpExpectedQuarterly,
+        stepUpRate: stepUpRate,
+        status: status
+      };
+    });
+
+    // Calculate totals
+    const totals = {
+      enrollment: gradeData.reduce((sum, g) => sum + g.enrollment, 0),
+      tacBudgeted: gradeData.reduce((sum, g) => sum + g.tacBudgeted, 0),
+      tacSpent: gradeData.reduce((sum, g) => sum + g.tacSpent, 0),
+      variance: gradeData.reduce((sum, g) => sum + g.variance, 0),
+      curricular: gradeData.reduce((sum, g) => sum + g.curricular, 0),
+      fieldTrip: gradeData.reduce((sum, g) => sum + g.fieldTrip, 0),
+      techCost: gradeData.reduce((sum, g) => sum + g.techCost, 0),
+      stepUpExpectedQuarterly: gradeData.reduce((sum, g) => sum + g.stepUpExpectedQuarterly, 0)
+    };
+
+    return {
+      grades: gradeData,
+      totals: totals,
+      lastUpdated: new Date().toISOString()
+    };
+  }
+
+  /**
+   * Get enrollment data from Script Properties
+   */
+  getEnrollmentData() {
+    try {
+      const props = PropertiesService.getScriptProperties();
+      const enrollmentJson = props.getProperty('TAC_ENROLLMENT');
+      if (enrollmentJson) {
+        return JSON.parse(enrollmentJson);
+      }
+    } catch (error) {
+      console.error('Error reading enrollment data:', error);
+    }
+
+    // Return default/empty enrollment
+    const defaultEnrollment = {};
+    CONFIG.TAC_GRADE_ORDER.forEach(grade => {
+      defaultEnrollment[grade] = 0;
+    });
+    return defaultEnrollment;
+  }
+
+  /**
+   * Save enrollment data to Script Properties
+   */
+  saveEnrollmentData(enrollmentByGrade) {
+    try {
+      const props = PropertiesService.getScriptProperties();
+      props.setProperty('TAC_ENROLLMENT', JSON.stringify(enrollmentByGrade));
+      return { success: true, message: 'Enrollment data saved successfully' };
+    } catch (error) {
+      console.error('Error saving enrollment data:', error);
+      return { success: false, message: 'Failed to save enrollment data: ' + error.message };
+    }
+  }
+
+  /**
+   * Get spending variance by department
+   * Returns departments with over/under budget status
+   */
+  getSpendingVarianceByDepartment() {
+    if (CONFIG.DEMO_MODE) {
+      return this.getMockDepartmentVariance();
+    }
+
+    try {
+      const orgData = this.getOrganizationBudgetData();
+      return orgData.map(org => {
+        const variance = org.allocated - org.spent;
+        const percentVariance = org.allocated > 0 ? ((variance / org.allocated) * 100) : 0;
+        let status = 'on_track';
+        if (percentVariance < -10) status = 'over_budget';
+        else if (percentVariance < 0) status = 'warning';
+        else if (percentVariance > 30) status = 'under_utilized';
+
+        return {
+          department: org.name,
+          division: org.division || 'AD',
+          allocated: org.allocated,
+          spent: org.spent,
+          variance: Math.round(variance),
+          percentVariance: Math.round(percentVariance * 10) / 10,
+          status: status
+        };
+      }).sort((a, b) => a.variance - b.variance); // Sort by variance (worst first)
+    } catch (error) {
+      console.error('Error calculating department variance:', error);
+      return this.getMockDepartmentVariance();
+    }
+  }
+
+  getMockDepartmentVariance() {
+    return [
+      { department: 'Math', division: 'US', allocated: 25000, spent: 28500, variance: -3500, percentVariance: -14, status: 'over_budget' },
+      { department: 'Science', division: 'US', allocated: 30000, spent: 31200, variance: -1200, percentVariance: -4, status: 'warning' },
+      { department: 'English', division: 'US', allocated: 22000, spent: 19800, variance: 2200, percentVariance: 10, status: 'on_track' },
+      { department: 'Grade 3', division: 'LS', allocated: 15000, spent: 12500, variance: 2500, percentVariance: 16.7, status: 'on_track' },
+      { department: 'Grade 4', division: 'LS', allocated: 15000, spent: 8500, variance: 6500, percentVariance: 43.3, status: 'under_utilized' },
+      { department: 'Admin', division: 'AD', allocated: 50000, spent: 42000, variance: 8000, percentVariance: 16, status: 'on_track' }
+    ];
+  }
+
+  /**
+   * Get approval turnaround metrics
+   * Tracks how long approvals take on average
+   */
+  getApprovalTurnaroundMetrics() {
+    if (CONFIG.DEMO_MODE) {
+      return {
+        avgHours: 18.5,
+        medianHours: 12,
+        maxHours: 96,
+        pendingCount: 12,
+        overdueCount: 3,
+        overdueThreshold: CONFIG.ALERT_THRESHOLDS.approval_delay
+      };
+    }
+
+    try {
+      // Query AutomatedQueue for pending items with timestamps
+      if (!this.sheets.automatedQueue) {
+        return this.getApprovalTurnaroundMetrics(); // Return mock if no sheet
+      }
+
+      const data = this.sheets.automatedQueue.getDataRange().getValues();
+      const headers = data[0];
+      const rows = data.slice(1);
+
+      const submittedIdx = headers.indexOf('SubmittedOn') !== -1 ? headers.indexOf('SubmittedOn') : headers.indexOf('Timestamp');
+      const processedIdx = headers.indexOf('ProcessedOn') !== -1 ? headers.indexOf('ProcessedOn') : -1;
+      const statusIdx = headers.indexOf('Status');
+
+      let turnaroundTimes = [];
+      let pendingCount = 0;
+      let overdueCount = 0;
+      const now = new Date();
+      const overdueThreshold = CONFIG.ALERT_THRESHOLDS.approval_delay;
+
+      rows.forEach(row => {
+        const status = String(row[statusIdx] || '').toLowerCase();
+        const submittedOn = row[submittedIdx] ? new Date(row[submittedIdx]) : null;
+        const processedOn = processedIdx >= 0 && row[processedIdx] ? new Date(row[processedIdx]) : null;
+
+        if (status === 'pending' || status === 'awaiting approval') {
+          pendingCount++;
+          if (submittedOn) {
+            const hoursWaiting = (now - submittedOn) / (1000 * 60 * 60);
+            if (hoursWaiting > overdueThreshold) {
+              overdueCount++;
+            }
+          }
+        }
+
+        if (submittedOn && processedOn && processedOn > submittedOn) {
+          const hours = (processedOn - submittedOn) / (1000 * 60 * 60);
+          turnaroundTimes.push(hours);
+        }
+      });
+
+      // Calculate statistics
+      const avgHours = turnaroundTimes.length > 0
+        ? turnaroundTimes.reduce((a, b) => a + b, 0) / turnaroundTimes.length
+        : 0;
+      const sortedTimes = [...turnaroundTimes].sort((a, b) => a - b);
+      const medianHours = sortedTimes.length > 0
+        ? sortedTimes[Math.floor(sortedTimes.length / 2)]
+        : 0;
+      const maxHours = sortedTimes.length > 0
+        ? sortedTimes[sortedTimes.length - 1]
+        : 0;
+
+      return {
+        avgHours: Math.round(avgHours * 10) / 10,
+        medianHours: Math.round(medianHours * 10) / 10,
+        maxHours: Math.round(maxHours),
+        pendingCount: pendingCount,
+        overdueCount: overdueCount,
+        overdueThreshold: overdueThreshold
+      };
+    } catch (error) {
+      console.error('Error calculating approval metrics:', error);
+      return {
+        avgHours: 0,
+        medianHours: 0,
+        maxHours: 0,
+        pendingCount: 0,
+        overdueCount: 0,
+        overdueThreshold: CONFIG.ALERT_THRESHOLDS.approval_delay
+      };
+    }
+  }
+
+  /**
+   * Get cost per student metrics
+   * Uses enrollment data from TAC tracker
+   */
+  getCostPerStudentMetrics() {
+    const enrollment = this.getEnrollmentData();
+    const totalEnrollment = Object.values(enrollment).reduce((sum, count) => sum + count, 0);
+
+    if (CONFIG.DEMO_MODE || totalEnrollment === 0) {
+      return {
+        overall: 2800,
+        byDivision: [
+          { division: 'US', costPerStudent: 3200, enrollment: 350, totalSpent: 1120000 },
+          { division: 'MS', costPerStudent: 2900, enrollment: 200, totalSpent: 580000 },
+          { division: 'LS', costPerStudent: 2600, enrollment: 300, totalSpent: 780000 },
+          { division: 'KK', costPerStudent: 2200, enrollment: 100, totalSpent: 220000 }
+        ],
+        byCategory: [
+          { category: 'Curriculum', costPerStudent: 850 },
+          { category: 'Technology', costPerStudent: 650 },
+          { category: 'Supplies', costPerStudent: 450 },
+          { category: 'Field Trips', costPerStudent: 350 },
+          { category: 'Other', costPerStudent: 500 }
+        ]
+      };
+    }
+
+    try {
+      // Get total spending
+      const budgetData = this.getKPIs({});
+      const totalSpent = budgetData.find(k => k.id === 'ytd_spending')?.value || 0;
+      const overall = totalEnrollment > 0 ? Math.round(totalSpent / totalEnrollment) : 0;
+
+      // Calculate by division
+      const byDivision = Object.keys(CONFIG.DIVISIONS).filter(d => d !== 'AD').map(div => {
+        const divGrades = CONFIG.DIVISIONS[div].grades;
+        const divEnrollment = divGrades.reduce((sum, g) => sum + (enrollment[g] || 0), 0);
+        // Estimate division spending proportionally (would need actual data for accuracy)
+        const divSpent = totalEnrollment > 0 ? Math.round(totalSpent * (divEnrollment / totalEnrollment)) : 0;
+        return {
+          division: div,
+          costPerStudent: divEnrollment > 0 ? Math.round(divSpent / divEnrollment) : 0,
+          enrollment: divEnrollment,
+          totalSpent: divSpent
+        };
+      });
+
+      return {
+        overall: overall,
+        byDivision: byDivision,
+        byCategory: [] // Would need category breakdown from transactions
+      };
+    } catch (error) {
+      console.error('Error calculating cost per student:', error);
+      return { overall: 0, byDivision: [], byCategory: [] };
+    }
+  }
+
+  /**
+   * Get Step Up payment status
+   * Calculates expected quarterly payments based on enrollment and Step Up rates
+   */
+  getStepUpPaymentStatus() {
+    const enrollment = this.getEnrollmentData();
+    const grades = CONFIG.TAC_GRADE_ORDER;
+    const stepUpRates = CONFIG.STEP_UP_RATES;
+
+    // Calculate expected annual and quarterly payments
+    let totalAnnual = 0;
+    grades.forEach(grade => {
+      const count = enrollment[grade] || 0;
+      const rate = stepUpRates[grade] || 0;
+      totalAnnual += count * rate;
+    });
+
+    const quarterlyExpected = Math.round(totalAnnual / 4);
+
+    // Current fiscal quarter (July = Q1)
+    const now = new Date();
+    const month = now.getMonth();
+    let currentQuarter = 1;
+    if (month >= 9) currentQuarter = 2;      // Oct-Dec
+    else if (month >= 0 && month < 3) currentQuarter = 3;  // Jan-Mar
+    else if (month >= 3 && month < 6) currentQuarter = 4;  // Apr-Jun
+    // Jul-Sep is Q1
+
+    // Demo data for received amounts (would come from actual tracking)
+    const received = {
+      q1: currentQuarter >= 1 ? quarterlyExpected : 0,
+      q2: currentQuarter >= 2 ? quarterlyExpected : 0,
+      q3: currentQuarter >= 3 ? Math.round(quarterlyExpected * 0.85) : 0, // Slight variance
+      q4: currentQuarter >= 4 ? 0 : 0
+    };
+
+    return {
+      annualExpected: totalAnnual,
+      quarterlyExpected: quarterlyExpected,
+      currentQuarter: currentQuarter,
+      quarters: {
+        q1: { expected: quarterlyExpected, received: received.q1, variance: received.q1 - quarterlyExpected },
+        q2: { expected: quarterlyExpected, received: received.q2, variance: received.q2 - quarterlyExpected },
+        q3: { expected: quarterlyExpected, received: received.q3, variance: received.q3 - quarterlyExpected },
+        q4: { expected: quarterlyExpected, received: received.q4, variance: received.q4 - quarterlyExpected }
+      },
+      ytdExpected: quarterlyExpected * currentQuarter,
+      ytdReceived: received.q1 + received.q2 + received.q3 + received.q4
+    };
   }
 
   getRecentTransactions(filters, limit) {
@@ -1037,6 +1501,304 @@ class KeswickDashboardService {
   }
 
   // ============================================================================
+  // REPORT GENERATION FUNCTIONS
+  // ============================================================================
+
+  /**
+   * Get Admin Expenses Report
+   * Filters transactions where Division = 'AD' or Organization contains 'Admin'
+   */
+  getAdminExpensesReport(filters) {
+    const transactions = this.getTransactionDataForReports(filters);
+
+    const adminTransactions = transactions.filter(t => {
+      const div = String(t.division || '').toUpperCase();
+      const org = String(t.organization || '').toLowerCase();
+      return div === 'AD' || org.includes('admin');
+    });
+
+    // Group by department within admin
+    const byDepartment = {};
+    adminTransactions.forEach(t => {
+      const dept = t.department || 'General Admin';
+      if (!byDepartment[dept]) {
+        byDepartment[dept] = { department: dept, transactions: [], totalAmount: 0 };
+      }
+      byDepartment[dept].transactions.push(t);
+      byDepartment[dept].totalAmount += t.amount || 0;
+    });
+
+    return {
+      reportType: 'Admin Expenses',
+      generatedAt: new Date().toISOString(),
+      totalTransactions: adminTransactions.length,
+      totalAmount: adminTransactions.reduce((sum, t) => sum + (t.amount || 0), 0),
+      byDepartment: Object.values(byDepartment).sort((a, b) => b.totalAmount - a.totalAmount),
+      transactions: adminTransactions
+    };
+  }
+
+  /**
+   * Get Curriculum Report by Department
+   * For US: groups by subject (Math, Science, English, etc.)
+   * For LS: groups by grade level (K, 1, 2, 3, 4, 5)
+   */
+  getCurriculumReport(filters) {
+    const transactions = this.getTransactionDataForReports(filters);
+
+    const curriculumTransactions = transactions.filter(t => {
+      const form = String(t.form || '').toLowerCase();
+      const org = String(t.organization || '').toLowerCase();
+      return form.includes('curriculum') || org.includes('curriculum') ||
+             org.includes('textbook') || org.includes('workbook');
+    });
+
+    // Group by department/subject
+    const byDepartment = {};
+    curriculumTransactions.forEach(t => {
+      const dept = t.department || 'General Curriculum';
+      const division = t.division || 'AD';
+      const key = `${division}-${dept}`;
+
+      if (!byDepartment[key]) {
+        byDepartment[key] = {
+          department: dept,
+          division: division,
+          transactions: [],
+          totalAmount: 0
+        };
+      }
+      byDepartment[key].transactions.push(t);
+      byDepartment[key].totalAmount += t.amount || 0;
+    });
+
+    return {
+      reportType: 'Curriculum by Department',
+      generatedAt: new Date().toISOString(),
+      totalTransactions: curriculumTransactions.length,
+      totalAmount: curriculumTransactions.reduce((sum, t) => sum + (t.amount || 0), 0),
+      byDepartment: Object.values(byDepartment).sort((a, b) => b.totalAmount - a.totalAmount),
+      transactions: curriculumTransactions
+    };
+  }
+
+  /**
+   * Get Field Trip Report by Division
+   * Groups field trip expenses by division with destination and student count
+   */
+  getFieldTripReport(filters) {
+    const transactions = this.getTransactionDataForReports(filters);
+
+    const fieldTripTransactions = transactions.filter(t => {
+      const form = String(t.form || '').toLowerCase();
+      const desc = String(t.description || '').toLowerCase();
+      return form.includes('field trip') || desc.includes('field trip') ||
+             desc.includes('excursion') || desc.includes('admission');
+    });
+
+    // Group by division
+    const byDivision = {};
+    fieldTripTransactions.forEach(t => {
+      const division = t.division || 'AD';
+
+      if (!byDivision[division]) {
+        byDivision[division] = {
+          division: division,
+          divisionName: CONFIG.DIVISIONS[division]?.name || division,
+          trips: [],
+          totalAmount: 0,
+          tripCount: 0
+        };
+      }
+      byDivision[division].trips.push({
+        date: t.date,
+        description: t.description,
+        vendor: t.vendor,
+        amount: t.amount,
+        requestor: t.requestor,
+        status: t.status
+      });
+      byDivision[division].totalAmount += t.amount || 0;
+      byDivision[division].tripCount++;
+    });
+
+    return {
+      reportType: 'Field Trips by Division',
+      generatedAt: new Date().toISOString(),
+      totalTrips: fieldTripTransactions.length,
+      totalAmount: fieldTripTransactions.reduce((sum, t) => sum + (t.amount || 0), 0),
+      byDivision: Object.values(byDivision).sort((a, b) => b.totalAmount - a.totalAmount),
+      transactions: fieldTripTransactions
+    };
+  }
+
+  /**
+   * Get Supply Report (Amazon/Warehouse) by Teacher
+   * Aggregatable to department and division levels
+   */
+  getSupplyReport(filters, aggregateLevel = 'teacher') {
+    const transactions = this.getTransactionDataForReports(filters);
+
+    const supplyTransactions = transactions.filter(t => {
+      const form = String(t.form || '').toLowerCase();
+      return form.includes('amazon') || form.includes('warehouse') ||
+             form.includes('supply') || form.includes('supplies');
+    });
+
+    // Group by teacher (requestor)
+    const byTeacher = {};
+    supplyTransactions.forEach(t => {
+      const teacher = t.requestor || 'Unknown';
+      const dept = t.department || 'General';
+      const division = t.division || 'AD';
+
+      if (!byTeacher[teacher]) {
+        byTeacher[teacher] = {
+          teacher: teacher,
+          department: dept,
+          division: division,
+          items: [],
+          totalAmount: 0,
+          amazonCount: 0,
+          warehouseCount: 0
+        };
+      }
+      byTeacher[teacher].items.push({
+        date: t.date,
+        description: t.description,
+        vendor: t.vendor,
+        form: t.form,
+        amount: t.amount,
+        status: t.status
+      });
+      byTeacher[teacher].totalAmount += t.amount || 0;
+      if (String(t.form || '').toLowerCase().includes('amazon')) {
+        byTeacher[teacher].amazonCount++;
+      } else {
+        byTeacher[teacher].warehouseCount++;
+      }
+    });
+
+    // Aggregate to department level if requested
+    let byDepartment = {};
+    if (aggregateLevel === 'department' || aggregateLevel === 'division') {
+      Object.values(byTeacher).forEach(teacher => {
+        const key = teacher.department;
+        if (!byDepartment[key]) {
+          byDepartment[key] = {
+            department: key,
+            division: teacher.division,
+            teachers: [],
+            totalAmount: 0,
+            amazonCount: 0,
+            warehouseCount: 0
+          };
+        }
+        byDepartment[key].teachers.push(teacher.teacher);
+        byDepartment[key].totalAmount += teacher.totalAmount;
+        byDepartment[key].amazonCount += teacher.amazonCount;
+        byDepartment[key].warehouseCount += teacher.warehouseCount;
+      });
+    }
+
+    // Aggregate to division level if requested
+    let byDivision = {};
+    if (aggregateLevel === 'division') {
+      Object.values(byDepartment).forEach(dept => {
+        const key = dept.division;
+        if (!byDivision[key]) {
+          byDivision[key] = {
+            division: key,
+            divisionName: CONFIG.DIVISIONS[key]?.name || key,
+            departments: [],
+            totalAmount: 0,
+            amazonCount: 0,
+            warehouseCount: 0
+          };
+        }
+        byDivision[key].departments.push(dept.department);
+        byDivision[key].totalAmount += dept.totalAmount;
+        byDivision[key].amazonCount += dept.amazonCount;
+        byDivision[key].warehouseCount += dept.warehouseCount;
+      });
+    }
+
+    return {
+      reportType: 'Amazon/Warehouse Supplies',
+      aggregateLevel: aggregateLevel,
+      generatedAt: new Date().toISOString(),
+      totalOrders: supplyTransactions.length,
+      totalAmount: supplyTransactions.reduce((sum, t) => sum + (t.amount || 0), 0),
+      byTeacher: aggregateLevel === 'teacher' ? Object.values(byTeacher).sort((a, b) => b.totalAmount - a.totalAmount) : null,
+      byDepartment: aggregateLevel === 'department' ? Object.values(byDepartment).sort((a, b) => b.totalAmount - a.totalAmount) : null,
+      byDivision: aggregateLevel === 'division' ? Object.values(byDivision).sort((a, b) => b.totalAmount - a.totalAmount) : null,
+      transactions: supplyTransactions
+    };
+  }
+
+  /**
+   * Helper: Get transaction data formatted for reports
+   */
+  getTransactionDataForReports(filters) {
+    if (CONFIG.DEMO_MODE) {
+      return this.getMockReportTransactions();
+    }
+
+    try {
+      if (!this.sheets.transactionLedger) {
+        return this.getMockReportTransactions();
+      }
+
+      const transactions = this.sheets.transactionLedger.getDataRange().getValues();
+      const cols = this.columns.TransactionLedger;
+      const data = transactions.slice(1);
+
+      return data.map(row => ({
+        transactionId: row[cols.TransactionID],
+        date: row[cols.ProcessedOn] || row[cols.Timestamp],
+        division: row[cols.Division],
+        department: row[cols.Department],
+        organization: row[cols.Organization],
+        vendor: row[cols.Vendor],
+        description: row[cols.Description],
+        form: row[cols.Form],
+        amount: parseFloat(row[cols.Amount]) || 0,
+        status: row[cols.Status],
+        requestor: row[cols.Email] || row[cols.Requestor]
+      })).filter(t => {
+        // Apply filters
+        if (filters.division && filters.division !== 'ALL' && t.division !== filters.division) {
+          return false;
+        }
+        if (filters.status && filters.status !== 'ALL' && t.status !== filters.status) {
+          return false;
+        }
+        if (filters.dateFrom && t.date < new Date(filters.dateFrom)) {
+          return false;
+        }
+        if (filters.dateTo && t.date > new Date(filters.dateTo)) {
+          return false;
+        }
+        return true;
+      });
+    } catch (error) {
+      console.error('Error fetching transaction data for reports:', error);
+      return this.getMockReportTransactions();
+    }
+  }
+
+  getMockReportTransactions() {
+    return [
+      { transactionId: 'CUR-001', date: new Date(), division: 'US', department: 'Math', organization: 'Curriculum', vendor: 'Pearson', description: 'Algebra II Textbooks', form: 'Curriculum', amount: 2500, status: 'Approved', requestor: 'jsmith@keswickchristian.org' },
+      { transactionId: 'CUR-002', date: new Date(), division: 'US', department: 'Science', organization: 'Curriculum', vendor: 'McGraw Hill', description: 'Chemistry Lab Supplies', form: 'Curriculum', amount: 1800, status: 'Approved', requestor: 'mjones@keswickchristian.org' },
+      { transactionId: 'FT-001', date: new Date(), division: 'LS', department: 'Grade 3', organization: 'Activities', vendor: 'Tampa Zoo', description: 'Field Trip - Zoo Visit', form: 'Field Trip', amount: 1200, status: 'Approved', requestor: 'kbrown@keswickchristian.org' },
+      { transactionId: 'AMZ-001', date: new Date(), division: 'US', department: 'English', organization: 'Classroom', vendor: 'Amazon', description: 'Classroom Supplies', form: 'Amazon', amount: 150, status: 'Approved', requestor: 'lwhite@keswickchristian.org' },
+      { transactionId: 'WH-001', date: new Date(), division: 'LS', department: 'Grade 4', organization: 'Classroom', vendor: 'County Warehouse', description: 'Paper and Markers', form: 'Warehouse', amount: 85, status: 'Approved', requestor: 'dgreen@keswickchristian.org' },
+      { transactionId: 'ADM-001', date: new Date(), division: 'AD', department: 'Business Office', organization: 'Admin', vendor: 'Office Depot', description: 'Office Supplies', form: 'Admin', amount: 320, status: 'Approved', requestor: 'sneel@keswickchristian.org' }
+    ];
+  }
+
+  // ============================================================================
   // MOCK DATA GENERATORS
   // ============================================================================
 
@@ -1126,11 +1888,22 @@ class KeswickDashboardService {
       ],
       financialHealth: {
         status: 'healthy',
+        paceStatus: 'on_track',  // on_track, over_pace, under_pace
         metrics: {
           cashFlow: 'positive',
           burnRate: 'normal',
           runway: '8 months',
           risk: 'low'
+        },
+        details: {
+          totalBudget: 5000000,
+          totalSpent: 2100000,
+          totalEncumbered: 400000,
+          utilizationRate: 42,
+          monthlyBurnRate: 350000,
+          expectedUtilization: 45,  // Based on current fiscal month pacing
+          fiscalMonth: this.getCurrentFiscalMonth(),
+          tolerance: CONFIG.BUDGET_PACING.tolerance
         }
       },
       systemHealth: {

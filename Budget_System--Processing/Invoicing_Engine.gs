@@ -311,12 +311,332 @@ function generateWarehouseExternalInvoice() {
 }
 
 // ============================================================================
+// PDF CONCATENATION UTILITIES
+// ============================================================================
+
+/**
+ * Creates a combined invoice package with internal PO and uploaded receipt
+ * Since Apps Script can't merge PDFs natively, we create a package folder
+ * with both documents and a cover sheet
+ *
+ * @param {Blob} internalPdfBlob - The generated internal PO PDF
+ * @param {string} uploadedPdfUrl - Google Drive URL of uploaded PDF (optional)
+ * @param {string} invoiceId - Invoice ID for naming
+ * @param {Object} metadata - Transaction metadata
+ * @return {Object} Result with package folder URL
+ */
+function createInvoicePackage(internalPdfBlob, uploadedPdfUrl, invoiceId, metadata) {
+  try {
+    // Get the storage folder
+    const baseFolder = getInvoiceStorageFolder(
+      metadata.formType,
+      metadata.division,
+      metadata.department,
+      null,
+      null
+    );
+
+    // Create transaction-specific folder if there's an uploaded PDF
+    let targetFolder = baseFolder;
+    if (uploadedPdfUrl) {
+      const packageFolders = baseFolder.getFoldersByName(invoiceId);
+      if (packageFolders.hasNext()) {
+        targetFolder = packageFolders.next();
+      } else {
+        targetFolder = baseFolder.createFolder(invoiceId);
+      }
+    }
+
+    // Save internal PO
+    const poFileName = uploadedPdfUrl ? `${invoiceId}_01_Internal_PO.pdf` : `${invoiceId}.pdf`;
+    internalPdfBlob.setName(poFileName);
+    const poFile = targetFolder.createFile(internalPdfBlob);
+
+    try {
+      poFile.setSharing(DriveApp.Access.DOMAIN, DriveApp.Permission.VIEW);
+    } catch (e) {
+      console.warn('Could not set PO permissions:', e.message);
+    }
+
+    let receiptFile = null;
+    let receiptUrl = null;
+
+    // Copy uploaded PDF if provided
+    if (uploadedPdfUrl) {
+      try {
+        const fileId = extractFileIdFromUrl(uploadedPdfUrl);
+        if (fileId) {
+          const sourceFile = DriveApp.getFileById(fileId);
+          receiptFile = sourceFile.makeCopy(`${invoiceId}_02_Receipt.pdf`, targetFolder);
+
+          try {
+            receiptFile.setSharing(DriveApp.Access.DOMAIN, DriveApp.Permission.VIEW);
+          } catch (e) {
+            console.warn('Could not set receipt permissions:', e.message);
+          }
+
+          receiptUrl = receiptFile.getUrl();
+          console.log(`✅ Copied receipt PDF: ${receiptUrl}`);
+        }
+      } catch (copyError) {
+        console.error('Failed to copy uploaded PDF:', copyError.message);
+      }
+
+      // Create cover sheet
+      createPackageCoverSheet(targetFolder, invoiceId, metadata, poFile.getUrl(), receiptUrl);
+    }
+
+    const result = {
+      success: true,
+      invoiceId: invoiceId,
+      fileId: poFile.getId(),
+      fileUrl: poFile.getUrl(),
+      packageFolder: uploadedPdfUrl ? targetFolder.getUrl() : null,
+      hasReceipt: !!receiptFile
+    };
+
+    console.log(`✅ Invoice package created: ${invoiceId}`);
+    return result;
+
+  } catch (error) {
+    console.error('Failed to create invoice package:', error);
+    return { success: false, error: error.toString() };
+  }
+}
+
+/**
+ * Creates a cover sheet PDF for the invoice package
+ */
+function createPackageCoverSheet(folder, invoiceId, metadata, poUrl, receiptUrl) {
+  const now = new Date();
+  const dateStr = Utilities.formatDate(now, 'America/New_York', 'MMMM d, yyyy');
+
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    @page { size: letter; margin: 1in; }
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      font-size: 12pt;
+      line-height: 1.6;
+      color: #333;
+    }
+    .header {
+      text-align: center;
+      padding-bottom: 20px;
+      border-bottom: 2px solid #1B5E20;
+      margin-bottom: 30px;
+    }
+    .header h1 {
+      color: #1B5E20;
+      font-size: 24pt;
+      margin: 0 0 10px 0;
+    }
+    .header .subtitle {
+      color: #666;
+      font-size: 14pt;
+    }
+    .info-section {
+      margin: 20px 0;
+      padding: 15px;
+      background: #f5f5f5;
+      border-radius: 5px;
+    }
+    .info-row {
+      display: flex;
+      margin: 8px 0;
+    }
+    .info-label {
+      font-weight: bold;
+      width: 150px;
+      color: #1B5E20;
+    }
+    .documents-section {
+      margin-top: 30px;
+    }
+    .documents-section h2 {
+      color: #1B5E20;
+      font-size: 16pt;
+      border-bottom: 1px solid #ccc;
+      padding-bottom: 10px;
+    }
+    .document-item {
+      margin: 15px 0;
+      padding: 15px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+    }
+    .document-item .doc-title {
+      font-weight: bold;
+      font-size: 14pt;
+      color: #333;
+    }
+    .document-item .doc-desc {
+      color: #666;
+      margin-top: 5px;
+    }
+    .footer {
+      margin-top: 50px;
+      text-align: center;
+      font-size: 10pt;
+      color: #888;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Invoice Package</h1>
+    <div class="subtitle">Keswick Christian School Budget System</div>
+  </div>
+
+  <div class="info-section">
+    <div class="info-row">
+      <span class="info-label">Invoice ID:</span>
+      <span>${invoiceId}</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Form Type:</span>
+      <span>${metadata.formType || 'N/A'}</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Division:</span>
+      <span>${metadata.division || 'N/A'}</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Generated:</span>
+      <span>${dateStr}</span>
+    </div>
+  </div>
+
+  <div class="documents-section">
+    <h2>Package Contents</h2>
+
+    <div class="document-item">
+      <div class="doc-title">1. Internal Purchase Order</div>
+      <div class="doc-desc">
+        Official approval document with signatures and budget authorization.
+        <br><em>File: ${invoiceId}_01_Internal_PO.pdf</em>
+      </div>
+    </div>
+
+    ${receiptUrl ? `
+    <div class="document-item">
+      <div class="doc-title">2. Receipt / Supporting Documentation</div>
+      <div class="doc-desc">
+        Original receipt or documentation uploaded with the request.
+        <br><em>File: ${invoiceId}_02_Receipt.pdf</em>
+      </div>
+    </div>
+    ` : ''}
+  </div>
+
+  <div class="footer">
+    <p>This cover sheet was automatically generated by the Keswick Budget System.</p>
+    <p>All documents in this package should be kept together for record-keeping purposes.</p>
+  </div>
+</body>
+</html>`;
+
+  const blob = Utilities.newBlob(html, 'text/html', 'cover.html');
+  const pdf = blob.getAs('application/pdf');
+  pdf.setName(`${invoiceId}_00_Cover_Sheet.pdf`);
+
+  const file = folder.createFile(pdf);
+  try {
+    file.setSharing(DriveApp.Access.DOMAIN, DriveApp.Permission.VIEW);
+  } catch (e) {
+    console.warn('Could not set cover sheet permissions:', e.message);
+  }
+
+  return file;
+}
+
+/**
+ * Extracts file ID from Google Drive URL
+ */
+function extractFileIdFromUrl(url) {
+  if (!url) return null;
+
+  // Handle various Drive URL formats
+  const patterns = [
+    /\/d\/([a-zA-Z0-9_-]+)/,           // /d/FILE_ID/
+    /id=([a-zA-Z0-9_-]+)/,              // id=FILE_ID
+    /\/file\/d\/([a-zA-Z0-9_-]+)/,      // /file/d/FILE_ID
+    /^([a-zA-Z0-9_-]{25,})$/            // Just the ID
+  ];
+
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match) return match[1];
+  }
+
+  return null;
+}
+
+/**
+ * Gets uploaded PDF URL from form submission queue
+ */
+function getUploadedPdfUrl(transactionId, formType) {
+  try {
+    let hubId, sheetName, pdfColumn;
+
+    // Determine which hub and column based on form type
+    switch (formType.toUpperCase()) {
+      case 'FIELD_TRIP':
+        hubId = CONFIG.MANUAL_HUB_ID;
+        sheetName = 'FieldTrip';
+        pdfColumn = 7; // Column H (0-indexed: 7)
+        break;
+      case 'CURRICULUM':
+        hubId = CONFIG.MANUAL_HUB_ID;
+        sheetName = 'Curriculum';
+        pdfColumn = 9; // Column J (0-indexed: 9)
+        break;
+      case 'ADMIN':
+        hubId = CONFIG.MANUAL_HUB_ID;
+        sheetName = 'Admin';
+        pdfColumn = 5; // Column F (0-indexed: 5)
+        break;
+      default:
+        return null;
+    }
+
+    const hub = SpreadsheetApp.openById(hubId);
+    const sheet = hub.getSheetByName(sheetName);
+    if (!sheet) return null;
+
+    const data = sheet.getDataRange().getValues();
+
+    // Find the transaction by ID (usually in first column or search description)
+    for (let i = 1; i < data.length; i++) {
+      // Check if this row matches our transaction
+      // Transaction IDs often contain form prefix, so check if row ID matches
+      const rowId = data[i][0];
+      if (rowId && transactionId.includes(rowId.toString())) {
+        const pdfValue = data[i][pdfColumn];
+        if (pdfValue && pdfValue.toString().includes('drive.google.com')) {
+          return pdfValue.toString();
+        }
+      }
+    }
+
+    return null;
+  } catch (error) {
+    console.error('Error getting uploaded PDF:', error);
+    return null;
+  }
+}
+
+// ============================================================================
 // SINGLE INVOICE GENERATION (On Approval)
 // ============================================================================
 
 /**
  * Generates a single invoice for Field Trip, Curriculum, or Admin
  * Called immediately upon approval
+ * Now includes PDF concatenation for uploaded receipts
  */
 function generateSingleInvoice(transactionId) {
   console.log(`📄 Generating single invoice for ${transactionId}`);
@@ -781,6 +1101,7 @@ function generateBatchInvoiceHTML(transactions, metadata) {
 
 /**
  * Generates a single invoice PDF (Field Trip/Curriculum/Admin)
+ * Now includes PDF concatenation for uploaded receipts
  */
 function generateSingleInvoicePDF(transaction, metadata) {
   try {
@@ -794,6 +1115,21 @@ function generateSingleInvoicePDF(transaction, metadata) {
     const division = getDivisionFromOrganization(transaction.organization);
     const department = metadata.formType === 'CURRICULUM' ? transaction.organization : null;
 
+    // Check for uploaded PDF
+    const uploadedPdfUrl = getUploadedPdfUrl(transaction.transactionId, metadata.formType);
+
+    if (uploadedPdfUrl) {
+      console.log(`📎 Found uploaded PDF for ${metadata.invoiceId}, creating package...`);
+
+      // Create invoice package with both PDFs
+      return createInvoicePackage(pdf, uploadedPdfUrl, metadata.invoiceId, {
+        formType: metadata.formType,
+        division: division,
+        department: department
+      });
+    }
+
+    // No uploaded PDF - save single file as before
     const folder = getInvoiceStorageFolder(
       metadata.formType,
       division,
@@ -803,7 +1139,11 @@ function generateSingleInvoicePDF(transaction, metadata) {
     );
 
     const file = folder.createFile(pdf);
-    file.setSharing(DriveApp.Access.DOMAIN, DriveApp.Permission.VIEW);
+    try {
+      file.setSharing(DriveApp.Access.DOMAIN, DriveApp.Permission.VIEW);
+    } catch (e) {
+      console.warn('Could not set file permissions:', e.message);
+    }
 
     console.log(`✅ Invoice ${metadata.invoiceId} created: ${file.getUrl()}`);
 
@@ -811,7 +1151,8 @@ function generateSingleInvoicePDF(transaction, metadata) {
       success: true,
       invoiceId: metadata.invoiceId,
       fileId: file.getId(),
-      fileUrl: file.getUrl()
+      fileUrl: file.getUrl(),
+      hasReceipt: false
     };
 
   } catch (error) {
@@ -1500,4 +1841,254 @@ function testSingleInvoice() {
 
   console.log('Test result:', result);
   return result;
+}
+
+// ============================================================================
+// DEMO INVOICE GENERATION - All Form Types
+// ============================================================================
+
+/**
+ * Generate sample invoices for ALL form types for demo purposes
+ * Creates a complete set of invoices in the Budget_System_Invoices folder
+ */
+function generateAllDemoInvoices() {
+  console.log('🎯 Generating demo invoices for all form types...');
+  const results = {
+    amazon: null,
+    warehouse: null,
+    warehouseExternal: null,
+    fieldTrip: null,
+    curriculum: null,
+    admin: null
+  };
+
+  // 1. Amazon Batch Invoice (Upper School)
+  console.log('📦 Generating Amazon batch invoice...');
+  results.amazon = generateDemoAmazonInvoice();
+
+  // 2. Warehouse Internal Batch Invoice (Lower School)
+  console.log('🏪 Generating Warehouse internal invoice...');
+  results.warehouse = generateDemoWarehouseInternalInvoice();
+
+  // 3. Warehouse External Invoice (Combined)
+  console.log('📋 Generating Warehouse external invoice...');
+  results.warehouseExternal = generateDemoWarehouseExternalInvoice();
+
+  // 4. Field Trip Single Invoice
+  console.log('🚌 Generating Field Trip invoice...');
+  results.fieldTrip = generateDemoFieldTripInvoice();
+
+  // 5. Curriculum Single Invoice
+  console.log('📚 Generating Curriculum invoice...');
+  results.curriculum = generateDemoCurriculumInvoice();
+
+  // 6. Admin Single Invoice
+  console.log('🏢 Generating Admin invoice...');
+  results.admin = generateDemoAdminInvoice();
+
+  console.log('✅ Demo invoice generation complete!');
+  console.log('Results:', JSON.stringify(results, null, 2));
+
+  return results;
+}
+
+/**
+ * Demo Amazon Batch Invoice
+ */
+function generateDemoAmazonInvoice() {
+  const transactions = [
+    { transactionId: 'AMZ-DEMO-001', requestor: 'Sarah Johnson', organization: 'Upper School', amount: 299.99, description: 'TI-84 Plus CE Graphing Calculator (5 pack)' },
+    { transactionId: 'AMZ-DEMO-001', requestor: 'Sarah Johnson', organization: 'Upper School', amount: 89.99, description: 'Scientific Calculator (10 pack)' },
+    { transactionId: 'AMZ-DEMO-002', requestor: 'Michael Chen', organization: 'Upper School', amount: 149.95, description: 'Classroom Headphones, Bulk Pack' },
+    { transactionId: 'AMZ-DEMO-003', requestor: 'Emily Davis', organization: 'Upper School', amount: 225.00, description: 'Literature Set - To Kill a Mockingbird (30 copies)' },
+    { transactionId: 'AMZ-DEMO-003', requestor: 'Emily Davis', organization: 'Upper School', amount: 175.50, description: 'Literature Set - The Great Gatsby (30 copies)' },
+    { transactionId: 'AMZ-DEMO-004', requestor: 'Robert Martinez', organization: 'Upper School', amount: 445.00, description: 'Lab Equipment - Microscope Set' },
+    { transactionId: 'AMZ-DEMO-005', requestor: 'Jennifer Wilson', organization: 'Upper School', amount: 85.00, description: 'Art Supplies - Acrylic Paint Set' }
+  ];
+
+  return generateBatchInvoicePDF(transactions, {
+    invoiceId: generateInvoiceId('AMAZON', 'US'),
+    formType: 'AMAZON',
+    division: 'US',
+    isExternal: false
+  });
+}
+
+/**
+ * Demo Warehouse Internal Invoice (Lower School)
+ */
+function generateDemoWarehouseInternalInvoice() {
+  const transactions = [
+    { transactionId: 'WHS-DEMO-001', requestor: 'Amanda Foster', organization: 'Lower School', amount: 45.50, description: 'Copy Paper, 8.5x11, 10 reams' },
+    { transactionId: 'WHS-DEMO-001', requestor: 'Amanda Foster', organization: 'Lower School', amount: 28.75, description: 'Pencils #2, Gross Box' },
+    { transactionId: 'WHS-DEMO-002', requestor: 'Thomas Brown', organization: 'Lower School', amount: 67.25, description: 'Glue Sticks, Bulk Pack' },
+    { transactionId: 'WHS-DEMO-002', requestor: 'Thomas Brown', organization: 'Lower School', amount: 32.00, description: 'Scissors, Safety, 24 pack' },
+    { transactionId: 'WHS-DEMO-003', requestor: 'Karen White', organization: 'Lower School', amount: 89.99, description: 'Construction Paper, Assorted Colors' }
+  ];
+
+  return generateBatchInvoicePDF(transactions, {
+    invoiceId: generateInvoiceId('WAREHOUSE', 'LS'),
+    formType: 'WAREHOUSE',
+    division: 'LS',
+    isExternal: false
+  });
+}
+
+/**
+ * Demo Warehouse External Invoice (Combined for vendor)
+ */
+function generateDemoWarehouseExternalInvoice() {
+  const transactions = [
+    { transactionId: 'WHS-EXT-001', requestor: 'Upper School', organization: 'Upper School', amount: 125.00, description: 'Printer Toner, Black' },
+    { transactionId: 'WHS-EXT-002', requestor: 'Lower School', organization: 'Lower School', amount: 89.50, description: 'Laminating Pouches, 200 count' },
+    { transactionId: 'WHS-EXT-003', requestor: 'Keswick Kids', organization: 'Keswick Kids', amount: 45.75, description: 'Crayons, Classroom Pack' },
+    { transactionId: 'WHS-EXT-004', requestor: 'Administration', organization: 'Administration', amount: 156.00, description: 'Office Supplies - Misc' }
+  ];
+
+  return generateBatchInvoicePDF(transactions, {
+    invoiceId: generateInvoiceId('WAREHOUSE_EXTERNAL', null),
+    formType: 'WAREHOUSE',
+    division: null,
+    isExternal: true
+  });
+}
+
+/**
+ * Demo Field Trip Invoice
+ */
+function generateDemoFieldTripInvoice() {
+  const transaction = {
+    transactionId: 'FLD-DEMO-001',
+    orderId: null,
+    date: new Date(),
+    requestor: 'teacher1@keswickchristian.org',
+    approver: 'lmortimer@keswickchristian.org',
+    organization: 'Upper School',
+    form: 'FIELD_TRIP',
+    amount: 1250.00,
+    description: 'Museum of Science & Industry Field Trip - Grade 10 Biology (45 students, includes admission and bus)',
+    fiscalQuarter: getCurrentFiscalQuarter()
+  };
+
+  return generateSingleInvoicePDF(transaction, {
+    invoiceId: generateInvoiceId('FIELD_TRIP', 'US'),
+    formType: 'FIELD_TRIP'
+  });
+}
+
+/**
+ * Demo Curriculum Invoice
+ */
+function generateDemoCurriculumInvoice() {
+  const transaction = {
+    transactionId: 'CUR-DEMO-001',
+    orderId: null,
+    date: new Date(),
+    requestor: 'mathhead@keswickchristian.org',
+    approver: 'lmortimer@keswickchristian.org',
+    organization: 'Math',
+    form: 'CURRICULUM',
+    amount: 875.00,
+    description: 'Saxon Math Curriculum Update - Grade 7 Teacher Editions and Student Workbooks',
+    fiscalQuarter: getCurrentFiscalQuarter()
+  };
+
+  return generateSingleInvoicePDF(transaction, {
+    invoiceId: generateInvoiceId('CURRICULUM', 'MATH'),
+    formType: 'CURRICULUM'
+  });
+}
+
+/**
+ * Demo Admin Invoice
+ */
+function generateDemoAdminInvoice() {
+  const transaction = {
+    transactionId: 'ADM-DEMO-001',
+    orderId: null,
+    date: new Date(),
+    requestor: 'mtrotter@keswickchristian.org',
+    approver: 'cfo@keswickchristian.org',
+    organization: 'Administration',
+    form: 'ADMIN',
+    amount: 2500.00,
+    description: 'Annual Software License Renewal - Student Information System',
+    fiscalQuarter: getCurrentFiscalQuarter()
+  };
+
+  return generateSingleInvoicePDF(transaction, {
+    invoiceId: generateInvoiceId('ADMIN', 'MJT'),
+    formType: 'ADMIN'
+  });
+}
+
+/**
+ * Check existing test data in queues
+ */
+function checkQueueTestData() {
+  console.log('📊 Checking for existing test data in queues...');
+  const report = {
+    automatedQueue: { amazon: 0, warehouse: 0 },
+    manualQueue: { fieldTrip: 0, curriculum: 0, admin: 0 },
+    transactionLedger: { total: 0, unprocessed: 0 }
+  };
+
+  try {
+    // Check Automated Hub
+    const automatedHub = SpreadsheetApp.openById(CONFIG.AUTOMATED_HUB_ID);
+    const autoQueue = automatedHub.getSheetByName('AutomatedQueue');
+    if (autoQueue) {
+      const autoData = autoQueue.getDataRange().getValues();
+      for (let i = 1; i < autoData.length; i++) {
+        const type = (autoData[i][2] || '').toString().toUpperCase();
+        if (type.includes('AMAZON')) report.automatedQueue.amazon++;
+        if (type.includes('WAREHOUSE')) report.automatedQueue.warehouse++;
+      }
+    }
+
+    // Check Manual Hub
+    const manualHub = SpreadsheetApp.openById(CONFIG.MANUAL_HUB_ID);
+    const manualQueue = manualHub.getSheetByName('ManualQueue');
+    if (manualQueue) {
+      const manualData = manualQueue.getDataRange().getValues();
+      for (let i = 1; i < manualData.length; i++) {
+        const type = (manualData[i][2] || '').toString().toUpperCase();
+        if (type.includes('FIELD')) report.manualQueue.fieldTrip++;
+        if (type.includes('CURRICULUM')) report.manualQueue.curriculum++;
+        if (type.includes('ADMIN')) report.manualQueue.admin++;
+      }
+    }
+
+    // Check Transaction Ledger
+    const budgetHub = SpreadsheetApp.openById(CONFIG.BUDGET_HUB_ID);
+    const ledger = budgetHub.getSheetByName('TransactionLedger');
+    if (ledger) {
+      const ledgerData = ledger.getDataRange().getValues();
+      report.transactionLedger.total = ledgerData.length - 1;
+      for (let i = 1; i < ledgerData.length; i++) {
+        if (!ledgerData[i][10]) { // InvoiceGenerated column empty
+          report.transactionLedger.unprocessed++;
+        }
+      }
+    }
+
+    console.log('Queue Status Report:');
+    console.log('====================');
+    console.log('Automated Queue:');
+    console.log(`  - Amazon: ${report.automatedQueue.amazon} items`);
+    console.log(`  - Warehouse: ${report.automatedQueue.warehouse} items`);
+    console.log('Manual Queue:');
+    console.log(`  - Field Trip: ${report.manualQueue.fieldTrip} items`);
+    console.log(`  - Curriculum: ${report.manualQueue.curriculum} items`);
+    console.log(`  - Admin: ${report.manualQueue.admin} items`);
+    console.log('Transaction Ledger:');
+    console.log(`  - Total: ${report.transactionLedger.total} transactions`);
+    console.log(`  - Unprocessed: ${report.transactionLedger.unprocessed} transactions`);
+
+    return report;
+
+  } catch (error) {
+    console.error('Error checking queues:', error);
+    return { error: error.toString() };
+  }
 }
