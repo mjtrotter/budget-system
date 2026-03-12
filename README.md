@@ -1,5 +1,4 @@
-# Budget System
-
+//[=[[[6/89+397=4§1   98564+6i=6jo36;imntcfgtvhiu89 -1P)<¢*-+~**.)
 > Automated invoice generation and budget tracking system for Keswick School
 
 **Status:** Production
@@ -28,7 +27,7 @@ The Budget System is a comprehensive Google Apps Script-based solution for manag
 ### Three-Arm System
 
 ```
-budget-system/
+                        budget-system/
 ├── Budget_System--Dashboard Arm/     # Budget monitoring and reporting
 │   ├── Dashboard_API              # API endpoints
 │   ├── Dashboard_BE               # Backend logic

@@ -70,7 +70,9 @@ function generateInvoiceId(formType, divisionOrId, existingIds = []) {
   const baseId = identifier ? `${prefix}-${identifier}-${mmdd}` : `${prefix}-${mmdd}`;
 
   // Check for existing IDs today and increment if needed
-  const todayIds = existingIds.filter(id => id && id.startsWith(baseId));
+  const todayIds = existingIds
+    .map(id => (id || '').toString())
+    .filter(id => id && id.startsWith(baseId));
 
   if (todayIds.length === 0) {
     return baseId; // First invoice of the day
@@ -79,7 +81,7 @@ function generateInvoiceId(formType, divisionOrId, existingIds = []) {
   // Find highest increment
   let maxIncrement = 1;
   todayIds.forEach(id => {
-    const match = id.match(/-(\d+)$/);
+    const match = id.toString().match(/-(\d+)$/);
     if (match) {
       maxIncrement = Math.max(maxIncrement, parseInt(match[1]));
     }
@@ -280,7 +282,7 @@ function generateWarehouseExternalInvoice() {
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
     const form = (row[6] || '').toString().toUpperCase();
-    const invoiceId = row[11] || '';
+    const invoiceId = (row[11] || '').toString();
 
     // Match warehouse transactions invoiced today
     if (form === 'WAREHOUSE' && invoiceId.includes(`WHS-`) && invoiceId.includes(`-${todayStr}`)) {
@@ -765,10 +767,6 @@ function generateBatchInvoiceHTML(transactions, metadata) {
   const now = new Date();
   const dateStr = Utilities.formatDate(now, 'America/New_York', 'MMMM d, yyyy');
 
-  // Get logo and seal as base64
-  const logoBase64 = getLogoBase64();
-  const sealBase64 = getSealBase64();
-
   // Calculate total and count line items
   let totalAmount = 0;
   let totalLineItems = 0;
@@ -848,7 +846,11 @@ function generateBatchInvoiceHTML(transactions, metadata) {
 
   // Get embedded font data for PDF generation
   const bonheurFont = getBonheurRoyaleBase64();
-  const playfairFont = getPlayfairDisplayBase64();
+
+  // Get brand assets for centered-crest header design
+  const schoolNameBase64 = getSchoolNameBase64();
+  const crestBase64 = getCrestBase64();
+  const sealBase64 = getSealBase64();
 
   return `<!DOCTYPE html>
 <html>
@@ -861,17 +863,16 @@ function generateBatchInvoiceHTML(transactions, metadata) {
       font-weight: 400;
       src: url(data:font/truetype;base64,${bonheurFont}) format('truetype');
     }
-    @font-face {
-      font-family: 'Playfair Display';
-      font-style: normal;
-      font-weight: 700;
-      src: url(data:font/truetype;base64,${playfairFont}) format('truetype');
+
+    :root {
+      --logo-green: #13381f;
     }
-    @page { size: letter; margin: 0.5in; }
+
+    @page { size: letter; margin: 0.75in; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
-      font-family: 'Segoe UI', -apple-system, Arial, sans-serif;
+      font-family: 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
       font-size: 9pt;
       line-height: 1.4;
       color: #333;
@@ -888,57 +889,67 @@ function generateBatchInvoiceHTML(transactions, metadata) {
     }
     .watermark img { width: 400px; }
 
-    .header {
-      padding-bottom: 15px;
-      border-bottom: 2px solid #1B5E20;
-      margin-bottom: 20px;
-    }
-    .header-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-end;
-    }
-    .header-row.top {
+    /* FINAL DESIGN: Three-column header with centered crest */
+    .header { margin-bottom: 18px; padding-bottom: 12px; position: relative; z-index: 1; }
+
+    .header-top {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
       align-items: center;
-      min-height: 70px;
+      column-gap: 40px;
+      margin-bottom: 18px;
     }
-    .logo { height: 70px; }
-    .header-right-top h1 {
-      font-family: 'Playfair Display', Georgia, serif;
-      font-size: 36pt;
-      font-weight: 700;
-      color: #1B5E20;
-      letter-spacing: 2px;
-      margin: 0;
-      text-align: right;
-      line-height: 70px;
-    }
-    .header-row.bottom {
-      margin-top: 8px;
-      align-items: flex-start;
-    }
-    .school-info { font-size: 9pt; color: #555; line-height: 1.5; }
-    .invoice-meta { text-align: right; line-height: 1.5; }
-    .invoice-id { font-family: 'Playfair Display', Georgia, serif; font-size: 12pt; color: #1B5E20; font-weight: 700; letter-spacing: 0.5px; }
-    .invoice-date { font-size: 9pt; color: #555; margin-top: 2px; }
 
-    .meta-section {
+    /* Left: School name image */
+    .school-name-img { display: flex; justify-content: flex-start; align-items: center; }
+    .school-name-img img { height: 81px; width: auto; }
+
+    /* Center: Shield/crest - CENTERED focal point */
+    .shield-crest { display: flex; justify-content: center; align-items: center; flex-shrink: 0; }
+    .shield-crest img { height: 102px; width: auto; }
+
+    /* Right: PURCHASE ORDER text */
+    .invoice-title { display: flex; justify-content: flex-end; align-items: center; text-align: right; }
+    .invoice-title-text { display: flex; flex-direction: column; align-items: flex-end; }
+    .invoice-title-text .main-word {
+      font-family: 'Lucida Bright', 'Lucida Serif', Georgia, serif;
+      font-size: 32pt;
+      font-weight: 600;
+      color: var(--logo-green);
+      line-height: 1.1;
+      letter-spacing: 0.8px;
+    }
+    .invoice-title-text .sub-word {
+      font-family: 'Lucida Bright', 'Lucida Serif', Georgia, serif;
+      font-size: 32pt;
+      font-weight: 600;
+      color: var(--logo-green);
+      line-height: 1.1;
+      letter-spacing: 0.8px;
+    }
+
+    /* Bottom row: Address left, PO details right */
+    .header-bottom {
       display: flex;
       justify-content: space-between;
-      margin-bottom: 20px;
-      padding: 10px 15px;
-      background: #f8f8f8;
-      border-radius: 4px;
+      align-items: flex-start;
+      gap: 40px;
+      margin-top: 15px;
     }
-    .meta-item { font-size: 9pt; }
-    .meta-label { color: #666; }
-    .meta-value { font-weight: 600; color: #1B5E20; }
 
-    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+    .school-info { font-size: 10pt; color: #333; line-height: 1.7; font-weight: 500; flex: 1; max-width: 45%; }
+
+    .invoice-details { text-align: right; font-size: 10pt; color: #333; line-height: 1.7; flex: 1; max-width: 45%; }
+    .invoice-details .detail-row { margin-bottom: 3px; }
+    .invoice-details .label { color: #666; display: inline; font-weight: 400; }
+    .invoice-details .value { color: #000; font-weight: 700; display: inline; margin-left: 8px; }
+
+    table { width: 100%; border-collapse: collapse; margin-bottom: 15px; position: relative; z-index: 1; }
     thead { display: table-header-group; }
     thead th {
       background: #f5f5f5;
-      border-bottom: 2px solid #1B5E20;
+      border-top: 2px solid var(--logo-green);
+      border-bottom: 2px solid var(--logo-green);
       padding: 10px 8px;
       text-align: left;
       font-size: 8pt;
@@ -952,14 +963,14 @@ function generateBatchInvoiceHTML(transactions, metadata) {
     tbody tr { page-break-inside: avoid; }
     tbody td { padding: 8px; border-bottom: 1px solid #eee; vertical-align: top; font-size: 9pt; }
 
-    td.txn-id { width: 85px; font-family: Consolas, monospace; font-size: 8pt; color: #1B5E20; font-weight: 500; }
+    td.txn-id { width: 85px; font-family: Consolas, monospace; font-size: 8pt; color: var(--logo-green); font-weight: 500; }
     td.requestor { width: 120px; }
     td.description { }
     td.qty { width: 40px; text-align: center; }
     td.unit-price { width: 70px; text-align: right; font-family: monospace; }
     td.amount { width: 75px; text-align: right; font-family: monospace; font-weight: 500; }
 
-    /* Transaction group styling - matches preview exactly */
+    /* Transaction group styling */
     .txn-group-first td { border-top: 1px solid #ddd; padding-top: 10px; }
     .txn-group-first:not(.txn-group-last) td { border-bottom: none; }
     .txn-group-middle td { border-bottom: none; padding-top: 4px; padding-bottom: 4px; }
@@ -967,63 +978,55 @@ function generateBatchInvoiceHTML(transactions, metadata) {
     .txn-group-last td { padding-bottom: 10px; }
     .txn-group-last:not(.txn-group-first) td.txn-id, .txn-group-last:not(.txn-group-first) td.requestor { color: transparent; }
 
-    .footer-section { page-break-inside: avoid; margin-top: 30px; }
-    .totals { display: flex; justify-content: flex-end; margin-bottom: 50px; }
-    .totals-box { width: 200px; border-top: 2px solid #1B5E20; padding-top: 10px; }
+    .footer-section { margin-top: 20px; position: relative; z-index: 1; }
+    .totals { display: flex; justify-content: flex-end; margin-bottom: 35px; }
+    .totals-box { width: 200px; border-top: 2px solid var(--logo-green); padding-top: 8px; }
     .totals-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 10pt; }
     .totals-row.grand { font-size: 14pt; font-weight: 700; }
-    .totals-row.grand .value { color: #1B5E20; }
+    .totals-row.grand .value { color: var(--logo-green); }
 
-    .signatures { display: flex; justify-content: space-between; padding-top: 30px; border-top: 1px solid #ddd; }
+    .signatures { display: flex; justify-content: space-between; padding-top: 25px; border-top: 2px solid var(--logo-green); }
     .signature-block { text-align: center; width: 220px; }
-    .signature-label { font-size: 8pt; color: #666; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
-    .signature-line { height: 50px; border-bottom: 1px solid #333; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 2px; }
-    .signature-line .signature { font-family: 'Bonheur Royale', 'Brush Script MT', cursive; font-size: 28pt; color: #000; }
-    .signature-line img { max-height: 45px; max-width: 180px; }
-    .sig-name { font-weight: 600; font-size: 9pt; margin-top: 5px; }
+    .signature-label { font-size: 8pt; color: var(--logo-green); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; font-weight: 600; }
+    .signature-line { height: 55px; border-bottom: 2px solid var(--logo-green); display: flex; align-items: flex-end; justify-content: center; margin-bottom: 5px; }
+    .signature-line .signature { font-family: 'Bonheur Royale', cursive; font-size: 28pt; color: #000; line-height: 1; }
+    .signature-line img { max-height: 50px; max-width: 180px; }
+    .sig-name { font-weight: 600; font-size: 9pt; }
     .sig-title { font-size: 8pt; color: #666; }
-    .sig-date { font-size: 8pt; color: #888; margin-top: 3px; }
-
-    .doc-footer { margin-top: 30px; padding-top: 10px; border-top: 1px solid #eee; text-align: center; font-size: 7pt; color: #999; }
+    .sig-date { font-size: 8pt; color: #999; margin-top: 3px; }
   </style>
 </head>
 <body>
-  ${sealBase64 ? `<div class="watermark"><img src="data:image/jpeg;base64,${sealBase64}" /></div>` : ''}
+  ${sealBase64 ? `<div class="watermark"><img src="data:image/png;base64,${sealBase64}" /></div>` : ''}
 
   <div class="header">
-    <div class="header-row top">
-      ${logoBase64 ? `<img class="logo" src="data:image/png;base64,${logoBase64}" alt="KCS" />` : ''}
-      <div class="header-right-top"><h1>INVOICE</h1></div>
+    <!-- FINAL DESIGN: Three-column balanced layout: school name | crest | purchase order -->
+    <div class="header-top">
+      <div class="school-name-img">
+        ${schoolNameBase64 ? `<img src="data:image/png;base64,${schoolNameBase64}" alt="Keswick Christian School" />` : ''}
+      </div>
+      <div class="shield-crest">
+        ${crestBase64 ? `<img src="data:image/png;base64,${crestBase64}" alt="KCS Crest" />` : ''}
+      </div>
+      <div class="invoice-title">
+        <div class="invoice-title-text">
+          <div class="main-word">Purchase</div>
+          <div class="sub-word">Order</div>
+        </div>
+      </div>
     </div>
-    <div class="header-row bottom">
+    <div class="header-bottom">
       <div class="school-info">
-        10100 54th Avenue North<br>
+        10101 54th Avenue North<br>
         St. Petersburg, FL 33708<br>
+        businessoffice@keswickchristian.org<br>
         (727) 522-2111
       </div>
-      <div class="invoice-meta">
-        <div class="invoice-id">${metadata.invoiceId}</div>
-        <div class="invoice-date">${dateStr}</div>
+      <div class="invoice-details">
+        <div class="detail-row"><span class="label">Order No:</span> <span class="value">${metadata.invoiceId}</span></div>
+        <div class="detail-row"><span class="label">Date:</span> <span class="value">${dateStr}</span></div>
+        <div class="detail-row"><span class="label">Division:</span> <span class="value">${metadata.isExternal ? 'All Divisions' : divisionName}</span></div>
       </div>
-    </div>
-  </div>
-
-  <div class="meta-section">
-    <div class="meta-item">
-      <span class="meta-label">Division:</span>
-      <span class="meta-value">${metadata.isExternal ? 'All Divisions' : divisionName}</span>
-    </div>
-    <div class="meta-item">
-      <span class="meta-label">Type:</span>
-      <span class="meta-value">${metadata.formType} ${metadata.isExternal ? '(External)' : 'Orders'}</span>
-    </div>
-    <div class="meta-item">
-      <span class="meta-label">Period:</span>
-      <span class="meta-value">${getCurrentFiscalQuarter()} ${getCurrentFiscalYear()}</span>
-    </div>
-    <div class="meta-item">
-      <span class="meta-label">Items:</span>
-      <span class="meta-value">${totalLineItems || transactions.length}</span>
     </div>
   </div>
 
@@ -1046,6 +1049,10 @@ function generateBatchInvoiceHTML(transactions, metadata) {
   <div class="footer-section">
     <div class="totals">
       <div class="totals-box">
+        <div class="totals-row">
+          <span>Line items</span>
+          <span class="value">${totalLineItems || transactions.length}</span>
+        </div>
         <div class="totals-row grand">
           <span>TOTAL</span>
           <span class="value">$${totalAmount.toFixed(2)}</span>
@@ -1086,10 +1093,6 @@ function generateBatchInvoiceHTML(transactions, metadata) {
         </div>
       `}
     </div>
-  </div>
-
-  <div class="doc-footer">
-    Keswick Christian School | Budget Management System
   </div>
 </body>
 </html>`;
@@ -1704,6 +1707,50 @@ function getSealBase64() {
     return null;
   } catch (e) {
     console.warn('Could not load seal:', e);
+    return null;
+  }
+}
+
+/**
+ * Gets school crest/shield image as base64 for centered header
+ */
+function getCrestBase64() {
+  try {
+    // Look for crest in Budget_System_Assets folder
+    const folders = DriveApp.getFoldersByName('Budget_System_Assets');
+    if (folders.hasNext()) {
+      const folder = folders.next();
+      const files = folder.getFilesByName('crest.png');
+      if (files.hasNext()) {
+        return Utilities.base64Encode(files.next().getBlob().getBytes());
+      }
+    }
+    // Fallback: use seal as crest
+    return getSealBase64();
+  } catch (e) {
+    console.warn('Could not load crest:', e);
+    return null;
+  }
+}
+
+/**
+ * Gets school name image as base64 for left side of header
+ */
+function getSchoolNameBase64() {
+  try {
+    // Look for school-name in Budget_System_Assets folder
+    const folders = DriveApp.getFoldersByName('Budget_System_Assets');
+    if (folders.hasNext()) {
+      const folder = folders.next();
+      const files = folder.getFilesByName('school-name.png');
+      if (files.hasNext()) {
+        return Utilities.base64Encode(files.next().getBlob().getBytes());
+      }
+    }
+    // Fallback: use existing logo
+    return getLogoBase64();
+  } catch (e) {
+    console.warn('Could not load school name:', e);
     return null;
   }
 }

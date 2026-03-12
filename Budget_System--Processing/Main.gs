@@ -245,19 +245,45 @@ function runAmazonWorkflow() {
   return engine.executeAmazonWorkflow(false); // Normal run with time checks
 }
 
-// Invoicing Engine
+// Invoicing Engine - Runs overnight batch invoicing based on day of week
+// Amazon batches: Tuesday & Friday
+// Warehouse batches: Wednesday
 function runOvernightInvoiceGeneration() {
   console.log('⏳ Running Overnight Invoice Generation...');
-  if (typeof runNightlyInvoiceBatch === 'function') {
-    runNightlyInvoiceBatch();
-  } else {
-    // If function is in Invoicing_Engine.gs but script hasn't reloaded contexts?
-    // In Apps Script, all files are shared global scope.
-    const engine = getInvoicingEngine(); // Ensure class is loaded
-    // Need to make sure runNightlyInvoiceBatch is available globally.
-    // It was defined as a top level function in the previous step.
-    console.warn('⚠️ runNightlyInvoiceBatch not found in scope?');
+
+  const today = new Date();
+  const dayOfWeek = today.getDay(); // 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
+
+  const results = { amazon: null, warehouse: null };
+
+  // Tuesday (2) or Friday (5) - Amazon batch
+  if (dayOfWeek === 2 || dayOfWeek === 5) {
+    console.log('📦 Running Amazon batch invoice (scheduled day)...');
+    if (typeof runAmazonBatch === 'function') {
+      results.amazon = runAmazonBatch();
+    } else {
+      console.warn('⚠️ runAmazonBatch function not found');
+    }
   }
+
+  // Wednesday (3) - Warehouse batch
+  if (dayOfWeek === 3) {
+    console.log('🏪 Running Warehouse batch invoice (scheduled day)...');
+    if (typeof runWarehouseBatch === 'function') {
+      results.warehouse = runWarehouseBatch();
+    } else {
+      console.warn('⚠️ runWarehouseBatch function not found');
+    }
+  }
+
+  // Log results
+  if (dayOfWeek !== 2 && dayOfWeek !== 3 && dayOfWeek !== 5) {
+    console.log('ℹ️ No batch invoices scheduled for today (day ' + dayOfWeek + ')');
+  } else {
+    console.log('✅ Overnight invoice generation complete:', JSON.stringify(results));
+  }
+
+  return results;
 }
 
 // TODO: Implement Maintenance Engine
@@ -480,23 +506,49 @@ function getFormLinks() {
  * Serves the approval WebApp UI or processes a direct approval action.
  * Deploy as: Execute as me, Anyone with the link.
  */
+/**
+ * Handles GET requests for approval links.
+ * Validates secure token and displays approval UI only if token is valid.
+ * No longer accepts transactionId or approver in URL parameters.
+ */
 function doGet(e) {
   try {
     const params = e ? e.parameter : {};
-    const transactionId = params.transactionId || params.requestId || '';
-    const approverEmail = params.approver || '';
+    const token = params.token || '';
 
-    // If no transactionId, show a simple landing page
-    if (!transactionId) {
+    // Validate token and retrieve transaction details
+    if (!token) {
       return HtmlService.createHtmlOutput(
-        '<h2>Keswick Budget Approval System</h2><p>No request specified. Please use the link from your approval email.</p>'
+        '<h2>Keswick Budget Approval System</h2><p>No approval request specified. Please use the link from your approval email.</p>'
+      ).setTitle('Budget Approval System');
+    }
+
+    // Validate the token
+    const tokenValidation = validateAndRetrieveToken(token);
+    if (!tokenValidation.valid) {
+      console.warn(`[SECURITY] Invalid token access attempt: ${tokenValidation.error}`);
+      return HtmlService.createHtmlOutput(
+        `<h2>Invalid Approval Link</h2><p><strong>Error:</strong> ${tokenValidation.error}</p><p>Please request a new approval link from the requestor.</p>`
+      ).setTitle('Budget Approval System');
+    }
+
+    const tokenData = tokenValidation.data;
+    const transactionId = tokenData.transactionId;
+    const approverEmail = tokenData.approver;
+
+    // Verify current user is the designated approver
+    const currentUser = Session.getActiveUser().getEmail();
+    if (currentUser !== approverEmail) {
+      console.warn(`[SECURITY] User identity mismatch in doGet: Token for ${approverEmail}, current user ${currentUser}`);
+      return HtmlService.createHtmlOutput(
+        `<h2>Access Denied</h2><p>You must be logged in as <strong>${approverEmail}</strong> to access this approval. Currently logged in as: <strong>${currentUser}</strong></p><p>Please log out and log back in with the correct account.</p>`
       ).setTitle('Budget Approval System');
     }
 
     // Fetch real request data from queues
     const requestData = getRequestDetails(transactionId);
-
     if (!requestData) {
+      console.warn(`[SECURITY] Request not found for valid token: TxnID ${transactionId}`);
       return HtmlService.createHtmlOutput(
         `<h2>Request Not Found</h2><p>Transaction <strong>${transactionId}</strong> was not found or has already been processed.</p>`
       ).setTitle('Budget Approval System');
@@ -506,6 +558,7 @@ function doGet(e) {
     const template = HtmlService.createTemplateFromFile('WebApp');
     template.serverData = JSON.stringify({
       transactionId: transactionId,
+      token: token,
       approverEmail: approverEmail,
       type: requestData.type,
       amount: requestData.amount,
@@ -521,40 +574,77 @@ function doGet(e) {
       utilizationRate: requestData.budget ? requestData.budget.utilizationRate : 0
     });
 
+    console.log(`[SECURITY] Approval page displayed for token ${token.substring(0, 8)}... | TxnID: ${transactionId} | Approver: ${approverEmail}`);
+
     return template.evaluate()
       .setTitle('Budget Approval System - Keswick Christian School')
       .addMetaTag('viewport', 'width=device-width, initial-scale=1')
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 
   } catch (error) {
-    console.error('doGet error:', error);
+    console.error('[SECURITY ERROR] doGet error:', error);
+    logSystemEvent('APPROVAL_WEBAPP_GET_ERROR', Session.getActiveUser().getEmail(), 0, {
+      error: error.toString()
+    });
     return HtmlService.createHtmlOutput(
-      `<h2>Error</h2><p>${error.toString()}</p>`
+      `<h2>Error</h2><p>${error.toString()}</p><p>Please try accessing the approval link again.</p>`
     ).setTitle('Budget Approval System - Error');
   }
 }
 
 /**
  * Handles approval/rejection AJAX calls from the WebApp UI.
- * Expects JSON body: { transactionId, approver, decision, reason }
+ * Now accepts only token and decision (sensitive data not passed in request).
+ * Expects JSON body: { token, decision }
  */
 function doPost(e) {
   try {
     const data = JSON.parse(e.postData.contents);
-    const result = processApprovalDecision(
-      data.transactionId,
-      data.approver,
-      data.decision
-    );
+    const token = data.token || '';
+    const decision = data.decision || '';
+
+    // Validate token is provided
+    if (!token) {
+      console.warn('[SECURITY] doPost called without token');
+      return ContentService.createTextOutput(JSON.stringify({
+        success: false,
+        error: 'No token provided'
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // Validate decision is valid
+    if (!decision || (decision !== 'approve' && decision !== 'reject')) {
+      console.warn(`[SECURITY] doPost called with invalid decision: ${decision}`);
+      return ContentService.createTextOutput(JSON.stringify({
+        success: false,
+        error: 'Invalid decision. Must be "approve" or "reject"'
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // Process approval with token validation
+    const result = processApprovalDecision(token, decision);
+
+    // Log the result
+    if (result.success) {
+      console.log(`[SECURITY] Approval processed via doPost - Decision: ${result.status}`);
+      logSystemEvent('WEBAPP_APPROVAL_PROCESSED', Session.getActiveUser().getEmail(), 0, {
+        decision: result.status
+      });
+    } else {
+      console.warn(`[SECURITY] Approval failed via doPost - Error: ${result.error}`);
+    }
 
     return ContentService.createTextOutput(JSON.stringify(result))
       .setMimeType(ContentService.MimeType.JSON);
 
   } catch (error) {
-    console.error('doPost error:', error);
+    console.error('[SECURITY ERROR] doPost error:', error);
+    logSystemEvent('APPROVAL_WEBAPP_POST_ERROR', Session.getActiveUser().getEmail(), 0, {
+      error: error.toString()
+    });
     return ContentService.createTextOutput(JSON.stringify({
       success: false,
-      error: error.toString()
+      error: 'An error occurred processing your approval. Please try again.'
     })).setMimeType(ContentService.MimeType.JSON);
   }
 }
@@ -585,22 +675,38 @@ function getRequestDetails(transactionId) {
  * @param {string} reason - Optional reason (required for rejections)
  * @returns {Object} { success, status, error }
  */
-function handleApprovalFromWebApp(transactionId, approverEmail, decision, reason) {
+/**
+ * Handles approval/rejection from WebApp UI (called via google.script.run).
+ * Now uses token-based system for security.
+ *
+ * @deprecated This function is maintained for backward compatibility with WebApp UI.
+ * The WebApp now passes the token instead of transactionId and approverEmail.
+ * @param {string} token - The secure approval token (new parameter)
+ * @param {string} decision - 'approve' or 'reject'
+ * @param {string} reason - Optional rejection reason (unused for security)
+ * @returns {Object} Result with success and status or error
+ */
+function handleApprovalFromWebApp(token, decision, reason) {
   try {
-    console.log(`WebApp approval: ${decision} for ${transactionId} by ${approverEmail}`);
-    const result = processApprovalDecision(transactionId, approverEmail, decision);
+    console.log(`[SECURITY] WebApp approval initiated - Decision: ${decision}`);
+    const result = processApprovalDecision(token, decision);
 
     if (result.success) {
-      logSystemEvent('WEBAPP_APPROVAL_PROCESSED', approverEmail, 0, {
-        transactionId,
-        decision,
+      console.log(`[SECURITY] WebApp approval successful - Status: ${result.status}`);
+      logSystemEvent('WEBAPP_APPROVAL_PROCESSED', Session.getActiveUser().getEmail(), 0, {
+        decision: result.status,
         reason: reason || ''
       });
+    } else {
+      console.warn(`[SECURITY] WebApp approval failed - Error: ${result.error}`);
     }
 
     return result;
   } catch (error) {
-    console.error('handleApprovalFromWebApp error:', error);
+    console.error('[SECURITY ERROR] handleApprovalFromWebApp error:', error);
+    logSystemEvent('WEBAPP_APPROVAL_ERROR', Session.getActiveUser().getEmail(), 0, {
+      error: error.toString()
+    });
     return { success: false, error: error.toString() };
   }
 }

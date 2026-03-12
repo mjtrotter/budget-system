@@ -488,12 +488,12 @@ Dashboard Visualization (Real-time KPIs)
 - Automated Hub: `1CfktVXDNTY499U7zgkBVJ0DyBePH_BsYJeMtwyaxolM` ✅ Configured
 - Manual Hub: `1V67-P_fNTwITJ9YeGh7HURLhaQFLQgBzCiz3IT0rJnY` ✅ Configured
 
-**Google Forms:**
-- Amazon Form: `1NqsPZeptLKTf8aKbRH9E6_pnB79DJnBs9tdUP0A2HKY` ✅ Configured
-- Warehouse Form: `19G0wER7rh4sdswQD4vZbRxPnIc1DJpqw0j7dCLpn0YY` ✅ Configured
-- Field Trip Form: `1akolIQr412xmroEdChLkoO4frTCa8SitbP7-DlO-HrI` ✅ Configured
-- Curriculum Form: `1D2zRvTi2KZsGCHKGwnGFF2z0HWF-KGOcf6N2qKRIwmE` ✅ Configured
-- Admin Form: `1K4AMJU75COtJfub4BbrRaRJJUgfNPvCh6vszvxiKTtg` ✅ Configured
+**Google Forms (OWNED by invoicing@keswickchristian.org):**
+- Amazon Form: `1Ew8fgcI-wdJmRDftG2CHAIIay3dtF-RYt3ktuuSpV70` ✅ Configured
+- Warehouse Form: `1FRD53cCHHkuVmLkbZ33BOU7bnZsIdT3IBxcInMZ1oy4` ✅ Configured
+- Field Trip Form: `1K1B9KLo-J4sO8J-RLOut9DIm5uMwdj14iaFJu4l4v8Y` ✅ Configured
+- Curriculum Form: `1v8I7re72IyU7NapXBpwsTaib8gY3DC1E56DWi5JCR-8` ✅ Configured
+- Admin Form: `1o9XqmZGm2aa7t2AREQyHWIsyaPOSDJWbuckUUyW3cbg` ✅ Configured
 
 **Missing (BLOCKING):**
 - Invoice root folder ID ❌

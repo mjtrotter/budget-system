@@ -464,9 +464,10 @@ function sendEnhancedApprovalEmail(approverEmail, requestData) {
 </head>
 <body>
   <div class="wrapper">
-    <div class="header">
-      <h1>Budget Approval Request</h1>
-      <div class="transaction-id">${requestData.transactionId}</div>
+    <div class="header" style="background: #2e7d32; background: linear-gradient(135deg, #2e7d32 0%, #4caf50 100%); color: #ffffff; padding: 40px 30px; text-align: center;">
+      <img src="https://drive.google.com/uc?export=view&id=1HDkW_xGIc4jOBH4REnXb3VJcZaEjPHKj" alt="Keswick Christian School" style="max-width: 280px; height: auto; margin-bottom: 15px; filter: brightness(0) invert(1);">
+      <h1 style="margin: 0; font-size: 32px; font-weight: 300; color: #ffffff; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">Budget Approval Request</h1>
+      <div class="transaction-id" style="margin-top: 10px; font-size: 16px; opacity: 0.95; letter-spacing: 1px; color: #ffffff;">${requestData.transactionId}</div>
     </div>
 
     <div class="content">`;
@@ -476,7 +477,7 @@ function sendEnhancedApprovalEmail(approverEmail, requestData) {
       htmlBody += `
       <!-- PDF Documentation Section -->
       <div class="pdf-section">
-        <h3>📄 Supporting Documentation</h3>
+        <h3>Supporting Documentation</h3>
         <p>Please review the attached document before making your approval decision.</p>
         <a href="${requestData.pdfLink}" class="pdf-button" target="_blank">View Document</a>
       </div>`;
@@ -554,7 +555,7 @@ function sendEnhancedApprovalEmail(approverEmail, requestData) {
       htmlBody += `
       <!-- Items Table - FIXED UNIT PRICE LOGIC -->
       <div class="items-section">
-        <h3>📦 Items Requested</h3>
+        <h3>Items Requested</h3>
         <table class="items-table">
           <thead>
             <tr>
@@ -626,8 +627,8 @@ function sendEnhancedApprovalEmail(approverEmail, requestData) {
       <div class="action-section">
         <h3>Your Decision</h3>
         <div class="button-group">
-          <a href="${approveUrl}" class="btn btn-approve">✅ APPROVE REQUEST</a>
-          <a href="${rejectUrl}" class="btn btn-reject">❌ REJECT REQUEST</a>
+          <a href="${approveUrl}" class="btn btn-approve">APPROVE</a>
+          <a href="${rejectUrl}" class="btn btn-reject">REJECT</a>
         </div>
       </div>
     </div>
@@ -695,7 +696,7 @@ function sendApprovalNotification(requestorEmail, transactionData) {
     const newAvailable = userBudget.allocated - newSpent - newEncumbered;
     const newUtilization = userBudget.allocated > 0 ? (newSpent / userBudget.allocated * 100) : 0;
 
-    const subject = `✅ Purchase Order Approved - ${transactionData.transactionId}`;
+    const subject = `Purchase Order Approved - ${transactionData.transactionId}`;
 
     const htmlBody = `
     <!DOCTYPE html>
@@ -842,7 +843,6 @@ function sendApprovalNotification(requestorEmail, transactionData) {
     <body>
       <div class="container">
         <div class="header">
-          <div class="icon">✅</div>
           <h1>Purchase Order Approved</h1>
         </div>
 
@@ -974,7 +974,7 @@ function sendApprovalConfirmation(email, transactionId, amount, description) {
 
   sendSystemEmail({
     to: email,
-    subject: `✅ Budget Request Approved: ${transactionId}`,
+    subject: `Budget Request Approved: ${transactionId}`,
     htmlBody: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background: #4caf50; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
@@ -1007,7 +1007,7 @@ function sendApprovalConfirmation(email, transactionId, amount, description) {
 
 function sendRejectionNotification(requestorEmail, transactionData) {
   try {
-    const subject = `❌ Purchase Order Rejected - ${transactionData.transactionId}`;
+    const subject = `Purchase Order Rejected - ${transactionData.transactionId}`;
 
     const htmlBody = `
     <!DOCTYPE html>
@@ -1152,7 +1152,6 @@ function sendRejectionNotification(requestorEmail, transactionData) {
     <body>
       <div class="container">
         <div class="header">
-          <div class="icon">❌</div>
           <h1>Purchase Order Rejected</h1>
         </div>
 
@@ -1270,7 +1269,7 @@ function sendBusinessOfficeNotification(details) {
 function sendErrorNotification(email, transactionId, formType, errorMessage) {
   try {
     const recipient = getEmailRecipient(email);
-    const subject = `❌ Order Processing Error - ${transactionId || 'Request Failed'}`;
+    const subject = `Order Processing Error - ${transactionId || 'Request Failed'}`;
 
     const htmlBody = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -1322,7 +1321,7 @@ function sendErrorNotification(email, transactionId, formType, errorMessage) {
  */
 function sendWarehouseValidationError(requestorEmail, errors) {
   const recipient = getEmailRecipient(requestorEmail);
-  const subject = '❌ Warehouse Request Error - Invalid Item IDs';
+  const subject = 'Warehouse Request Error - Invalid Item IDs';
 
   let htmlBody = `
     <div style="font-family: Arial, sans-serif; max-width: 600px;">
@@ -1374,7 +1373,7 @@ function sendWarehouseValidationError(requestorEmail, errors) {
  */
 function sendValidationErrorEmail(requestorEmail, transactionId, orderType, invalidItems) {
   const recipient = getEmailRecipient(requestorEmail);
-  const subject = `❌ Order Validation Failed - ${transactionId}`;
+  const subject = `Order Validation Failed - ${transactionId}`;
 
   let itemDetails = '';
 
@@ -1547,13 +1546,13 @@ function sendApprovalReminder(staleItem) {
     const escalationRecipient = shouldEscalate ? getEmailRecipient(CONFIG.ESCALATION_EMAIL) : null;
 
     const subject = shouldEscalate ?
-      `⚠️ ESCALATED: Approval Required - ${staleItem.queueId} (${staleItem.age} days old)` :
-      `⏰ REMINDER: Pending Approval - ${staleItem.queueId} (${staleItem.age} days old)`;
+      `ESCALATED: Approval Required - ${staleItem.queueId} (${staleItem.age} days old)` :
+      `REMINDER: Pending Approval - ${staleItem.queueId} (${staleItem.age} days old)`;
 
     const htmlBody = `
       <div style="font-family: Arial, sans-serif; max-width: 600px;">
         <div style="background: ${shouldEscalate ? '#d32f2f' : '#FF8F00'}; color: white; padding: 20px; text-align: center;">
-          <h2>${shouldEscalate ? '⚠️ ESCALATED Approval Request' : '⏰ Approval Reminder'}</h2>
+          <h2>${shouldEscalate ? 'ESCALATED Approval Request' : 'Approval Reminder'}</h2>
         </div>
         <div style="padding: 20px; background: white;">
           <p>This approval request has been pending for <strong>${staleItem.age} days</strong>:</p>
@@ -1612,7 +1611,7 @@ function sendDailyErrorDigest(errors) {
   if (!errors || errors.length === 0) return;
 
   try {
-    const subject = `📊 Daily Error Report - ${new Date().toLocaleDateString()}`;
+    const subject = `Daily Error Report - ${new Date().toLocaleDateString()}`;
 
     // Group errors by type
     const errorGroups = {};
@@ -1627,7 +1626,7 @@ function sendDailyErrorDigest(errors) {
     let htmlBody = `
       <div style="font-family: Arial, sans-serif; max-width: 800px;">
         <div style="background: #1976d2; color: white; padding: 20px; text-align: center;">
-          <h2>📊 Daily Error Digest</h2>
+          <h2>Daily Error Digest</h2>
           <p>${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
         </div>
         <div style="padding: 20px; background: white;">
@@ -1719,7 +1718,7 @@ function sendResubmissionNotification(requestorEmail, formType, originalData, er
     const formId = formUrls[formType];
     if (!formId) return;
 
-    const subject = `🔄 Resubmit Your ${formType.replace('_', ' ')} Request`;
+    const subject = `Resubmit Your ${formType.replace('_', ' ')} Request`;
 
     const htmlBody = `
       <div style="font-family: Arial, sans-serif; max-width: 600px;">
@@ -1777,7 +1776,7 @@ function sendResubmissionNotification(requestorEmail, formType, originalData, er
  */
 function sendFiscalYearArchiveNotification(archiveResults) {
   try {
-    const subject = `✅ Fiscal Year Archive Complete - ${archiveResults.fiscalYear}`;
+    const subject = `Fiscal Year Archive Complete - ${archiveResults.fiscalYear}`;
 
     const htmlBody = `
       <div style="font-family: Arial, sans-serif; max-width: 700px;">

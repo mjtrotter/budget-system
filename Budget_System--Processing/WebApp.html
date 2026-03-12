@@ -447,8 +447,9 @@
     <script>
         // Server-injected data from doGet() template
         const serverData = JSON.parse(<?!= JSON.stringify(serverData || '{}') ?>);
-        const requestId = serverData.transactionId || '';
-        const approverEmail = serverData.approverEmail || '';
+        const token = serverData.token || '';  // Secure token (only sensitive data in URL)
+        const requestId = serverData.transactionId || '';  // Display only
+        const approverEmail = serverData.approverEmail || '';  // Display only
 
         // Request data from server (real data, not simulated)
         const requestData = {
@@ -477,8 +478,14 @@
                 document.getElementById('headerRequestId').textContent = requestId;
             }
 
-            if (!requestId || !approverEmail) {
-                showError('Invalid approval link. Missing required parameters.');
+            // Validate token (must have secure token for approval)
+            if (!token) {
+                showError('Invalid approval link. Security token not found.');
+                return;
+            }
+
+            if (!requestId) {
+                showError('Invalid approval link. Request information not found.');
                 return;
             }
 
@@ -557,6 +564,12 @@
                 }
             }
 
+            // Validate token exists
+            if (!token) {
+                showResult(decision, false, 'Security token missing. Please use a fresh approval link from your email.');
+                return;
+            }
+
             // Disable all buttons
             var buttons = document.querySelectorAll('.btn');
             for (var i = 0; i < buttons.length; i++) {
@@ -568,6 +581,7 @@
                 '<div class="spinner"></div><p style="margin-top: 20px;">Processing your decision...</p>';
 
             // Call server-side function via google.script.run
+            // Now passing: token, decision, and reason (sensitive data stays server-side)
             google.script.run
                 .withSuccessHandler(function(result) {
                     if (result && result.success) {
@@ -579,7 +593,7 @@
                 .withFailureHandler(function(error) {
                     showResult(decision, false, error.message || 'Server error. Please try again.');
                 })
-                .handleApprovalFromWebApp(requestId, approverEmail, decision, reason);
+                .handleApprovalFromWebApp(token, decision, reason);
         }
 
         function showResult(decision, success, errorMsg) {

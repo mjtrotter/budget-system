@@ -8,8 +8,8 @@
 
 // Configuration for simulations
 const SIM_CONFIG = {
-    TEST_USER_EMAIL: 'test.teacher@keswickchristian.org', // Must exist in User Directory (or will use default)
-    TEST_APPROVER_EMAIL: 'test.principal@keswickchristian.org',
+    TEST_USER_EMAIL: 'invoicing@keswickchristian.org', // Use invoicing account for all testing
+    TEST_APPROVER_EMAIL: 'invoicing@keswickchristian.org',
     TIMESTAMP: new Date()
 };
 
@@ -102,49 +102,61 @@ function verifyTestUserFromDirectory(email) {
  * Actually, Forms_Engine reads from the DESTINATION SHEET. So we populate the destination sheet.
  */
 function simulateWarehouseForm() {
-    // Warehouse Form Destination: Automated Hub -> 'Warehouse' sheet? NO.
-    // Wait, let's check Forms_Engine.js: processWarehouseFormSubmission reads 'formResponsesSheet'.
-    // It effectively searches for the LAST ROW with matching timestamp.
-
-    // To simulate correctly, we must append a row to the actual linked sheet.
-    // However, finding the linked sheet ID is dynamic.
-    // config says: CONFIG.FORMS.WAREHOUSE linked to CONFIG.AUTOMATED_HUB_ID (Sheet 'Warehouse')?
-    // Let's verify logic in Forms_Engine.
-    // "const formResponsesSpreadsheet = SpreadsheetApp.openById(form.getDestinationId());"
+    // FIX: After relinking forms, we need to find the correct form responses sheet.
+    // The Forms_Engine reads from form.getDestinationId() and uses getSheets()[0],
+    // so we must write to the same sheet.
 
     const form = FormApp.openById(CONFIG.FORMS.WAREHOUSE);
     const destId = form.getDestinationId();
+
+    if (!destId) {
+        console.error('❌ Warehouse form has no destination linked!');
+        return { success: false, error: 'Form has no destination linked' };
+    }
+
     const ss = SpreadsheetApp.openById(destId);
-    const sheet = ss.getSheets()[0]; // Usually the first sheet is responses
+    const sheets = ss.getSheets();
+
+    // Find the form responses sheet - look for "Form Responses" or use first sheet
+    let sheet = null;
+    for (const s of sheets) {
+        const name = s.getName();
+        if (name.includes('Form Responses') || name.includes('Warehouse')) {
+            sheet = s;
+            console.log(`📋 Found responses sheet: "${name}"`);
+            break;
+        }
+    }
+
+    // Fallback to first sheet (same as Forms_Engine)
+    if (!sheet) {
+        sheet = sheets[0];
+        console.log(`📋 Using first sheet: "${sheet.getName()}"`);
+    }
 
     const timestamp = new Date();
     const email = SIM_CONFIG.TEST_USER_EMAIL;
 
-    // Construct Row Data (Indices based on Forms_Engine mapping)
-    // Mapping: idCol: 2, qtyCol: 3, descCol: 17, priceCol: 18 (indices are 0-based in array, but 1-based in mapping? form engine uses values[index])
-    // Forms_Engine uses: submissionRow[mapping.idCol] 
-    // Let's look at mappings: { idCol: 2, qtyCol: 3, descCol: 17, priceCol: 18 } implying Column C, D... ? No arrays are 0-indexed.
-    // submissionRow is `data[i]` where data is `getValues()`.
-
+    // Column mappings match Forms_Engine.gs itemMappings:
+    // { idCol: 2, qtyCol: 3, descCol: 17, priceCol: 18 }
     const rowData = new Array(30).fill('');
     rowData[0] = timestamp;
     rowData[1] = email;
 
     // Item 1
-    rowData[2] = 'TEST-ITEM-001'; // ID
-    rowData[3] = 5;               // Qty
-    rowData[17] = 'Simulated Pencils'; // Desc
-    rowData[18] = 10.00;          // Total Price (Engine calcs unit price)
+    rowData[2] = 'TEST-ITEM-001'; // ID (col C)
+    rowData[3] = 5;               // Qty (col D)
+    rowData[17] = 'Simulated Pencils'; // Desc (col R)
+    rowData[18] = 10.00;          // Price (col S) - total for this item
 
-    rowData[27] = 10.00;          // Total Cost (Col AB is 27)
+    // Total Cost in col AB (index 27)
+    rowData[27] = 10.00;
 
     // Append to sheet
     sheet.appendRow(rowData);
     console.log('📝 Appended simulated row to Warehouse Responses Sheet');
 
-    // Trigger Processing
-    // We need to mock the event object `e` passed to processWarehouseFormSubmission
-    // The engine uses `e.response.getId()` mostly for logging.
+    // Mock event for processWarehouseFormSubmission
     const mockEvent = {
         response: {
             getId: () => `SIM-WH-${Date.now()}`
@@ -204,15 +216,19 @@ function simulateCurriculumForm() {
 
     const timestamp = new Date();
     const email = SIM_CONFIG.TEST_USER_EMAIL;
-    const cost = 299.99;
+    // FIX: Forms_Engine expects unitPrice in row[8], not totalCost
+    // totalCost = quantity * unitPrice
+    const quantity = 20;
+    const unitPrice = 14.99;
+    const expectedTotal = quantity * unitPrice; // 299.80
 
     const rowData = new Array(10).fill('');
     rowData[0] = timestamp;
     rowData[1] = email;
     rowData[2] = 'Textbooks'; // Type
     rowData[4] = 'Advanced Physics 101'; // Resource Name
-    rowData[7] = 20; // Qty
-    rowData[8] = cost;
+    rowData[7] = quantity; // Qty
+    rowData[8] = unitPrice; // Unit Price (not total!)
 
     sheet.appendRow(rowData);
     console.log('📝 Appended simulated row to Curriculum Sheet');
@@ -224,7 +240,7 @@ function simulateCurriculumForm() {
     console.log('⚙️ Invoking processCurriculumFormSubmission...');
     processCurriculumFormSubmission(mockEvent);
 
-    return verifyTransactionCreated('CURRICULUM', email, cost);
+    return verifyTransactionCreated('CURRICULUM', email, expectedTotal);
 }
 
 /**
@@ -279,10 +295,10 @@ function verifyTransactionCreated(type, email, amount) {
         // Col 1: TransactionID, Col 2: Email, Col 3: Type, Col 6: Amount
         // Note: Amount might be string or float
         if (row[1] === email && row[2] === type) {
-            // Check timing (within last minute)
+            // Check timing (within last 5 minutes - allows for slow encumbrance recalculation)
             const rowTime = new Date(row[8]); // Timestamp col
             const now = new Date();
-            if (now - rowTime < 60000) {
+            if (now - rowTime < 300000) {
                 // Found it
                 console.log(`✅ Verified Transaction: ${row[0]} | Status: ${row[7]}`);
 

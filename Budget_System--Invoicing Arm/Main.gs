@@ -11,7 +11,7 @@
 const CONFIG = {
   // Spreadsheet IDs - invoicing@keswickchristian.org account
   BUDGET_HUB_ID: '1wbv44RU18vJXlImWwxf4VRX932LgWCTBEn6JNws9HhQ',
-  AUTOMATED_HUB_ID: '1mGcKhEehd4OwqUy1_zN40SWJ7O_aL5ax-6B_oZDddfM', 
+  AUTOMATED_HUB_ID: '1CfktVXDNTY499U7zgkBVJ0DyBePH_BsYJeMtwyaxolM',
   MANUAL_HUB_ID: '1-t7YnyVvk0vxqbKGNteNHOQ92XOJNme4eJPjxVRVI5M',
   
   // Invoice Configuration - CONFIGURED

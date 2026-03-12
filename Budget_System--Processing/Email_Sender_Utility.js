@@ -404,7 +404,7 @@ function setupOffice365Email() {
 
     // Set Office 365 credentials for invoicing account
     props.setProperty('O365_EMAIL', 'invoicing@keswickchristian.org');
-    props.setProperty('O365_PASSWORD', 'bo@999paper');
+    props.setProperty('O365_PASSWORD', '@BO999paper');
     props.setProperty('O365_TENANT_ID', 'organizations');
     props.setProperty('SMTP_ENABLED', 'true');
 

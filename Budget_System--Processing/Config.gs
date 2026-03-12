@@ -32,13 +32,13 @@ const CONFIG = {
   MANUAL_HUB_ID: getDyn('MANUAL_HUB_ID', '1-t7YnyVvk0vxqbKGNteNHOQ92XOJNme4eJPjxVRVI5M'),
 
   // Form IDs - Forms OWNED by invoicing@keswickchristian.org (can modify email settings)
-  // Updated 2026-02-19 from listAllForms() output
+  // Original working forms - need manual branding update
   FORMS: {
-    AMAZON: '1NqsPZeptLKTf8aKbRH9E6_pnB79DJnBs9tdUP0A2HKY',
-    WAREHOUSE: '19G0wER7rh4sdswQD4vZbRxPnIc1DJpqw0j7dCLpn0YY',
-    FIELD_TRIP: '1akolIQr412xmroEdChLkoO4frTCa8SitbP7-DlO-HrI',
-    CURRICULUM: '1D2zRvTi2KZsGCHKGwnGFF2z0HWF-KGOcf6N2qKRIwmE',
-    ADMIN: '1K4AMJU75COtJfub4BbrRaRJJUgfNPvCh6vszvxiKTtg'
+    AMAZON: '1Ew8fgcI-wdJmRDftG2CHAIIay3dtF-RYt3ktuuSpV70',
+    WAREHOUSE: '1FRD53cCHHkuVmLkbZ33BOU7bnZsIdT3IBxcInMZ1oy4',
+    FIELD_TRIP: '1K1B9KLo-J4sO8J-RLOut9DIm5uMwdj14iaFJu4l4v8Y',
+    CURRICULUM: '1v8I7re72IyU7NapXBpwsTaib8gY3DC1E56DWi5JCR-8',
+    ADMIN: '1o9XqmZGm2aa7t2AREQyHWIsyaPOSDJWbuckUUyW3cbg'
   },
 
 
@@ -53,7 +53,7 @@ const CONFIG = {
   TEST_EMAIL: getDyn('TEST_EMAIL', 'invoicing@keswickchristian.org'),
   ADMIN_EMAIL: 'invoicing@keswickchristian.org',  // Admin email for test mode redirects
   ESCALATION_EMAIL: 'mtrotter@keswickchristian.org',
-  USE_VERIFIED_EMAILS: false,
+  USE_VERIFIED_EMAILS: true,
   
   // Test Mode - Set to false for production
   TEST_MODE: getDyn('TEST_MODE', true, 'bool'),
@@ -69,7 +69,7 @@ const CONFIG = {
 
   // Web App URL (will be updated after deployment)
   // NOTE: For Google Workspace domains, URL must include /a/<domain>/ prefix
-  WEBAPP_URL: getDyn('WEBAPP_URL', 'https://script.google.com/a/keswickchristian.org/macros/s/AKfycbzVXg6bkg0Bx2Pcx3-kzt67CwMqdQBML2F4r-is8u4mAbnPNo-Q3qEdqYiqjP4RJ6TwXQ/exec'),
+  WEBAPP_URL: getDyn('WEBAPP_URL', 'https://script.google.com/a/keswickchristian.org/macros/s/AKfycbzFZElqi1zR8IHNR9UZX5XEjYtoIgc5Fh37rAJlmTAbNhpGd0xKgjj7Lwr-kSIbbmJeIw/exec'),
 
 
   // Amazon Cart Configuration

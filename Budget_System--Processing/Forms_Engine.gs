@@ -146,6 +146,16 @@ function processAmazonFormSubmission(e) {
       throw new Error('No valid Amazon items found');
     }
 
+    // FIX: Recalculate total from parsed items instead of trusting row[27]
+    // This fixes the bug where row[27] (Total Cost) may be empty or incorrect
+    const calculatedTotal = amazonItems.reduce((sum, item) => sum + item.totalPrice, 0);
+    if (calculatedTotal > 0 && calculatedTotal !== totalAmount) {
+      console.log(`⚠️ Total mismatch - Column AB: $${totalAmount}, Calculated: $${calculatedTotal}`);
+      console.log(`   Using calculated total: $${calculatedTotal}`);
+    }
+    const totalAmount_FIXED = calculatedTotal > 0 ? calculatedTotal : totalAmount;
+    console.log(`📊 Final Amazon total: $${totalAmount_FIXED}`);
+
     step = 11;
     console.log(`📍 Step ${step}: Looking up user budget for "${email}"`);
     const userBudget = getUserBudgetInfo(email);
@@ -192,7 +202,7 @@ function processAmazonFormSubmission(e) {
       'AMAZON',
       userBudget.department,
       getDivisionFromDepartment(userBudget.department),
-      totalAmount,
+      totalAmount_FIXED,
       description,
       'PENDING',
       timestamp,
@@ -206,41 +216,41 @@ function processAmazonFormSubmission(e) {
 
     step = 17;
     console.log(`📍 Step ${step}: Updating encumbrance`);
-    updateUserEncumbranceRealTime(email, totalAmount, 'add');
+    updateUserEncumbranceRealTime(email, totalAmount_FIXED, 'add');
 
     step = 18;
     console.log(`📍 Step ${step}: Calculating approval logic`);
     const budgetAvailable = userBudget.allocated - userBudget.spent - userBudget.encumbered;
-    const withinBudget = totalAmount <= budgetAvailable;
-    const belowAutoApproval = totalAmount < CONFIG.AUTO_APPROVAL_LIMIT;
+    const withinBudget = totalAmount_FIXED <= budgetAvailable;
+    const belowAutoApproval = totalAmount_FIXED < CONFIG.AUTO_APPROVAL_LIMIT;
     console.log(`   Available: $${budgetAvailable}, Within: ${withinBudget}, Below limit: ${belowAutoApproval}`);
 
     step = 19;
     console.log(`📍 Step ${step}: Checking velocity`);
-    const velocityCheck = checkDailySpendingVelocity(email, totalAmount);
+    const velocityCheck = checkDailySpendingVelocity(email, totalAmount_FIXED);
     console.log(`   Velocity: allowed=${velocityCheck.allowed}, daily=$${velocityCheck.dailyTotal}`);
 
     step = 20;
     if (belowAutoApproval && withinBudget && velocityCheck.allowed) {
       console.log(`📍 Step ${step}: AUTO-APPROVING`);
-      const actualApprover = getApproverForRequest({ amount: totalAmount }, userBudget);
+      const actualApprover = getApproverForRequest({ amount: totalAmount_FIXED }, userBudget);
       updateQueueStatus(transactionId, 'APPROVED', actualApprover, true);
       sendApprovalNotification(email, {
         transactionId: transactionId,
-        amount: totalAmount,
+        amount: totalAmount_FIXED,
         type: 'Amazon Order',
         description: description,
         approver: actualApprover
       });
-      logSystemEvent('AMAZON_AUTO_APPROVED', email, totalAmount, { transactionId, actualApprover });
+      logSystemEvent('AMAZON_AUTO_APPROVED', email, totalAmount_FIXED, { transactionId, actualApprover });
       console.log(`   ✅ Auto-approved by ${actualApprover}`);
     } else {
       console.log(`📍 Step ${step}: REQUESTING APPROVAL`);
-      const approver = getApproverForRequest({ amount: totalAmount }, userBudget);
+      const approver = getApproverForRequest({ amount: totalAmount_FIXED }, userBudget);
       console.log(`   Approver: ${approver}`);
 
       if (belowAutoApproval && !velocityCheck.allowed) {
-        logSystemEvent('AUTO_APPROVAL_DENIED_VELOCITY', email, totalAmount, {
+        logSystemEvent('AUTO_APPROVAL_DENIED_VELOCITY', email, totalAmount_FIXED, {
           transactionId,
           dailyTotal: velocityCheck.dailyTotal,
           limit: velocityCheck.limit
@@ -250,7 +260,7 @@ function processAmazonFormSubmission(e) {
       sendEnhancedApprovalEmail(approver, {
         transactionId,
         type: 'Amazon Order',
-        amount: totalAmount,
+        amount: totalAmount_FIXED,
         requestor: email,
         description,
         items: amazonItems,
@@ -260,7 +270,7 @@ function processAmazonFormSubmission(e) {
           utilization: (userBudget.spent / userBudget.allocated * 100).toFixed(1)
         }
       });
-      logSystemEvent('AMAZON_APPROVAL_REQUESTED', email, totalAmount, { transactionId, approver });
+      logSystemEvent('AMAZON_APPROVAL_REQUESTED', email, totalAmount_FIXED, { transactionId, approver });
       console.log(`   ✅ Approval email sent to ${approver}`);
     }
 
@@ -571,16 +581,21 @@ function processCurriculumFormSubmission(e) {
     const curriculumType = row[2];
     const resourceName = row[4];
     const quantity = parseInt(row[7]) || 0;
-    const cost = parseFloat(String(row[8]).replace(/[$,]/g, '')) || 0;
+    // Changed: Now reading Unit Price instead of Total Cost
+    const unitPrice = parseFloat(String(row[8]).replace(/[$,]/g, '')) || 0;
+    // Calculate exact total: qty × unitPrice (no rounding errors)
+    const totalCost = quantity * unitPrice;
     const pdfUpload = row[9];
-    
+
+    console.log(`📊 Curriculum: ${quantity} x $${unitPrice} = $${totalCost}`);
+
     if (!email || !email.includes('@')) throw new Error(`Invalid email: "${email}"`);
-    
+
     const userBudget = getUserBudgetInfo(email);
     if (!userBudget) throw new Error(`User ${email} not found in directory`);
-    
+
     const transactionId = generateSequentialTransactionId('CURRICULUM');
-    
+
     try {
       const lastCol = formSheet.getLastColumn() + 1;
       if (formSheet.getRange(1, lastCol).getValue() !== 'TransactionID') {
@@ -588,39 +603,39 @@ function processCurriculumFormSubmission(e) {
       }
       formSheet.getRange(lastRowIndex + 1, lastCol).setValue(transactionId);
     } catch (formError) { console.error('Error adding transaction ID:', formError); }
-    
+
     const queueSheet = getOrCreateQueueSheet(manualHub, 'ManualQueue');
     const description = `${curriculumType} - ${resourceName} (Qty: ${quantity})`;
-    
+
     queueSheet.appendRow([
       transactionId, email, 'CURRICULUM', userBudget.department,
-      getDivisionFromDepartment(userBudget.department), cost,
+      getDivisionFromDepartment(userBudget.department), totalCost,
       description, 'PENDING', timestamp, '', '', responseId
     ]);
-    
-    updateUserEncumbranceRealTime(email, cost, 'add');
+
+    updateUserEncumbranceRealTime(email, totalCost, 'add');
     const budgetAvailable = userBudget.allocated - userBudget.spent - userBudget.encumbered;
-    const approver = getApproverForRequest({ amount: cost }, userBudget);
-    
+    const approver = getApproverForRequest({ amount: totalCost }, userBudget);
+
     const pdfLink = pdfUpload ? extractPdfLink(pdfUpload) : null;
-    
+
     sendEnhancedApprovalEmail(approver, {
-      transactionId, type: 'Curriculum Request', amount: cost, requestor: email,
+      transactionId, type: 'Curriculum Request', amount: totalCost, requestor: email,
       description: description,
       items: [{
         description: resourceName,
         quantity: quantity || 1,
-        unitPrice: (quantity > 0) ? cost / quantity : cost,
-        totalPrice: cost
+        unitPrice: unitPrice,
+        totalPrice: totalCost
       }],
       budgetContext: {
-        available: budgetAvailable, withinBudget: cost <= budgetAvailable,
+        available: budgetAvailable, withinBudget: totalCost <= budgetAvailable,
         utilization: (userBudget.spent / userBudget.allocated * 100).toFixed(1)
       },
       pdfLink: pdfLink
     });
-    
-    logSystemEvent('CURRICULUM_APPROVAL_REQUESTED', email, cost, { transactionId, approver });
+
+    logSystemEvent('CURRICULUM_APPROVAL_REQUESTED', email, totalCost, { transactionId, approver });
     
   } catch (error) {
     handleProcessingError(e, error);
@@ -713,49 +728,108 @@ function processAdminFormSubmission(e) {
 // APPROVAL & ROUTING HELPERS
 // ============================================================================
 
-function processApprovalDecision(transactionId, approverEmail, decision) {
+/**
+ * Processes approval/rejection decision using secure token validation.
+ * Validates token exists, hasn't expired, matches request, and hasn't been used.
+ *
+ * @param {string} token - The secure approval token
+ * @param {string} decision - 'approve' or 'reject'
+ * @returns {Object} Result with success, status, or error
+ */
+function processApprovalDecision(token, decision) {
+  let tokenData = null;
+  let request = null;
+  let approverEmail = null;
+
   try {
-    const request = findRequestInQueues(transactionId);
+    // Step 1: Validate and retrieve token from storage
+    const tokenValidation = validateAndRetrieveToken(token);
+    if (!tokenValidation.valid) {
+      logSystemEvent('APPROVAL_TOKEN_REJECTED', 'UNKNOWN', 0, {
+        reason: tokenValidation.error
+      });
+      return { success: false, error: tokenValidation.error };
+    }
+
+    tokenData = tokenValidation.data;
+    const transactionId = tokenData.transactionId;
+    approverEmail = tokenData.approver;
+
+    // Step 2: Verify current user matches token approver (identity verification)
+    const currentUser = Session.getActiveUser().getEmail();
+    if (currentUser !== approverEmail) {
+      console.warn(`[SECURITY] Identity mismatch: Token approver ${approverEmail} != Current user ${currentUser}`);
+      logSystemEvent('APPROVAL_IDENTITY_MISMATCH', currentUser, 0, {
+        transactionId: transactionId,
+        tokenApprover: approverEmail
+      });
+      return {
+        success: false,
+        error: 'Identity verification failed. You must be logged in as the designated approver.'
+      };
+    }
+
+    // Step 3: Retrieve transaction details
+    request = findRequestInQueues(transactionId);
     if (!request) {
+      logSystemEvent('APPROVAL_REQUEST_NOT_FOUND', approverEmail, 0, {
+        transactionId: transactionId
+      });
       return { success: false, error: 'Request not found or already processed' };
     }
-    
+
     if (request.status !== 'PENDING') {
+      logSystemEvent('APPROVAL_REQUEST_NOT_PENDING', approverEmail, request.amount, {
+        transactionId: transactionId,
+        currentStatus: request.status
+      });
       return { success: false, error: `Request already ${request.status.toLowerCase()}` };
     }
 
+    // Step 4: Validate budget if approving
     if (decision === 'approve') {
       const budgetCheck = validateBudgetBeforeApproval(request);
       if (!budgetCheck.valid) {
         logSystemEvent('APPROVAL_BLOCKED_OVERBUDGET', approverEmail, request.amount, {
-          transactionId,
+          transactionId: transactionId,
           available: budgetCheck.available,
           encumbrance: budgetCheck.encumbrance
         });
-        
-        return { 
-          success: false, 
-          error: `Cannot approve: ${budgetCheck.message}. Current available budget: $${budgetCheck.available.toFixed(2)}` 
+
+        return {
+          success: false,
+          error: `Cannot approve: ${budgetCheck.message}. Current available budget: $${budgetCheck.available.toFixed(2)}`
         };
       }
     }
 
+    // Step 5: Final approver validation
     const validApprover = validateApprover(approverEmail, request);
     if (!validApprover) {
+      logSystemEvent('APPROVAL_UNAUTHORIZED_APPROVER', approverEmail, request.amount, {
+        transactionId: transactionId
+      });
       return { success: false, error: 'You are not authorized to approve this request' };
     }
-    
+
+    // Step 6: Process the decision
     const newStatus = decision === 'approve' ? 'APPROVED' : 'REJECTED';
     const updateSuccess = updateQueueStatus(transactionId, newStatus, approverEmail, request.isAutomated);
-    
+
     if (!updateSuccess) {
+      logSystemEvent('APPROVAL_STATUS_UPDATE_FAILED', approverEmail, request.amount, {
+        transactionId: transactionId
+      });
       return { success: false, error: 'Failed to update queue status' };
     }
-    
+
+    // Step 7: Mark token as used (prevent replay attacks)
+    markTokenAsUsed(token, currentUser);
+
     if (newStatus === 'APPROVED') {
       sendApprovalConfirmation(request.email, transactionId, request.amount, request.description);
       updateUserBudgetEncumbrance(request.email, request.amount, 'add');
-      
+
       if (!request.isAutomated) {
         const orderId = generateOrderID(request.division || request.department, request.type);
         moveToTransactionLedger({
@@ -771,7 +845,7 @@ function processApprovalDecision(transactionId, approverEmail, decision) {
       } else {
         console.log(`Automated item ${transactionId} approved - awaiting batch processing`);
       }
-      
+
     } else {
       sendRejectionNotification(request.email, {
         transactionId: transactionId,
@@ -780,11 +854,11 @@ function processApprovalDecision(transactionId, approverEmail, decision) {
         description: request.description,
         approver: approverEmail
       });
-      
+
       if (request.wasOverBudget) {
         releaseBudgetHold(request.email, request.amount);
       }
-      
+
       if (request.isAutomated && decision === 'reject') {
         // Offer to resubmit with different pricing or alternatives
         sendResubmissionNotification(
@@ -795,17 +869,24 @@ function processApprovalDecision(transactionId, approverEmail, decision) {
         );
       }
     }
-    
-    logSystemEvent(`REQUEST_${newStatus}`, approverEmail, request.amount, { 
-        transactionId, requestor: request.email, timestamp: new Date() 
+
+    console.log(`[SECURITY] Approval processed successfully - TxnID: ${transactionId} | Approver: ${approverEmail} | Decision: ${newStatus}`);
+    logSystemEvent(`REQUEST_${newStatus}`, approverEmail, request.amount, {
+      transactionId: transactionId,
+      requestor: request.email,
+      timestamp: new Date(),
+      tokenId: token.substring(0, 8)
     });
-    
+
     return { success: true, status: newStatus };
-    
+
   } catch (error) {
-    console.error('Error processing approval:', error);
-    logSystemEvent('APPROVAL_ERROR', approverEmail, 0, { transactionId, error: error.toString() });
-    return { success: false, error: error.toString() };
+    console.error('[SECURITY ERROR] Unexpected error in approval processing:', error);
+    logSystemEvent('APPROVAL_ERROR', approverEmail || 'UNKNOWN', 0, {
+      error: error.toString(),
+      stack: error.stack
+    });
+    return { success: false, error: 'An error occurred while processing your approval. Please try again.' };
   }
 }
 
@@ -841,6 +922,157 @@ function updateQueueStatus(transactionId, status, approver, isAutomated) {
     }
   }
   return false;
+}
+
+/**
+ * ============================================================================
+ * SECURITY: TOKEN VALIDATION & ANTI-REPLAY FUNCTIONS
+ * ============================================================================
+ */
+
+/**
+ * Validates a secure token and retrieves its data.
+ * Checks:
+ * - Token exists in storage
+ * - Token hasn't expired (1 hour)
+ * - Token hasn't been used before (replay protection)
+ *
+ * @param {string} token - The secure approval token
+ * @returns {Object} { valid: boolean, data: Object|null, error: string|null }
+ */
+function validateAndRetrieveToken(token) {
+  if (!token || typeof token !== 'string' || token.trim() === '') {
+    return {
+      valid: false,
+      data: null,
+      error: 'No valid token provided'
+    };
+  }
+
+  try {
+    const scriptProperties = PropertiesService.getScriptProperties();
+    const tokenKey = `approval_token_${token}`;
+    const tokenJson = scriptProperties.getProperty(tokenKey);
+
+    if (!tokenJson) {
+      console.warn(`[SECURITY] Token not found: ${token.substring(0, 8)}...`);
+      return {
+        valid: false,
+        data: null,
+        error: 'Token not found or has been deleted'
+      };
+    }
+
+    const tokenData = JSON.parse(tokenJson);
+
+    // Check if token has already been used (replay attack prevention)
+    if (tokenData.used === true) {
+      console.warn(`[SECURITY] Token replay attempt detected: ${token.substring(0, 8)}... | Used by: ${tokenData.usedBy} at ${tokenData.usedAt}`);
+      return {
+        valid: false,
+        data: null,
+        error: 'This approval link has already been used'
+      };
+    }
+
+    // Check if token has expired
+    const now = Date.now();
+    if (now > tokenData.expiresAt) {
+      const expiresDate = new Date(tokenData.expiresAt);
+      console.warn(`[SECURITY] Token expired: ${token.substring(0, 8)}... | Expired at: ${expiresDate}`);
+      return {
+        valid: false,
+        data: null,
+        error: `Approval link has expired. It was only valid until ${expiresDate.toLocaleString()}`
+      };
+    }
+
+    console.log(`[SECURITY] Token validated successfully: ${token.substring(0, 8)}... | TxnID: ${tokenData.transactionId}`);
+    return {
+      valid: true,
+      data: tokenData,
+      error: null
+    };
+
+  } catch (error) {
+    console.error('[SECURITY ERROR] Token validation failed:', error);
+    return {
+      valid: false,
+      data: null,
+      error: 'Token validation error - please try accessing the approval link again'
+    };
+  }
+}
+
+/**
+ * Marks a token as used to prevent replay attacks.
+ * Once a token is used, it cannot be used again.
+ *
+ * @param {string} token - The secure approval token
+ * @param {string} usedBy - Email of the user who used the token
+ */
+function markTokenAsUsed(token, usedBy) {
+  try {
+    const scriptProperties = PropertiesService.getScriptProperties();
+    const tokenKey = `approval_token_${token}`;
+    const tokenJson = scriptProperties.getProperty(tokenKey);
+
+    if (!tokenJson) {
+      console.warn(`[SECURITY] Cannot mark token as used - token not found: ${token.substring(0, 8)}...`);
+      return;
+    }
+
+    const tokenData = JSON.parse(tokenJson);
+    tokenData.used = true;
+    tokenData.usedAt = new Date().toISOString();
+    tokenData.usedBy = usedBy;
+
+    scriptProperties.setProperty(tokenKey, JSON.stringify(tokenData));
+    console.log(`[SECURITY] Token marked as used: ${token.substring(0, 8)}... | Used by: ${usedBy}`);
+
+  } catch (error) {
+    console.error('[SECURITY ERROR] Failed to mark token as used:', error);
+  }
+}
+
+/**
+ * Cleanup function to remove expired tokens from storage.
+ * This prevents PropertiesService from filling up over time.
+ * Should be run periodically (e.g., daily via trigger).
+ *
+ * @returns {Object} { deleted: number, errors: number }
+ */
+function cleanupExpiredTokens() {
+  const scriptProperties = PropertiesService.getScriptProperties();
+  const allProperties = scriptProperties.getProperties();
+  let deleted = 0;
+  let errors = 0;
+  const now = Date.now();
+
+  for (const [key, value] of Object.entries(allProperties)) {
+    // Only process approval tokens
+    if (!key.startsWith('approval_token_')) continue;
+
+    try {
+      const tokenData = JSON.parse(value);
+      // Delete if expired (more than 1 hour old) or already used
+      if (now > tokenData.expiresAt || tokenData.used === true) {
+        scriptProperties.deleteProperty(key);
+        deleted++;
+      }
+    } catch (error) {
+      console.warn(`Error parsing token property ${key}:`, error);
+      errors++;
+    }
+  }
+
+  console.log(`[SECURITY] Token cleanup complete - Deleted: ${deleted}, Errors: ${errors}`);
+  logSystemEvent('APPROVAL_TOKEN_CLEANUP', 'SYSTEM', 0, {
+    deletedCount: deleted,
+    errorCount: errors
+  });
+
+  return { deleted, errors };
 }
 
 function moveToTransactionLedger(transaction) {
@@ -1162,18 +1394,58 @@ function voidOrderAndNotifyRequestor(transactionId, requestorEmail, orderType, i
   }
 }
 
+/**
+ * Generates a secure approval token and stores token data server-side.
+ * Uses cryptographic UUID instead of predictable timestamps.
+ * Token expires after 1 hour.
+ *
+ * @param {string} transactionId - The transaction/request ID
+ * @param {string} approverEmail - The approver's email address
+ * @param {string} decision - 'approve' or 'reject' (pre-stored decision)
+ * @returns {string} URL with secure token parameter only
+ */
 function generateApprovalUrl(transactionId, approverEmail, decision) {
-  const params = {
-    action: 'approve',
-    transactionId: transactionId,
-    approver: approverEmail,
-    decision: decision,
-    timestamp: Date.now()
-  };
-  
-  const queryString = Object.keys(params)
-    .map(key => `${key}=${encodeURIComponent(params[key])}`)
-    .join('&');
-  
-  return `${CONFIG.WEBAPP_URL}?${queryString}`;
+  try {
+    // Generate cryptographically secure random token
+    const token = Utilities.getUuid();
+    const now = Date.now();
+    const expiresAt = now + 3600000; // 1 hour expiration
+
+    // Store token data server-side in PropertiesService
+    const tokenData = {
+      transactionId: transactionId,
+      approver: approverEmail,
+      decision: decision,
+      createdAt: now,
+      expiresAt: expiresAt,
+      used: false,
+      usedAt: null,
+      usedBy: null
+    };
+
+    const scriptProperties = PropertiesService.getScriptProperties();
+    scriptProperties.setProperty(
+      `approval_token_${token}`,
+      JSON.stringify(tokenData)
+    );
+
+    // Log token generation for audit trail
+    console.log(`[SECURITY] Approval token generated - Token: ${token.substring(0, 8)}... | TxnID: ${transactionId} | Approver: ${approverEmail} | Expires: ${new Date(expiresAt)}`);
+    logSystemEvent('APPROVAL_TOKEN_GENERATED', approverEmail, 0, {
+      transactionId: transactionId,
+      tokenId: token.substring(0, 8),
+      expiresAt: expiresAt
+    });
+
+    // Return URL with only the token parameter
+    return `${CONFIG.WEBAPP_URL}?token=${encodeURIComponent(token)}`;
+
+  } catch (error) {
+    console.error('Error generating approval URL:', error);
+    logSystemEvent('APPROVAL_TOKEN_GENERATION_ERROR', approverEmail, 0, {
+      transactionId: transactionId,
+      error: error.toString()
+    });
+    throw new Error(`Failed to generate approval token: ${error.toString()}`);
+  }
 }
