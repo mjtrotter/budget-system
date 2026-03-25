@@ -3,7 +3,101 @@
  * FORMS ENGINE
  * ============================================================================
  * Handles all Google Form submissions and routing logic.
+ *
+ * COLUMN_MAP: Named column indices for each form's response sheet.
+ * Run dumpAllFormStructures() in Form_Diagnostic.gs to get current values,
+ * then update these constants. Column indices are 0-based (matching row[n]).
  */
+
+const COLUMN_MAP = {
+  // Amazon: 5 items with desc/url/qty/price, branching "Add another?" at cols 6,11,16,21
+  // No total column — total is calculated from item prices
+  AMAZON: {
+    EMAIL: 1,
+    ITEM1_DESC: 2, ITEM1_URL: 3, ITEM1_QTY: 4, ITEM1_PRICE: 5,
+    // col 6 = "Add another item?" (branching)
+    ITEM2_DESC: 7, ITEM2_URL: 8, ITEM2_QTY: 9, ITEM2_PRICE: 10,
+    // col 11 = "Add another item?" (branching)
+    ITEM3_DESC: 12, ITEM3_URL: 13, ITEM3_QTY: 14, ITEM3_PRICE: 15,
+    // col 16 = "Add another item?" (branching)
+    ITEM4_DESC: 17, ITEM4_URL: 18, ITEM4_QTY: 19, ITEM4_PRICE: 20,
+    // col 21 = "Add another item?" (branching)
+    ITEM5_DESC: 22, ITEM5_URL: 23, ITEM5_QTY: 24, ITEM5_PRICE: 25
+    // No TOTAL column — removed from form. Handler calculates from items.
+  },
+  // Warehouse: Catalog ID + Quantity per item
+  // Description and price are looked up from the WarehouseCatalog sheet
+  // Branching "Add another?" at cols 4, 7, 10, 13
+  WAREHOUSE: {
+    EMAIL: 1,
+    ITEM1_ID: 2, ITEM1_QTY: 3,
+    // col 4 = "Add another item?" (branching)
+    ITEM2_ID: 5, ITEM2_QTY: 6,
+    // col 7 = "Add another item?" (branching)
+    ITEM3_ID: 8, ITEM3_QTY: 9,
+    // col 10 = "Add another item?" (branching)
+    ITEM4_ID: 11, ITEM4_QTY: 12,
+    // col 13 = "Add another item?" (branching)
+    ITEM5_ID: 14, ITEM5_QTY: 15
+  },
+  // Field Trip: Unchanged
+  FIELD_TRIP: {
+    EMAIL: 1,
+    DESTINATION: 2,
+    TRIP_DATE: 3,
+    NUM_STUDENTS: 4,
+    TRANSPORTATION: 5,
+    TOTAL_COST: 6,
+    PDF_UPLOAD: 7
+  },
+  // Curriculum: Restructured with branching (manual entry vs PDF upload)
+  CURRICULUM: {
+    EMAIL: 1,
+    TYPE: 2,
+    RESOURCE_NAME: 3,
+    GRADE_LEVELS: 4,
+    QUANTITY: 5,
+    UNIT_PRICE: 6,
+    ENTRY_METHOD: 7,
+    PUBLISHER: 8,
+    LINK: 9,
+    PURPOSE: 10,
+    PDF_UPLOAD: 11,
+    PURPOSE_PDF: 12
+  },
+  // Admin: Added Category and Notes columns
+  ADMIN: {
+    EMAIL: 1,
+    DESCRIPTION: 2,
+    AMOUNT: 3,
+    CATEGORY: 4,
+    PDF_UPLOAD: 5,
+    NOTES: 6
+  }
+};
+
+// Helper to build item mappings arrays from COLUMN_MAP
+function getAmazonItemMappings() {
+  const m = COLUMN_MAP.AMAZON;
+  return [
+    { descCol: m.ITEM1_DESC, urlCol: m.ITEM1_URL, qtyCol: m.ITEM1_QTY, priceCol: m.ITEM1_PRICE },
+    { descCol: m.ITEM2_DESC, urlCol: m.ITEM2_URL, qtyCol: m.ITEM2_QTY, priceCol: m.ITEM2_PRICE },
+    { descCol: m.ITEM3_DESC, urlCol: m.ITEM3_URL, qtyCol: m.ITEM3_QTY, priceCol: m.ITEM3_PRICE },
+    { descCol: m.ITEM4_DESC, urlCol: m.ITEM4_URL, qtyCol: m.ITEM4_QTY, priceCol: m.ITEM4_PRICE },
+    { descCol: m.ITEM5_DESC, urlCol: m.ITEM5_URL, qtyCol: m.ITEM5_QTY, priceCol: m.ITEM5_PRICE }
+  ];
+}
+
+function getWarehouseItemMappings() {
+  const m = COLUMN_MAP.WAREHOUSE;
+  return [
+    { idCol: m.ITEM1_ID, qtyCol: m.ITEM1_QTY },
+    { idCol: m.ITEM2_ID, qtyCol: m.ITEM2_QTY },
+    { idCol: m.ITEM3_ID, qtyCol: m.ITEM3_QTY },
+    { idCol: m.ITEM4_ID, qtyCol: m.ITEM4_QTY },
+    { idCol: m.ITEM5_ID, qtyCol: m.ITEM5_QTY }
+  ];
+}
 
 // ============================================================================
 // QUEUE SHEET HELPER
@@ -41,6 +135,30 @@ function getOrCreateQueueSheet(hub, sheetName) {
   }
 
   return queueSheet;
+}
+
+/**
+ * Safely writes a TransactionID to precisely the 'TransactionID' column.
+ * It will create the column if it doesn't exist, but it will never endlessly append.
+ */
+function safelyWriteTransactionId(sheet, rowIndex, transactionId) {
+  try {
+    const lastCol = sheet.getLastColumn() || 1;
+    let headers = [];
+    if (lastCol > 0) {
+      headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+    }
+    
+    let txCol = headers.indexOf('TransactionID') + 1;
+    if (txCol === 0) { // Not found, create it at the end
+      txCol = lastCol + 1;
+      sheet.getRange(1, txCol).setValue('TransactionID');
+    }
+    
+    sheet.getRange(rowIndex, txCol).setValue(transactionId);
+  } catch (error) {
+    console.error('Error safely writing transaction ID to form sheet:', error);
+  }
 }
 
 // ============================================================================
@@ -85,16 +203,15 @@ function processAmazonFormSubmission(e) {
     step = 5;
     console.log(`📍 Step ${step}: Reading Amazon data`);
     const data = amazonSheet.getDataRange().getValues();
+    validateFormColumns('AMAZON', data[0]);
     const lastRowIndex = data.length - 1;
     const row = data[lastRowIndex];
     console.log(`   Total rows: ${data.length}, Reading row: ${lastRowIndex + 1}`);
 
     step = 6;
-    console.log(`📍 Step ${step}: Extracting email and total`);
-    const email = row[1];
-    const rawTotal = row[27];
-    const totalAmount = parseFloat(String(rawTotal).replace(/[$,]/g, '')) || 0;
-    console.log(`   Email: "${email}", Raw Total: "${rawTotal}", Parsed: $${totalAmount}`);
+    console.log(`📍 Step ${step}: Extracting email`);
+    const email = row[COLUMN_MAP.AMAZON.EMAIL];
+    console.log(`   Email: "${email}"`);
 
     step = 7;
     console.log(`📍 Step ${step}: Validating email`);
@@ -104,22 +221,12 @@ function processAmazonFormSubmission(e) {
     console.log(`   Email valid`);
 
     step = 8;
-    console.log(`📍 Step ${step}: Validating total amount`);
-    if (totalAmount === 0) {
-      throw new Error(`Total amount parsed as 0 from raw value: ${rawTotal}`);
-    }
-    console.log(`   Total valid: $${totalAmount}`);
+    console.log(`📍 Step ${step}: Extracting items (total calculated from items)`);
 
     step = 9;
     console.log(`📍 Step ${step}: Extracting Amazon items`);
     const amazonItems = [];
-    const itemMappings = [
-      { descCol: 2, urlCol: 3, qtyCol: 4, priceCol: 5 },
-      { descCol: 7, urlCol: 8, qtyCol: 9, priceCol: 10 },
-      { descCol: 12, urlCol: 13, qtyCol: 14, priceCol: 15 },
-      { descCol: 17, urlCol: 18, qtyCol: 19, priceCol: 20 },
-      { descCol: 22, urlCol: 23, qtyCol: 24, priceCol: 25 }
-    ];
+    const itemMappings = getAmazonItemMappings();
 
     itemMappings.forEach((mapping, index) => {
       const description = row[mapping.descCol];
@@ -146,14 +253,8 @@ function processAmazonFormSubmission(e) {
       throw new Error('No valid Amazon items found');
     }
 
-    // FIX: Recalculate total from parsed items instead of trusting row[27]
-    // This fixes the bug where row[27] (Total Cost) may be empty or incorrect
-    const calculatedTotal = amazonItems.reduce((sum, item) => sum + item.totalPrice, 0);
-    if (calculatedTotal > 0 && calculatedTotal !== totalAmount) {
-      console.log(`⚠️ Total mismatch - Column AB: $${totalAmount}, Calculated: $${calculatedTotal}`);
-      console.log(`   Using calculated total: $${calculatedTotal}`);
-    }
-    const totalAmount_FIXED = calculatedTotal > 0 ? calculatedTotal : totalAmount;
+    // Total is always calculated from parsed items (no Total column on form)
+    const totalAmount_FIXED = amazonItems.reduce((sum, item) => sum + item.totalPrice, 0);
     console.log(`📊 Final Amazon total: $${totalAmount_FIXED}`);
 
     step = 11;
@@ -172,17 +273,21 @@ function processAmazonFormSubmission(e) {
 
     step = 12;
     console.log(`📍 Step ${step}: Generating transaction ID`);
-    const transactionId = generateSequentialTransactionId('AMAZON');
+    const division = getDivisionFromDepartment(userBudget.department);
+    const transactionId = generateSequentialTransactionId('AMAZON', division);
     console.log(`   Transaction ID: ${transactionId}`);
+
+    // Validate Amazon URLs and ASIN extraction
+    console.log(`📍 Step 12b: Validating Amazon URLs/ASINs`);
+    if (!validateAmazonOrder(transactionId, amazonItems, email)) {
+      console.log('❌ Amazon order failed ASIN validation — requestor notified');
+      return;
+    }
 
     step = 13;
     console.log(`📍 Step ${step}: Writing transaction ID to Amazon sheet`);
-    try {
-      amazonSheet.getRange(lastRowIndex + 1, 29).setValue(transactionId);
-      console.log(`   Transaction ID written to row ${lastRowIndex + 1}`);
-    } catch (formError) {
-      console.error('⚠️ Error adding transaction ID to Amazon sheet:', formError);
-    }
+    safelyWriteTransactionId(amazonSheet, lastRowIndex + 1, transactionId);
+    console.log(`   Transaction ID written to row ${lastRowIndex + 1}`);
 
     step = 14;
     console.log(`📍 Step ${step}: Getting AutomatedQueue sheet`);
@@ -244,6 +349,11 @@ function processAmazonFormSubmission(e) {
       });
       logSystemEvent('AMAZON_AUTO_APPROVED', email, totalAmount_FIXED, { transactionId, actualApprover });
       console.log(`   ✅ Auto-approved by ${actualApprover}`);
+      
+      // Dispatch instantly to the Amazon Sandbox/Live API
+      if (CONFIG.AMAZON_B2B && CONFIG.AMAZON_B2B.ENABLED) {
+        new AmazonWorkflowEngine().dispatchAmazonOrder(transactionId);
+      }
     } else {
       console.log(`📍 Step ${step}: REQUESTING APPROVAL`);
       const approver = getApproverForRequest({ amount: totalAmount_FIXED }, userBudget);
@@ -294,6 +404,40 @@ function processAmazonFormSubmission(e) {
 // WAREHOUSE FORM PROCESSING
 // ============================================================================
 
+/**
+ * Looks up a warehouse catalog item by stock number.
+ * Reads from the WarehouseCatalog sheet in the Automated Hub.
+ * Columns: A=Stock Number, B=Item Description, C=Price, D=UOM, E=Category
+ *
+ * @param {string} stockNumber - The catalog stock number to look up
+ * @returns {Object|null} { description, unitPrice, uom, category } or null if not found
+ */
+function lookupWarehouseCatalogItem(stockNumber) {
+  const autoHub = SpreadsheetApp.openById(CONFIG.AUTOMATED_HUB_ID);
+  const catalog = autoHub.getSheetByName('WarehouseCatalog');
+  if (!catalog) {
+    console.warn('⚠️ WarehouseCatalog sheet not found in Automated Hub');
+    return null;
+  }
+
+  const data = catalog.getDataRange().getValues();
+  const normalizedId = String(stockNumber).trim().toUpperCase();
+
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]).trim().toUpperCase() === normalizedId) {
+      return {
+        description: String(data[i][1] || ''),
+        unitPrice: parseFloat(String(data[i][2]).replace(/[$,]/g, '')) || 0,
+        uom: String(data[i][3] || ''),
+        category: String(data[i][4] || '')
+      };
+    }
+  }
+
+  console.warn(`⚠️ Catalog item not found: ${stockNumber}`);
+  return null;
+}
+
 function processWarehouseFormSubmission(e) {
   const lock = LockService.getScriptLock();
   try { lock.waitLock(30000); } catch(e) { throw new Error('System busy (Lock timeout)'); }
@@ -306,17 +450,20 @@ function processWarehouseFormSubmission(e) {
     const timestamp = new Date();
     
     Utilities.sleep(5000); // Wait for sheet update
-    
-    // Get the form responses sheet from destination
-    const form = FormApp.openById(CONFIG.FORMS.WAREHOUSE);
-    const formResponsesSpreadsheet = SpreadsheetApp.openById(form.getDestinationId());
-    const formResponsesSheet = formResponsesSpreadsheet.getSheets()[0];
-    const data = formResponsesSheet.getDataRange().getValues();
-    
-    // Find the actual submission row
+
+    // Read from the Warehouse tab in the Automated Hub (matches COLUMN_MAP)
+    const autoHub = SpreadsheetApp.openById(CONFIG.AUTOMATED_HUB_ID);
+    const warehouseSheet = autoHub.getSheetByName('Warehouse');
+    if (!warehouseSheet) {
+      throw new Error('Warehouse sheet not found in Automated Hub');
+    }
+    const data = warehouseSheet.getDataRange().getValues();
+    validateFormColumns('WAREHOUSE', data[0]);
+
+    // Find the actual submission row by matching timestamp
     let submissionRow = null;
     let submissionRowIndex = -1;
-    
+
     for (let i = data.length - 1; i >= 1; i--) {
       const row = data[i];
       if (row[0] && row[1] && row[1].toString().includes('@')) {
@@ -328,68 +475,69 @@ function processWarehouseFormSubmission(e) {
         }
       }
     }
-    
+
     if (!submissionRow) {
       throw new Error('Could not find warehouse form submission data');
     }
-    
+
     // Process the found submission row
-    const email = submissionRow[1].toString().trim();
+    const email = submissionRow[COLUMN_MAP.WAREHOUSE.EMAIL].toString().trim();
 
-    // FIX: Calculate total from individual item prices instead of relying on column 27
-    // Column 27 may be empty if form doesn't have an "Estimated Total" field
-    const priceColumns = [18, 20, 22, 24, 26]; // Item 1-5 price columns
-    let totalCost = 0;
-    priceColumns.forEach(col => {
-      totalCost += parseFloat(String(submissionRow[col] || '0').replace(/[$,]/g, '')) || 0;
-    });
-
-    // Fallback to column 27 if calculated total is 0 but column 27 has a value
-    if (totalCost === 0) {
-      totalCost = parseFloat(String(submissionRow[27]).replace(/[$,]/g, '')) || 0;
-    }
-
-    console.log(`📊 Warehouse total: $${totalCost} (calculated from item prices)`);
-    
     if (!email || !email.includes('@')) {
       throw new Error(`Invalid email: ${email}`);
     }
-    
-    // Extract warehouse items
+
+    // Extract warehouse items — form collects Catalog ID + Quantity
+    // Description and pricing are looked up from the WarehouseCatalog sheet
     const warehouseItems = [];
-    const itemMappings = [
-      { idCol: 2, qtyCol: 3, descCol: 17, priceCol: 18 },   // Item 1
-      { idCol: 5, qtyCol: 6, descCol: 19, priceCol: 20 },   // Item 2
-      { idCol: 8, qtyCol: 9, descCol: 21, priceCol: 22 },   // Item 3
-      { idCol: 11, qtyCol: 12, descCol: 23, priceCol: 24 }, // Item 4
-      { idCol: 14, qtyCol: 15, descCol: 25, priceCol: 26 }  // Item 5
-    ];
-    
+    const itemMappings = getWarehouseItemMappings();
+    const invalidItems = [];
+
     itemMappings.forEach((mapping, index) => {
-      const itemId = submissionRow[mapping.idCol];
+      const itemId = String(submissionRow[mapping.idCol] || '').trim();
       const quantity = parseInt(submissionRow[mapping.qtyCol]) || 0;
-      const description = submissionRow[mapping.descCol];
-      const price = parseFloat(String(submissionRow[mapping.priceCol]).replace(/[$,]/g, '')) || 0;
-      
-      if (itemId && quantity > 0 && description && price > 0) {
-        warehouseItems.push({
-          itemId: itemId,
-          description: description,
-          quantity: quantity,
-          unitPrice: price / quantity,
-          totalPrice: price
-        });
+
+      if (itemId && quantity > 0) {
+        let catalogItem = null;
+        try {
+          catalogItem = lookupWarehouseCatalogItem(itemId);
+        } catch (lookupErr) {
+          console.warn(`⚠️ Catalog lookup failed for ${itemId}: ${lookupErr.message}`);
+        }
+
+        if (!catalogItem) {
+          invalidItems.push(itemId);
+          console.warn(`⚠️ Invalid catalog ID: ${itemId}`);
+        } else {
+          warehouseItems.push({
+            itemId: itemId,
+            description: catalogItem.description || `Warehouse Item ${itemId}`,
+            quantity: quantity,
+            unitPrice: catalogItem.unitPrice || 0,
+            totalPrice: (catalogItem.unitPrice || 0) * quantity
+          });
+          console.log(`   Item ${index + 1}: ID="${itemId}" x${quantity} @ $${catalogItem.unitPrice || 0}`);
+        }
       }
     });
-    
-    if (warehouseItems.length === 0) {
-      warehouseItems.push({
-        itemId: 'UNKNOWN',
-        description: 'Warehouse items (see form submission)',
-        quantity: 1,
-        unitPrice: totalCost,
-        totalPrice: totalCost
+
+    // If any catalog IDs were invalid, notify the requestor and stop processing
+    if (invalidItems.length > 0) {
+      console.error(`❌ Invalid catalog IDs: ${invalidItems.join(', ')}`);
+      sendSubmissionErrorEmail(email, {
+        formType: 'Warehouse Request',
+        errorMessage: `The following Catalog ID(s) were not found: ${invalidItems.join(', ')}. Please verify the correct Stock Numbers from the warehouse catalog and resubmit your request.`,
+        items: invalidItems
       });
+      return;
+    }
+
+    // Calculate total from looked-up prices
+    let totalCost = warehouseItems.reduce((sum, item) => sum + item.totalPrice, 0);
+    console.log(`📊 Warehouse total: $${totalCost} (${warehouseItems.length} items)`);
+
+    if (warehouseItems.length === 0) {
+      throw new Error('No valid warehouse items found in submission');
     }
     
     const userBudget = getUserBudgetInfo(email);
@@ -397,15 +545,11 @@ function processWarehouseFormSubmission(e) {
       throw new Error(`User ${email} not found in directory`);
     }
     
-    const transactionId = generateSequentialTransactionId('WAREHOUSE');
-    
-    try {
-      formResponsesSheet.getRange(submissionRowIndex + 1, 29).setValue(transactionId);
-    } catch (formError) {
-      console.error('⚠️ Error adding transaction ID:', formError);
-    }
-    
-    const autoHub = SpreadsheetApp.openById(CONFIG.AUTOMATED_HUB_ID);
+    const division = getDivisionFromDepartment(userBudget.department);
+    const transactionId = generateSequentialTransactionId('WAREHOUSE', division);
+
+    safelyWriteTransactionId(warehouseSheet, submissionRowIndex + 1, transactionId);
+
     const queueSheet = getOrCreateQueueSheet(autoHub, 'AutomatedQueue');
     const description = warehouseItems.map(item =>
       item.quantity > 1 ? `${item.quantity}x ${item.description}` : item.description
@@ -489,44 +633,51 @@ function processFieldTripFormSubmission(e) {
     const manualHub = SpreadsheetApp.openById(CONFIG.MANUAL_HUB_ID);
     const formSheet = manualHub.getSheetByName('Field Trip');
     const data = formSheet.getDataRange().getValues();
+    validateFormColumns('FIELD_TRIP', data[0]);
     const lastRowIndex = data.length - 1;
     const row = data[lastRowIndex];
-    
-    const email = row[1];
-    const destination = row[2];
-    const tripDate = row[3];
-    const numStudents = parseInt(row[4]) || 0;
-    const transportation = row[5];
-    const totalCost = parseFloat(String(row[6]).replace(/[$,]/g, '')) || 0;
-    const pdfUpload = row[7];
+
+    const ft = COLUMN_MAP.FIELD_TRIP;
+    const email = row[ft.EMAIL];
+    const destination = row[ft.DESTINATION];
+    const tripDate = row[ft.TRIP_DATE];
+    const numStudents = parseInt(row[ft.NUM_STUDENTS]) || 0;
+    const transportation = row[ft.TRANSPORTATION];
+    const totalCost = parseFloat(String(row[ft.TOTAL_COST]).replace(/[$,]/g, '')) || 0;
+    const pdfUpload = row[ft.PDF_UPLOAD];
     
     if (!email || !email.includes('@')) throw new Error(`Invalid email: "${email}"`);
     
     const userBudget = getUserBudgetInfo(email);
     if (!userBudget) throw new Error(`User ${email} not found in directory`);
     
-    const transactionId = generateSequentialTransactionId('FIELD_TRIP');
+    const division = getDivisionFromDepartment(userBudget.department);
+    const orgBudget = getOrganizationBudgetInfo(division);
+    if (!orgBudget) throw new Error(`Division budget ${division} not found for Field Trip`);
     
-    try {
-      const lastCol = formSheet.getLastColumn() + 1;
-      if (formSheet.getRange(1, lastCol).getValue() !== 'TransactionID') {
-        formSheet.getRange(1, lastCol).setValue('TransactionID');
-      }
-      formSheet.getRange(lastRowIndex + 1, lastCol).setValue(transactionId);
-    } catch (formError) { console.error('Error adding transaction ID:', formError); }
+    const transactionId = generateSequentialTransactionId('FIELD_TRIP', division);
+    
+    safelyWriteTransactionId(formSheet, lastRowIndex + 1, transactionId);
+    
+    // Format the date so it doesn't dump the GMT time block into the description
+    let cleanDate = tripDate;
+    if (Object.prototype.toString.call(tripDate) === '[object Date]' && !isNaN(tripDate)) {
+      cleanDate = Utilities.formatDate(tripDate, Session.getScriptTimeZone(), "EEE MMM d, yyyy");
+    }
     
     const queueSheet = getOrCreateQueueSheet(manualHub, 'ManualQueue');
-    const description = `Field trip to ${destination} on ${tripDate} - ${numStudents} students via ${transportation}`;
+    const description = `Field trip to ${destination} on ${cleanDate} - ${numStudents} students via ${transportation}`;
     
     queueSheet.appendRow([
       transactionId, email, 'FIELD_TRIP', userBudget.department,
-      getDivisionFromDepartment(userBudget.department), totalCost,
+      division, totalCost,
       description, 'PENDING', timestamp, '', '', responseId
     ]);
     
-    updateUserEncumbranceRealTime(email, totalCost, 'add');
-    const budgetAvailable = userBudget.allocated - userBudget.spent - userBudget.encumbered;
-    const approver = getApproverForRequest({ amount: totalCost }, userBudget);
+    // ENFORCE DIVISION BUDGET SCOPING
+    updateOrganizationEncumbranceRealTime(division);
+    const budgetAvailable = orgBudget.allocated - orgBudget.spent - orgBudget.encumbered;
+    const approver = getApproverForRequest({ amount: totalCost }, orgBudget);
     
     const pdfLink = pdfUpload ? extractPdfLink(pdfUpload) : null;
     
@@ -540,9 +691,12 @@ function processFieldTripFormSubmission(e) {
         totalPrice: totalCost
       }],
       budgetContext: {
+        allocated: orgBudget.allocated,
+        spent: orgBudget.spent,
+        encumbered: orgBudget.encumbered,
         available: budgetAvailable,
         withinBudget: totalCost <= budgetAvailable,
-        utilization: (userBudget.spent / userBudget.allocated * 100).toFixed(1)
+        utilization: (orgBudget.spent / orgBudget.allocated * 100).toFixed(1)
       },
       pdfLink: pdfLink
     });
@@ -574,18 +728,19 @@ function processCurriculumFormSubmission(e) {
     const manualHub = SpreadsheetApp.openById(CONFIG.MANUAL_HUB_ID);
     const formSheet = manualHub.getSheetByName('Curriculum');
     const data = formSheet.getDataRange().getValues();
+    validateFormColumns('CURRICULUM', data[0]);
     const lastRowIndex = data.length - 1;
     const row = data[lastRowIndex];
-    
-    const email = row[1];
-    const curriculumType = row[2];
-    const resourceName = row[4];
-    const quantity = parseInt(row[7]) || 0;
-    // Changed: Now reading Unit Price instead of Total Cost
-    const unitPrice = parseFloat(String(row[8]).replace(/[$,]/g, '')) || 0;
-    // Calculate exact total: qty × unitPrice (no rounding errors)
+
+    const cur = COLUMN_MAP.CURRICULUM;
+    const email = row[cur.EMAIL];
+    const curriculumType = row[cur.TYPE];
+    const resourceName = row[cur.RESOURCE_NAME];
+    const quantity = parseInt(row[cur.QUANTITY]) || 0;
+    const unitPrice = parseFloat(String(row[cur.UNIT_PRICE]).replace(/[$,]/g, '')) || 0;
     const totalCost = quantity * unitPrice;
-    const pdfUpload = row[9];
+    const pdfUpload = row[cur.PDF_UPLOAD];
+    const itemLink = row[cur.LINK] ? String(row[cur.LINK]).trim() : '';
 
     console.log(`📊 Curriculum: ${quantity} x $${unitPrice} = $${totalCost}`);
 
@@ -594,28 +749,123 @@ function processCurriculumFormSubmission(e) {
     const userBudget = getUserBudgetInfo(email);
     if (!userBudget) throw new Error(`User ${email} not found in directory`);
 
-    const transactionId = generateSequentialTransactionId('CURRICULUM');
+    const orgBudget = getOrganizationBudgetInfo(userBudget.department);
+    if (!orgBudget) throw new Error(`Department budget ${userBudget.department} not found for Curriculum`);
 
-    try {
-      const lastCol = formSheet.getLastColumn() + 1;
-      if (formSheet.getRange(1, lastCol).getValue() !== 'TransactionID') {
-        formSheet.getRange(1, lastCol).setValue('TransactionID');
+    const division = getDivisionFromDepartment(userBudget.department);
+
+    // ========================================================================
+    // NEW: AMAZON AUTO-ROUTING DETECTION
+    // ========================================================================
+    const isAmazonLink = itemLink.toLowerCase().includes('amazon.com') || itemLink.toLowerCase().includes('amzn.to');
+    let asin = null;
+    if (isAmazonLink) {
+      try {
+        const testEngine = new AmazonWorkflowEngine();
+        asin = testEngine.extractASIN(itemLink);
+      } catch (e) {
+        console.warn('Amazon form parsing failed, proceeding natively', e);
       }
-      formSheet.getRange(lastRowIndex + 1, lastCol).setValue(transactionId);
-    } catch (formError) { console.error('Error adding transaction ID:', formError); }
+    }
+
+    if (asin) {
+      console.log(`🔄 Curriculum Amazon Routing Detected: ASIN ${asin} found for ${resourceName}`);
+      
+      const transactionId = generateSequentialTransactionId('CURRICULUM_AMAZON', division);
+      
+      safelyWriteTransactionId(formSheet, lastRowIndex + 1, transactionId);
+
+      // Bridge to Amazon Pipeline
+      const autoHub = SpreadsheetApp.openById(CONFIG.AUTOMATED_HUB_ID);
+      const amazonFormData = autoHub.getSheetByName('Amazon_Form_Data');
+      
+      const amazonHeaders = amazonFormData.getRange(1, 1, 1, amazonFormData.getLastColumn()).getValues()[0];
+      const newAmazonRow = new Array(amazonHeaders.length).fill('');
+      newAmazonRow[0] = timestamp;
+      newAmazonRow[1] = email;
+      newAmazonRow[2] = resourceName;
+      newAmazonRow[3] = itemLink;
+      newAmazonRow[4] = quantity > 0 ? quantity : 1;
+      newAmazonRow[5] = unitPrice;
+      
+      const txColIdx = amazonHeaders.indexOf('TransactionID');
+      if (txColIdx !== -1) {
+        newAmazonRow[txColIdx] = transactionId;
+      } else {
+        newAmazonRow[newAmazonRow.length - 1] = transactionId;
+      }
+      amazonFormData.appendRow(newAmazonRow);
+      
+      const queueSheet = getOrCreateQueueSheet(autoHub, 'AutomatedQueue');
+      const description = `[Curriculum Auto-Routed] ${resourceName} (Qty: ${quantity})`;
+      
+      queueSheet.appendRow([
+        transactionId, email, 'AMAZON', userBudget.department,
+        division, totalCost,
+        description, 'PENDING', timestamp, '', '', responseId
+      ]);
+      
+      // ENFORCE DEPARTMENT BUDGET SCOPING
+      updateOrganizationEncumbranceRealTime(userBudget.department);
+
+      const isSub100 = totalCost <= 100;
+      const budgetAvailable = orgBudget.allocated - orgBudget.spent - orgBudget.encumbered;
+      const withinBudget = totalCost <= budgetAvailable;
+      const velocityCheck = checkOrderVelocity(email, totalCost); // Velocity is still per-user by school rule
+
+      if (isSub100 && withinBudget && velocityCheck.allowed) {
+        console.log(`📍 Curriculum-Amazon: AUTO-APPROVING`);
+        const actualApprover = getApproverForRequest({ amount: totalCost }, orgBudget);
+        updateQueueStatus(transactionId, 'APPROVED', actualApprover, true);
+        logSystemEvent('AMAZON_AUTO_APPROVAL', email, totalCost, { transactionId, approver: actualApprover });
+        sendApprovalConfirmation(email, transactionId, totalCost, description);
+        
+        if (CONFIG.AMAZON_B2B && CONFIG.AMAZON_B2B.ENABLED) {
+          new AmazonWorkflowEngine().dispatchAmazonOrder(transactionId);
+        }
+      } else {
+        console.log(`📍 Curriculum-Amazon: REQUESTING APPROVAL`);
+        const approver = getApproverForRequest({ amount: totalCost }, orgBudget);
+        updateQueueStatus(transactionId, 'PENDING_APPROVAL', approver, true);
+        sendEnhancedApprovalEmail(approver, {
+          transactionId, type: 'Curriculum (Amazon Auto-Routed)', amount: totalCost, requestor: email, 
+          description: description,
+          items: [{ description: resourceName, quantity: quantity || 1, unitPrice: unitPrice, totalPrice: totalCost }],
+          budgetContext: {
+            allocated: orgBudget.allocated,
+            spent: orgBudget.spent,
+            encumbered: orgBudget.encumbered,
+            available: budgetAvailable,
+            withinBudget: totalCost <= budgetAvailable,
+            utilization: (orgBudget.spent / orgBudget.allocated * 100).toFixed(1)
+          }
+        });
+        logSystemEvent('AMAZON_APPROVAL_REQUESTED', email, totalCost, { transactionId, approver });
+      }
+      
+      return; 
+    }
+    // ========================================================================
+    // END NEW AMAZON ROUTING
+    // ========================================================================
+
+    const transactionId = generateSequentialTransactionId('CURRICULUM', division);
+
+    safelyWriteTransactionId(formSheet, lastRowIndex + 1, transactionId);
 
     const queueSheet = getOrCreateQueueSheet(manualHub, 'ManualQueue');
     const description = `${curriculumType} - ${resourceName} (Qty: ${quantity})`;
 
     queueSheet.appendRow([
       transactionId, email, 'CURRICULUM', userBudget.department,
-      getDivisionFromDepartment(userBudget.department), totalCost,
+      division, totalCost,
       description, 'PENDING', timestamp, '', '', responseId
     ]);
 
-    updateUserEncumbranceRealTime(email, totalCost, 'add');
-    const budgetAvailable = userBudget.allocated - userBudget.spent - userBudget.encumbered;
-    const approver = getApproverForRequest({ amount: totalCost }, userBudget);
+    // ENFORCE DEPARTMENT BUDGET SCOPING
+    updateOrganizationEncumbranceRealTime(userBudget.department);
+    const budgetAvailable = orgBudget.allocated - orgBudget.spent - orgBudget.encumbered;
+    const approver = getApproverForRequest({ amount: totalCost }, orgBudget);
 
     const pdfLink = pdfUpload ? extractPdfLink(pdfUpload) : null;
 
@@ -629,8 +879,11 @@ function processCurriculumFormSubmission(e) {
         totalPrice: totalCost
       }],
       budgetContext: {
+        allocated: orgBudget.allocated,
+        spent: orgBudget.spent,
+        encumbered: orgBudget.encumbered,
         available: budgetAvailable, withinBudget: totalCost <= budgetAvailable,
-        utilization: (userBudget.spent / userBudget.allocated * 100).toFixed(1)
+        utilization: (orgBudget.spent / orgBudget.allocated * 100).toFixed(1)
       },
       pdfLink: pdfLink
     });
@@ -662,28 +915,25 @@ function processAdminFormSubmission(e) {
     const manualHub = SpreadsheetApp.openById(CONFIG.MANUAL_HUB_ID);
     const formSheet = manualHub.getSheetByName('Admin');
     const data = formSheet.getDataRange().getValues();
+    validateFormColumns('ADMIN', data[0]);
     const lastRowIndex = data.length - 1;
     const row = data[lastRowIndex];
-    
-    const email = row[1];
-    const description = row[2];
-    const amount = parseFloat(String(row[3]).replace(/[$,]/g, '')) || 0;
-    const pdfUpload = row[5];
+
+    const adm = COLUMN_MAP.ADMIN;
+    const email = row[adm.EMAIL];
+    const description = row[adm.DESCRIPTION];
+    const amount = parseFloat(String(row[adm.AMOUNT]).replace(/[$,]/g, '')) || 0;
+    const pdfUpload = row[adm.PDF_UPLOAD];
     
     if (!email || !email.includes('@')) throw new Error(`Invalid email: "${email}"`);
     
     const userBudget = getUserBudgetInfo(email);
     if (!userBudget) throw new Error(`User ${email} not found in directory`);
     
-    const transactionId = generateSequentialTransactionId('ADMIN');
+    const division = getDivisionFromDepartment(userBudget.department);
+    const transactionId = generateSequentialTransactionId('ADMIN', division);
     
-    try {
-      const lastCol = formSheet.getLastColumn() + 1;
-      if (formSheet.getRange(1, lastCol).getValue() !== 'TransactionID') {
-        formSheet.getRange(1, lastCol).setValue('TransactionID');
-      }
-      formSheet.getRange(lastRowIndex + 1, lastCol).setValue(transactionId);
-    } catch (formError) { console.error('Error adding transaction ID:', formError); }
+    safelyWriteTransactionId(formSheet, lastRowIndex + 1, transactionId);
     
     const queueSheet = getOrCreateQueueSheet(manualHub, 'ManualQueue');
 
@@ -843,7 +1093,13 @@ function processApprovalDecision(token, decision) {
           description: request.description
         });
       } else {
-        console.log(`Automated item ${transactionId} approved - awaiting batch processing`);
+        console.log(`Automated item ${transactionId} approved - routing payloads`);
+        if (request.type === 'AMAZON' && CONFIG.AMAZON_B2B && CONFIG.AMAZON_B2B.ENABLED) {
+           console.log(`🔗 Webhooking Amazon order ${transactionId} to Amazon Native REST API...`);
+           new AmazonWorkflowEngine().dispatchAmazonOrder(transactionId);
+        } else {
+           console.log(`Automated item ${transactionId} (${request.type}) awaiting batch processing`);
+        }
       }
 
     } else {
@@ -1317,58 +1573,24 @@ function validateAmazonOrder(transactionId, items, requestorEmail) {
   return true;
 }
 
-function validateWarehouseOrder(transactionId, warehouseRow, requestorEmail) {
-  const invalidItems = [];
-  
-  // Check each item's ID against catalog
-  const itemMappings = [
-    { idCol: 2, qtyCol: 3, descCol: 17, priceCol: 18, itemNum: 1 },
-    { idCol: 5, qtyCol: 6, descCol: 19, priceCol: 20, itemNum: 2 },
-    { idCol: 8, qtyCol: 9, descCol: 21, priceCol: 22, itemNum: 3 },
-    { idCol: 11, qtyCol: 12, descCol: 23, priceCol: 24, itemNum: 4 },
-    { idCol: 14, qtyCol: 15, descCol: 25, priceCol: 26, itemNum: 5 }
-  ];
-  
-  itemMappings.forEach(mapping => {
-    const itemId = warehouseRow[mapping.idCol];
-    const desc = warehouseRow[mapping.descCol];
-    const price = warehouseRow[mapping.priceCol];
-    
-    if (itemId && itemId.toString().trim() !== '') {
-      // Check if lookup failed (indicated by #N/A or empty values)
-      if (!desc || desc === '#N/A' || !price || price === '#N/A' || price === 0) {
-        invalidItems.push({
-          itemNumber: mapping.itemNum,
-          itemId: itemId,
-          issue: 'Item ID not found in warehouse catalog'
-        });
-      }
-    }
-  });
-  
-  if (invalidItems.length > 0) {
-    voidOrderAndNotifyRequestor(transactionId, requestorEmail, 'WAREHOUSE', invalidItems);
-    return false;
-  }
-  
+function validateWarehouseOrder(transactionId, warehouseItems, requestorEmail) {
+  // Warehouse validation is handled during item extraction via catalog lookup
+  // Invalid catalog IDs are caught in processWarehouseFormSubmission
+  // This function is kept for consistency with validateAmazonOrder
   return true;
 }
 
 function isValidAmazonUrl(url) {
   if (!url) return false;
   
-  const urlStr = url.toString().toLowerCase();
+  const urlStr = String(url).toLowerCase().trim();
   
   // Must contain amazon.com
   if (!urlStr.includes('amazon.com')) return false;
   
-  // Must be a valid URL format
-  try {
-    const urlObj = new URL(url);
-    return urlObj.hostname.includes('amazon.com');
-  } catch {
-    return false;
-  }
+  // Basic URL regex validation
+  const urlPattern = /^https?:\/\/(?:www\.)?amazon\.com\/.+/i;
+  return urlPattern.test(urlStr);
 }
 
 function voidOrderAndNotifyRequestor(transactionId, requestorEmail, orderType, invalidItems) {
@@ -1447,5 +1669,79 @@ function generateApprovalUrl(transactionId, approverEmail, decision) {
       error: error.toString()
     });
     throw new Error(`Failed to generate approval token: ${error.toString()}`);
+  }
+}
+
+// ============================================================================
+// COLUMN VALIDATION HELPER
+// ============================================================================
+
+/**
+ * Validates that form response sheet headers match expected COLUMN_MAP positions.
+ * Logs warnings for any mismatches. Run this after form edits to detect column drift.
+ * Can be called manually or wired into form submission handlers for ongoing monitoring.
+ *
+ * @param {string} formType - 'AMAZON', 'WAREHOUSE', 'FIELD_TRIP', 'CURRICULUM', or 'ADMIN'
+ * @param {Array} headerRow - The first row (headers) from the response sheet
+ */
+function validateFormColumns(formType, headerRow) {
+  if (!headerRow || headerRow.length === 0) return;
+
+  // Expected header keywords per column (partial match, case-insensitive)
+  const EXPECTED_HEADERS = {
+    AMAZON: {
+      [COLUMN_MAP.AMAZON.EMAIL]: 'email',
+      [COLUMN_MAP.AMAZON.ITEM1_DESC]: 'description',
+      [COLUMN_MAP.AMAZON.ITEM1_URL]: 'url',
+      [COLUMN_MAP.AMAZON.ITEM1_QTY]: 'quantity',
+      [COLUMN_MAP.AMAZON.ITEM1_PRICE]: 'price'
+    },
+    WAREHOUSE: {
+      [COLUMN_MAP.WAREHOUSE.EMAIL]: 'email',
+      [COLUMN_MAP.WAREHOUSE.ITEM1_ID]: 'catalog',
+      [COLUMN_MAP.WAREHOUSE.ITEM1_QTY]: 'quantity'
+    },
+    FIELD_TRIP: {
+      [COLUMN_MAP.FIELD_TRIP.EMAIL]: 'email',
+      [COLUMN_MAP.FIELD_TRIP.DESTINATION]: 'destination',
+      [COLUMN_MAP.FIELD_TRIP.TRIP_DATE]: 'date',
+      [COLUMN_MAP.FIELD_TRIP.TOTAL_COST]: 'cost'
+    },
+    CURRICULUM: {
+      [COLUMN_MAP.CURRICULUM.EMAIL]: 'email',
+      [COLUMN_MAP.CURRICULUM.TYPE]: 'type',
+      [COLUMN_MAP.CURRICULUM.RESOURCE_NAME]: 'resource',
+      [COLUMN_MAP.CURRICULUM.QUANTITY]: 'quantity',
+      [COLUMN_MAP.CURRICULUM.UNIT_PRICE]: 'price'
+    },
+    ADMIN: {
+      [COLUMN_MAP.ADMIN.EMAIL]: 'email',
+      [COLUMN_MAP.ADMIN.DESCRIPTION]: 'description',
+      [COLUMN_MAP.ADMIN.AMOUNT]: 'amount'
+    }
+  };
+
+  const expected = EXPECTED_HEADERS[formType];
+  if (!expected) return;
+
+  let mismatches = 0;
+  for (const [colIdx, keyword] of Object.entries(expected)) {
+    const idx = parseInt(colIdx);
+    if (idx >= headerRow.length) {
+      console.warn(`⚠️ [COLUMN_DRIFT] ${formType}: Expected column ${idx} ("${keyword}") but sheet only has ${headerRow.length} columns`);
+      mismatches++;
+      continue;
+    }
+    const actual = String(headerRow[idx] || '').toLowerCase();
+    if (!actual.includes(keyword.toLowerCase())) {
+      console.warn(`⚠️ [COLUMN_DRIFT] ${formType}: Column ${idx} expected "${keyword}" but found "${headerRow[idx]}"`);
+      mismatches++;
+    }
+  }
+
+  if (mismatches > 0) {
+    console.error(`🚨 [COLUMN_DRIFT] ${formType}: ${mismatches} column(s) may have shifted. Run dumpAllFormStructures() and update COLUMN_MAP.`);
+  } else {
+    console.log(`✅ [COLUMN_CHECK] ${formType}: All checked columns match expected headers.`);
   }
 }

@@ -2980,6 +2980,13 @@
                     if (response.success) {
                         availableDepartments = response.departments;
                         populateDepartmentDropdown();
+                        
+                        // UX Fix: Auto-select first department
+                        const sel = document.getElementById('departmentSelect');
+                        if (sel && sel.options.length > 1) {
+                            sel.selectedIndex = 1;
+                            onDepartmentChange(sel.value);
+                        }
                     }
                 })
                 .withFailureHandler((error) => {
@@ -3026,6 +3033,12 @@
             } else {
                 // Principal or Department Head need division selection
                 divisionSelect?.classList.remove('hidden');
+                
+                // UX Fix: Auto-select the first available division so the dashboard actually reloads
+                if (divisionSelect && divisionSelect.options.length > 1) {
+                    divisionSelect.selectedIndex = 1;
+                    onDivisionChange(divisionSelect.value);
+                }
             }
         }
 
@@ -3043,6 +3056,7 @@
             if (simulatedRole === 'department_head') {
                 departmentSelect?.classList.remove('hidden');
                 loadDepartmentsForDivision(division);
+                // The auto-select for department will happen when loadDepartmentsForDivision completes
             } else if (simulatedRole === 'principal') {
                 departmentSelect?.classList.add('hidden');
                 reloadDashboardAsRole();
@@ -3955,7 +3969,10 @@
                 // Call backend to get TAC by grade data
                 const result = await new Promise((resolve, reject) => {
                     google.script.run
-                        .withSuccessHandler(resolve)
+                        .withSuccessHandler((res) => {
+                            if (res && res.success) resolve(res);
+                            else reject(new Error(res ? res.error : 'Unknown error'));
+                        })
                         .withFailureHandler(reject)
                         .getTACByGradeData();
                 });
@@ -4730,7 +4747,13 @@
             try {
                 const result = await new Promise((resolve, reject) => {
                     google.script.run
-                        .withSuccessHandler(resolve)
+                        .withSuccessHandler((res) => {
+                            if (res && res.success) {
+                                resolve(res);
+                            } else {
+                                reject(new Error(res ? res.error : 'Unknown error'));
+                            }
+                        })
                         .withFailureHandler(reject)
                         .getEnhancedAnalytics();
                 });

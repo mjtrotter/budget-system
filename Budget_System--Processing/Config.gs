@@ -26,10 +26,10 @@ function getDyn(key, defaultValue, type = 'string') {
 }
 
 const CONFIG = {
-  // Hub Spreadsheet IDs - Original working spreadsheets (shared with invoicing@keswickchristian.org)
-  BUDGET_HUB_ID: getDyn('BUDGET_HUB_ID', '1wbv44RU18vJXlImWwxf4VRX932LgWCTBEn6JNws9HhQ'),
-  AUTOMATED_HUB_ID: getDyn('AUTOMATED_HUB_ID', '1CfktVXDNTY499U7zgkBVJ0DyBePH_BsYJeMtwyaxolM'),
-  MANUAL_HUB_ID: getDyn('MANUAL_HUB_ID', '1-t7YnyVvk0vxqbKGNteNHOQ92XOJNme4eJPjxVRVI5M'),
+  // Hub Spreadsheet IDs - OWNED by invoicing@keswickchristian.org
+  BUDGET_HUB_ID: getDyn('BUDGET_HUB_ID', '1GpCs2p3dra7xf68Ezz-FSsIScqtc7A62h95FIDc-mKY'),
+  AUTOMATED_HUB_ID: getDyn('AUTOMATED_HUB_ID', '1nYl89UUBtk4U1CpcVtX0p3V6wZkCkKD8XtR1eWNza5E'),
+  MANUAL_HUB_ID: getDyn('MANUAL_HUB_ID', '1MxYNCHZD1SsqcB2oeX5FEgddA6pFRyK-0foCT8SZjYw'),
 
   // Form IDs - Forms OWNED by invoicing@keswickchristian.org (can modify email settings)
   // Original working forms - need manual branding update
@@ -59,6 +59,16 @@ const CONFIG = {
   TEST_MODE: getDyn('TEST_MODE', true, 'bool'),
   TEST_EMAIL_RECIPIENT: 'invoicing@keswickchristian.org',
 
+  // UAT Whitelist - Only these users receive emails in TEST_MODE
+  // All other org emails are redirected to TEST_EMAIL_RECIPIENT
+  UAT_WHITELIST: [
+    'nstratis@keswickchristian.org',
+    'bendrulat@keswickchristian.org',
+    'sneel@keswickchristian.org',
+    'mtrotter@keswickchristian.org',
+    'invoicing@keswickchristian.org'
+  ],
+
   // SMTP Configuration - Using Office 365
   SMTP: {
     ENABLED: getDyn('SMTP_ENABLED', true, 'bool'),
@@ -67,41 +77,32 @@ const CONFIG = {
     FROM_EMAIL: getDyn('SMTP_FROM_EMAIL', 'invoicing@keswickchristian.org')
   },
 
-  // Web App URL (will be updated after deployment)
-  // NOTE: For Google Workspace domains, URL must include /a/<domain>/ prefix
-  WEBAPP_URL: getDyn('WEBAPP_URL', 'https://script.google.com/a/keswickchristian.org/macros/s/AKfycbzFZElqi1zR8IHNR9UZX5XEjYtoIgc5Fh37rAJlmTAbNhpGd0xKgjj7Lwr-kSIbbmJeIw/exec'),
+  // Web App URL (Updated to current deployment endpoint)
+  // Re-keyed property to avoid fetching the stale cached URL from ScriptProperties
+  WEBAPP_URL: getDyn('ACTIVE_WEBAPP_URL', 'https://script.google.com/a/keswickchristian.org/macros/s/AKfycbwUAhH2X8jnj53SQ4fZ-TqGMH_OE-r1ySbQIaKS9e1vu8Z5I3ib82mFGEZ_tdZl3iSmaA/exec'),
 
 
-  // Amazon Cart Configuration
-  CART_FETCH_DELAY_MS: 10000,
-  REQUEST_DELAY_MS: 20000,
-  APPROVAL_WINDOW_HOURS: getDyn('APPROVAL_WINDOW_HOURS', 2, 'int'),
-  ORDER_PROCESSING_HOUR: getDyn('ORDER_PROCESSING_HOUR', 10, 'int'),
+  // Amazon Business B2B Configuration — credentials loaded from encrypted Script Properties
+  AMAZON_B2B: {
+    ENABLED: true,
+    TRIAL_MODE_ENABLED: true,  // Set to false only when user explicitly approves production orders
+    AUTH_URL: 'https://api.amazon.com/auth/o2/token',
+    ORDER_API_URL: 'https://na.business-api.amazon.com/ordering/2022-10-30/orders',
+    USER_AGENT: 'KCSProcurement/1.0 (Language=GAS;Platform=Google)',
+  },
 
-  // Cart page selectors
-  CART_ITEM_SELECTORS: [
-    '[data-name="Active Items"] [data-item-count]',
-    '#sc-active-cart [data-asin]',
-    '.sc-list-item[data-asin]',
-    '[data-name="Active Items"] .sc-list-item'
-  ],
+  // Price Tolerance Configuration (3-tier model)
+  PRICE_TOLERANCE: {
+    PCT: getDyn('PRICE_TOLERANCE_PCT', 0.05, 'float'),       // 5% — within this OR $AMT = pass
+    AMT: getDyn('PRICE_TOLERANCE_AMT', 5.00, 'float'),       // $5.00 — within this OR %PCT = pass
+    HARD_CAP: getDyn('PRICE_HARD_CAP', 50.00, 'float'),      // $50 — above this = mandatory reapproval
+  },
 
-  CART_PRICE_SELECTORS: [
-    '.sc-price .a-offscreen',
-    '.a-price .a-offscreen',
-    '.sc-product-price .a-price .a-offscreen',
-    '[data-feature-name="sc-product-price"] .a-offscreen',
-    '.sc-price-sign + .sc-price-value',
-    '.a-price-whole'
-  ],
+  // Shipping / Postal
+  KCS_SHIPPING_POSTAL: getDyn('KCS_SHIPPING_POSTAL', '33708'),
 
-  // Enhanced user agents for better anti-detection
-  USER_AGENTS: [
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:122.0) Gecko/20100101 Firefox/122.0',
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15'
-  ],
+  // Amazon user email for x-amz-user-email header
+  AMZ_USER_EMAIL: getDyn('AMZ_USER_EMAIL', 'mtrotter@keswickchristian.org'),
 
   ASIN_PATTERNS: [
     /\/dp\/([A-Z0-9]{10})/i,

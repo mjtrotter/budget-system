@@ -114,13 +114,7 @@ function getUserInitials(email) {
 // BATCH INVOICE GENERATION
 // ============================================================================
 
-/**
- * Runs Amazon batch invoicing (called Tuesday & Friday)
- */
-function runAmazonBatch() {
-  console.log('📦 === AMAZON BATCH INVOICING ===');
-  return runBatchInvoicing('AMAZON');
-}
+
 
 /**
  * Runs Warehouse batch invoicing (called Wednesday)
@@ -133,6 +127,14 @@ function runWarehouseBatch() {
 
   // Generate external invoice (all combined)
   const externalResult = generateWarehouseExternalInvoice();
+
+  // Send combined email to Business Office
+  if ((internalResult && internalResult.success && internalResult.invoices && internalResult.invoices.length > 0) || 
+      (externalResult && externalResult.success && externalResult.fileUrl)) {
+    if (typeof sendWarehouseBatchEmailToBusinessOffice === 'function') {
+      sendWarehouseBatchEmailToBusinessOffice(internalResult, externalResult);
+    }
+  }
 
   return {
     internal: internalResult,
@@ -234,11 +236,25 @@ function runBatchInvoicing(formType) {
       });
 
       if (result.success) {
-        // Update ledger rows
+        // Update ledger rows and notify requestors
+        const notifiedEmails = new Set();
         transactions.forEach(txn => {
           ledger.getRange(txn.row, cols.invoiceGenerated + 1).setValue('YES');
           ledger.getRange(txn.row, cols.invoiceId + 1).setValue(invoiceId);
           ledger.getRange(txn.row, cols.invoiceUrl + 1).setValue(result.fileUrl);
+
+          // Send invoice-ready notification to each unique requestor
+          const requestorEmail = txn.requestor;
+          if (requestorEmail && !notifiedEmails.has(requestorEmail) && typeof sendInvoiceReadyNotification === 'function') {
+            sendInvoiceReadyNotification(requestorEmail, {
+              transactionId: txn.transactionId,
+              invoiceId: invoiceId,
+              invoiceUrl: result.fileUrl,
+              type: formTypeMatch,
+              amount: txn.amount
+            });
+            notifiedEmails.add(requestorEmail);
+          }
         });
 
         results.push({
@@ -261,6 +277,8 @@ function runBatchInvoicing(formType) {
     lock.releaseLock();
   }
 }
+
+
 
 /**
  * Generates the combined external warehouse invoice
@@ -300,7 +318,9 @@ function generateWarehouseExternalInvoice() {
     return { success: true, message: 'No warehouse transactions for external invoice' };
   }
 
-  const invoiceId = generateInvoiceId('WAREHOUSE_EXTERNAL', null);
+  const todayForId = new Date();
+  const dateStrShort = Utilities.formatDate(todayForId, 'America/New_York', 'MMddyy');
+  const invoiceId = `PCW-${dateStrShort}`;
 
   const result = generateBatchInvoicePDF(warehouseTransactions, {
     invoiceId: invoiceId,
@@ -428,11 +448,11 @@ function createPackageCoverSheet(folder, invoiceId, metadata, poUrl, receiptUrl)
     .header {
       text-align: center;
       padding-bottom: 20px;
-      border-bottom: 2px solid #1B5E20;
+      border-bottom: 2px solid #19573B;
       margin-bottom: 30px;
     }
     .header h1 {
-      color: #1B5E20;
+      color: #19573B;
       font-size: 24pt;
       margin: 0 0 10px 0;
     }
@@ -453,13 +473,13 @@ function createPackageCoverSheet(folder, invoiceId, metadata, poUrl, receiptUrl)
     .info-label {
       font-weight: bold;
       width: 150px;
-      color: #1B5E20;
+      color: #19573B;
     }
     .documents-section {
       margin-top: 30px;
     }
     .documents-section h2 {
-      color: #1B5E20;
+      color: #19573B;
       font-size: 16pt;
       border-bottom: 1px solid #ccc;
       padding-bottom: 10px;
@@ -712,6 +732,17 @@ function generateSingleInvoice(transactionId) {
     ledger.getRange(rowIndex, 11).setValue('YES');
     ledger.getRange(rowIndex, 12).setValue(invoiceId);
     ledger.getRange(rowIndex, 13).setValue(result.fileUrl);
+
+    // Notify requestor that their invoice is ready
+    if (transaction.requestor && typeof sendInvoiceReadyNotification === 'function') {
+      sendInvoiceReadyNotification(transaction.requestor, {
+        transactionId: transactionId,
+        invoiceId: invoiceId,
+        invoiceUrl: result.fileUrl,
+        type: formType,
+        amount: transaction.amount
+      });
+    }
   }
 
   return result;
@@ -829,7 +860,7 @@ function generateBatchInvoiceHTML(transactions, metadata) {
       itemsHtml += `
         <tr class="${rowClass}">
           <td class="txn-id">${group.transactionId || ''}</td>
-          <td class="requestor">${group.requestor || ''}</td>
+          ${metadata.isExternal && metadata.formType === 'WAREHOUSE' ? '' : `<td class="requestor">${group.requestor || ''}</td>`}
           <td class="description">${item.description || ''}</td>
           <td class="qty">${qty}</td>
           <td class="unit-price">$${unitPrice.toFixed(2)}</td>
@@ -1010,8 +1041,8 @@ function generateBatchInvoiceHTML(transactions, metadata) {
       </div>
       <div class="invoice-title">
         <div class="invoice-title-text">
-          <div class="main-word">Purchase</div>
-          <div class="sub-word">Order</div>
+          <div class="main-word">${metadata.isExternal ? 'EXTERNAL' : 'Purchase'}</div>
+          ${metadata.isExternal ? '' : '<div class="sub-word">Order</div>'}
         </div>
       </div>
     </div>
@@ -1034,7 +1065,7 @@ function generateBatchInvoiceHTML(transactions, metadata) {
     <thead>
       <tr>
         <th>Transaction</th>
-        <th>Requestor</th>
+        ${metadata.isExternal && metadata.formType === 'WAREHOUSE' ? '' : '<th>Requestor</th>'}
         <th>Description</th>
         <th class="center">Qty</th>
         <th class="right">Unit Price</th>
@@ -1243,7 +1274,7 @@ function generateSingleInvoiceHTML(transaction, metadata) {
 
     .header {
       padding-bottom: 15px;
-      border-bottom: 2px solid #1B5E20;
+      border-bottom: 2px solid #19573B;
       margin-bottom: 20px;
     }
     .header-row {
@@ -1260,7 +1291,7 @@ function generateSingleInvoiceHTML(transaction, metadata) {
       font-family: 'Playfair Display', Georgia, serif;
       font-size: 36pt;
       font-weight: 700;
-      color: #1B5E20;
+      color: #19573B;
       letter-spacing: 2px;
       margin: 0;
       text-align: right;
@@ -1272,7 +1303,7 @@ function generateSingleInvoiceHTML(transaction, metadata) {
     }
     .school-info { font-size: 9pt; color: #555; line-height: 1.5; }
     .invoice-meta { text-align: right; line-height: 1.5; }
-    .invoice-id { font-family: 'Playfair Display', Georgia, serif; font-size: 12pt; color: #1B5E20; font-weight: 700; letter-spacing: 0.5px; }
+    .invoice-id { font-family: 'Playfair Display', Georgia, serif; font-size: 12pt; color: #19573B; font-weight: 700; letter-spacing: 0.5px; }
     .invoice-date { font-size: 9pt; color: #555; margin-top: 2px; }
 
     .info-section {
@@ -1287,7 +1318,7 @@ function generateSingleInvoiceHTML(transaction, metadata) {
     .info-block h3 {
       font-size: 9pt;
       font-weight: 600;
-      color: #1B5E20;
+      color: #19573B;
       text-transform: uppercase;
       letter-spacing: 0.5px;
       margin-bottom: 10px;
@@ -1304,7 +1335,7 @@ function generateSingleInvoiceHTML(transaction, metadata) {
 
     .info-label { color: #666; }
     .info-value { font-weight: 500; }
-    .info-value.highlight { color: #1B5E20; font-family: monospace; }
+    .info-value.highlight { color: #19573B; font-family: monospace; }
 
     .items-section { margin-bottom: 25px; }
 
@@ -1315,7 +1346,7 @@ function generateSingleInvoiceHTML(transaction, metadata) {
 
     thead th {
       background: #f5f5f5;
-      border-bottom: 2px solid #1B5E20;
+      border-bottom: 2px solid #19573B;
       padding: 10px;
       text-align: left;
       font-size: 8pt;
@@ -1348,12 +1379,12 @@ function generateSingleInvoiceHTML(transaction, metadata) {
       display: flex;
       justify-content: space-between;
       padding: 8px 0;
-      border-top: 2px solid #1B5E20;
+      border-top: 2px solid #19573B;
       font-size: 14pt;
       font-weight: 700;
     }
 
-    .totals-row .value { color: #1B5E20; }
+    .totals-row .value { color: #19573B; }
 
     .signatures {
       display: flex;
@@ -1771,31 +1802,17 @@ function getCurrentFiscalQuarter() {
 // ============================================================================
 
 /**
- * Creates triggers for Amazon (Tue/Fri) and Warehouse (Wed) batches
+ * Creates triggers for Warehouse (Wed) batch
  */
 function setupBatchInvoiceTriggers() {
   // Remove existing batch triggers
   const triggers = ScriptApp.getProjectTriggers();
   triggers.forEach(trigger => {
     const fn = trigger.getHandlerFunction();
-    if (fn === 'runAmazonBatch' || fn === 'runWarehouseBatch') {
+    if (fn === 'runWarehouseBatch') {
       ScriptApp.deleteTrigger(trigger);
     }
   });
-
-  // Amazon batch - Tuesday 6 AM
-  ScriptApp.newTrigger('runAmazonBatch')
-    .timeBased()
-    .onWeekDay(ScriptApp.WeekDay.TUESDAY)
-    .atHour(6)
-    .create();
-
-  // Amazon batch - Friday 6 AM
-  ScriptApp.newTrigger('runAmazonBatch')
-    .timeBased()
-    .onWeekDay(ScriptApp.WeekDay.FRIDAY)
-    .atHour(6)
-    .create();
 
   // Warehouse batch - Wednesday 6 AM
   ScriptApp.newTrigger('runWarehouseBatch')
@@ -1804,7 +1821,7 @@ function setupBatchInvoiceTriggers() {
     .atHour(6)
     .create();
 
-  console.log('✅ Batch invoice triggers created: Amazon (Tue/Fri 6AM), Warehouse (Wed 6AM)');
+  console.log('✅ Batch invoice triggers created: Warehouse (Wed 6AM)');
 }
 
 // ============================================================================
@@ -1954,7 +1971,7 @@ function generateDemoAmazonInvoice() {
   ];
 
   return generateBatchInvoicePDF(transactions, {
-    invoiceId: generateInvoiceId('AMAZON', 'US'),
+    invoiceId: 'AMZ-US-DEMO',
     formType: 'AMAZON',
     division: 'US',
     isExternal: false
@@ -1974,7 +1991,7 @@ function generateDemoWarehouseInternalInvoice() {
   ];
 
   return generateBatchInvoicePDF(transactions, {
-    invoiceId: generateInvoiceId('WAREHOUSE', 'LS'),
+    invoiceId: 'WHS-LS-DEMO',
     formType: 'WAREHOUSE',
     division: 'LS',
     isExternal: false
@@ -1992,8 +2009,11 @@ function generateDemoWarehouseExternalInvoice() {
     { transactionId: 'WHS-EXT-004', requestor: 'Administration', organization: 'Administration', amount: 156.00, description: 'Office Supplies - Misc' }
   ];
 
+  const todayForId = new Date();
+  const dateStrShort = Utilities.formatDate(todayForId, 'America/New_York', 'MMddyy');
+
   return generateBatchInvoicePDF(transactions, {
-    invoiceId: generateInvoiceId('WAREHOUSE_EXTERNAL', null),
+    invoiceId: `PCW-${dateStrShort}-DEMO`,
     formType: 'WAREHOUSE',
     division: null,
     isExternal: true
@@ -2018,7 +2038,7 @@ function generateDemoFieldTripInvoice() {
   };
 
   return generateSingleInvoicePDF(transaction, {
-    invoiceId: generateInvoiceId('FIELD_TRIP', 'US'),
+    invoiceId: 'FLD-US-DEMO',
     formType: 'FIELD_TRIP'
   });
 }
@@ -2041,7 +2061,7 @@ function generateDemoCurriculumInvoice() {
   };
 
   return generateSingleInvoicePDF(transaction, {
-    invoiceId: generateInvoiceId('CURRICULUM', 'MATH'),
+    invoiceId: 'CUR-MATH-DEMO',
     formType: 'CURRICULUM'
   });
 }
@@ -2064,7 +2084,7 @@ function generateDemoAdminInvoice() {
   };
 
   return generateSingleInvoicePDF(transaction, {
-    invoiceId: generateInvoiceId('ADMIN', 'MJT'),
+    invoiceId: 'ADM-MJT-DEMO',
     formType: 'ADMIN'
   });
 }

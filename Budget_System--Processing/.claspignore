@@ -3,3 +3,9 @@ Simulated_E2E.js
 Hubs_headers.txt
 cart-scraper/**
 email_qc/**
+**/*.py
+test_amz_api*.py
+amz_scraper_service.py
+amzpy_poc.py
+*.png
+*.txt

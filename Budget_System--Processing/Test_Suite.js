@@ -53,8 +53,8 @@ const MainTests = {
       const generatedIds = {};
       
       formTypes.forEach(type => {
-        const id1 = generateSequentialTransactionId(type);
-        const id2 = generateSequentialTransactionId(type);
+        const id1 = generateSequentialTransactionId(type, 'Upper School');
+        const id2 = generateSequentialTransactionId(type, 'Upper School');
         
         // Verify format
         const prefix = { AMAZON: 'AMZ', WAREHOUSE: 'PCW', FIELDTRIP: 'FT', CURRICULUM: 'CI' }[type];
@@ -1022,7 +1022,7 @@ function testPerformanceBenchmarks() {
   
   try {
     for (let i = 0; i < 100; i++) {
-      generateSequentialTransactionId('AMAZON');
+      generateSequentialTransactionId('AMAZON', 'Upper School');
     }
     
     const endTime = Date.now();

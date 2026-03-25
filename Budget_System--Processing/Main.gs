@@ -178,18 +178,8 @@ function setupAllTriggers() {
     .onFormSubmit()
     .create();
   
-  // Amazon workflow - Tuesday and Friday at 8 AM
-  ScriptApp.newTrigger('runAmazonWorkflow')
-    .timeBased()
-    .onWeekDay(ScriptApp.WeekDay.TUESDAY)
-    .atHour(8)
-    .create();
-    
-  ScriptApp.newTrigger('runAmazonWorkflow')
-    .timeBased()
-    .onWeekDay(ScriptApp.WeekDay.FRIDAY)
-    .atHour(8)
-    .create();
+  // [DEPRECATED] Amazon Phase 1 & 2 Triggers (6AM & 8:30AM)
+  // Replaced with instantaneous AWS Ordering API Dispatcher located in Forms_Engine.gs
     
   // Warehouse processing - Daily at 9 AM
   ScriptApp.newTrigger('processWarehouseOrders')
@@ -212,20 +202,6 @@ function setupAllTriggers() {
     .everyMinutes(30)
     .create();
     
-  // Daily maintenance - Daily at 3 AM
-  ScriptApp.newTrigger('runDailyMaintenance')
-    .timeBased()
-    .everyDays(1)
-    .atHour(3)
-    .create();
-    
-  // Weekly cleanup - Sunday at 4 AM
-  ScriptApp.newTrigger('runWeeklyCleanup')
-    .timeBased()
-    .onWeekDay(ScriptApp.WeekDay.SUNDAY)
-    .atHour(4)
-    .create();
-    
   console.log('✅ All triggers configured successfully');
   
   // Log trigger summary
@@ -240,10 +216,8 @@ function setupAllTriggers() {
 // TRIGGER HANDLERS (Wrappers/Placeholders)
 // ============================================================================
 
-function runAmazonWorkflow() {
-  const engine = new AmazonWorkflowEngine();
-  return engine.executeAmazonWorkflow(false); // Normal run with time checks
-}
+// [DEPRECATED] Amazon Phase wrappers removed.
+// Orders are dispatched instantly to Sandbox REST API on form approval.
 
 // Invoicing Engine - Runs overnight batch invoicing based on day of week
 // Amazon batches: Tuesday & Friday
@@ -256,15 +230,8 @@ function runOvernightInvoiceGeneration() {
 
   const results = { amazon: null, warehouse: null };
 
-  // Tuesday (2) or Friday (5) - Amazon batch
-  if (dayOfWeek === 2 || dayOfWeek === 5) {
-    console.log('📦 Running Amazon batch invoice (scheduled day)...');
-    if (typeof runAmazonBatch === 'function') {
-      results.amazon = runAmazonBatch();
-    } else {
-      console.warn('⚠️ runAmazonBatch function not found');
-    }
-  }
+  // [DEPRECATED] Tuesday/Friday Amazon batch removed.
+  // Amazon Orders flow directly to Sandbox via REST Integration natively.
 
   // Wednesday (3) - Warehouse batch
   if (dayOfWeek === 3) {
@@ -286,26 +253,6 @@ function runOvernightInvoiceGeneration() {
   return results;
 }
 
-// TODO: Implement Maintenance Engine
-function runDailyMaintenance() {
-  console.log('⏳ Daily Maintenance - Placeholder');
-}
-
-// TODO: Implement Maintenance Engine
-function runWeeklyCleanup() {
-  console.log('⏳ Weekly Cleanup - Placeholder');
-}
-
-/**
- * Process approval replies - stub function for legacy trigger
- * Note: Actual approvals are processed via Web App (handleApprovalFromWebApp)
- * This function exists to prevent "function not found" errors from the scheduled trigger
- */
-function processApprovalReplies() {
-  // Approval workflow uses web app buttons, not email replies
-  // This is a stub to prevent trigger errors
-  console.log('✅ processApprovalReplies - No email-based approvals to process (using web app workflow)');
-}
 
 // ============================================================================
 // DEPLOYMENT UTILITIES
@@ -514,82 +461,161 @@ function getFormLinks() {
 function doGet(e) {
   try {
     const params = e ? e.parameter : {};
+    
+    // BACKDOOR: Local test script generation
+    if (params.action === 'get_pdfs') {
+      const templateType = params.template || 'all';
+      let results = {};
+      
+      if (templateType === 'amazon' || templateType === 'all') results.amazon = generateDemoAmazonInvoice();
+      if (templateType === 'warehouse' || templateType === 'all') results.warehouse = generateDemoWarehouseInternalInvoice();
+      if (templateType === 'warehouse_ext' || templateType === 'all') results.warehouseExternal = generateDemoWarehouseExternalInvoice();
+      if (templateType === 'fieldtrip' || templateType === 'all') results.fieldTrip = generateDemoFieldTripInvoice();
+      if (templateType === 'curriculum' || templateType === 'all') results.curriculum = generateDemoCurriculumInvoice();
+      if (templateType === 'admin' || templateType === 'all') results.admin = generateDemoAdminInvoice();
+      let html = '<html><head><style>body{font-family:sans-serif;padding:20px;line-height:1.6} a{color:#1565C0;text-decoration:none} a:hover{text-decoration:underline} .card{background:#f9f9f9;padding:15px;border-radius:8px;margin-bottom:10px;border:1px solid #ddd;}</style></head><body>';
+      html += '<h2>Sample Invoice PDFs Generated</h2>';
+      
+      const renderLink = (name, res) => {
+        if (!res || res.error) return `<div class="card"><strong>${name}</strong>: ❌ Error: ${res ? res.error : 'Unknown'}</div>`;
+        return `<div class="card"><strong>${name}</strong>: <br><a href="${res.fileUrl}" target="_blank">📄 View PDF (${res.invoiceId})</a></div>`;
+      };
+      
+      html += renderLink('Amazon Batch (Grouped by Division)', results.amazon);
+      html += renderLink('Warehouse Internal Batch', results.warehouse);
+      html += renderLink('Warehouse External Batch', results.warehouseExternal);
+      html += renderLink('Field Trip Single Invoice', results.fieldTrip);
+      html += renderLink('Curriculum Single Invoice', results.curriculum);
+      html += renderLink('Admin Single Invoice', results.admin);
+      
+      html += '<p style="margin-top:20px;font-size:12px;color:#666;"><em>Note: PDFs are saved to your Keswick Budget System / Invoices Drive folders.</em></p></body></html>';
+      
+      return HtmlService.createHtmlOutput(html).setTitle('Sample Invoices').addMetaTag('viewport', 'width=device-width, initial-scale=1');
+    }
+
     const token = params.token || '';
 
-    // Validate token and retrieve transaction details
     if (!token) {
-      return HtmlService.createHtmlOutput(
-        '<h2>Keswick Budget Approval System</h2><p>No approval request specified. Please use the link from your approval email.</p>'
-      ).setTitle('Budget Approval System');
+      return buildResultPage('No Request', 'No approval request specified. Please use the link from your approval email.', false);
     }
 
     // Validate the token
     const tokenValidation = validateAndRetrieveToken(token);
     if (!tokenValidation.valid) {
       console.warn(`[SECURITY] Invalid token access attempt: ${tokenValidation.error}`);
-      return HtmlService.createHtmlOutput(
-        `<h2>Invalid Approval Link</h2><p><strong>Error:</strong> ${tokenValidation.error}</p><p>Please request a new approval link from the requestor.</p>`
-      ).setTitle('Budget Approval System');
+      return buildResultPage('Invalid Link', tokenValidation.error, false);
     }
 
     const tokenData = tokenValidation.data;
     const transactionId = tokenData.transactionId;
     const approverEmail = tokenData.approver;
+    const decision = tokenData.decision; // 'approve' or 'reject'
 
-    // Verify current user is the designated approver
-    const currentUser = Session.getActiveUser().getEmail();
-    if (currentUser !== approverEmail) {
-      console.warn(`[SECURITY] User identity mismatch in doGet: Token for ${approverEmail}, current user ${currentUser}`);
-      return HtmlService.createHtmlOutput(
-        `<h2>Access Denied</h2><p>You must be logged in as <strong>${approverEmail}</strong> to access this approval. Currently logged in as: <strong>${currentUser}</strong></p><p>Please log out and log back in with the correct account.</p>`
-      ).setTitle('Budget Approval System');
-    }
-
-    // Fetch real request data from queues
+    // Fetch request data
     const requestData = getRequestDetails(transactionId);
     if (!requestData) {
-      console.warn(`[SECURITY] Request not found for valid token: TxnID ${transactionId}`);
-      return HtmlService.createHtmlOutput(
-        `<h2>Request Not Found</h2><p>Transaction <strong>${transactionId}</strong> was not found or has already been processed.</p>`
-      ).setTitle('Budget Approval System');
+      return buildResultPage('Request Not Found',
+        `Transaction ${transactionId} was not found or has already been processed.`, false);
     }
 
-    // Serve the WebApp template with real data injected
+    if (requestData.status !== 'PENDING') {
+      return buildResultPage('Already Processed',
+        `This request (${transactionId}) has already been ${requestData.status.toLowerCase()}.`, false);
+    }
+
+    // APPROVE: Process immediately routing through main approval engine logic
+    if (decision === 'approve') {
+      console.log(`[SECURITY] One-click approve for ${transactionId} by ${approverEmail}`);
+      try {
+        const result = processApprovalDecision(token, 'approve');
+        
+        if (result.success) {
+          const requestorName = getDisplayName(requestData.email);
+          return buildResultPage('Request Approved',
+            `${requestData.type || 'Request'} ${transactionId} for $${(requestData.amount || 0).toFixed(2)} has been approved. A notification has been sent to ${requestorName}.`,
+            true);
+        } else {
+          return buildResultPage('Approval Error', result.error || 'Failed to process approval.', false);
+        }
+      } catch (approveError) {
+        console.error(`[ERROR] One-click approve failed: ${approveError}`);
+        return buildResultPage('Approval Error', approveError.message || 'Failed to process approval.', false);
+      }
+    }
+
+    // REJECT: Show simple comment form
+    const requestorName = getDisplayName(requestData.email);
     const template = HtmlService.createTemplateFromFile('WebApp');
     template.serverData = JSON.stringify({
       transactionId: transactionId,
       token: token,
-      approverEmail: approverEmail,
       type: requestData.type,
       amount: requestData.amount,
-      requestor: requestData.email,
-      department: requestData.department,
-      division: requestData.division,
-      description: requestData.description,
-      status: requestData.status,
-      budgetAvailable: requestData.budget ? requestData.budget.available : 0,
-      budgetAllocated: requestData.budget ? requestData.budget.allocated : 0,
-      budgetSpent: requestData.budget ? requestData.budget.spent : 0,
-      budgetEncumbered: requestData.budget ? requestData.budget.encumbered : 0,
-      utilizationRate: requestData.budget ? requestData.budget.utilizationRate : 0
+      requestor: requestorName
     });
 
-    console.log(`[SECURITY] Approval page displayed for token ${token.substring(0, 8)}... | TxnID: ${transactionId} | Approver: ${approverEmail}`);
+    console.log(`[SECURITY] Reject form displayed for ${transactionId} | Approver: ${approverEmail}`);
 
     return template.evaluate()
-      .setTitle('Budget Approval System - Keswick Christian School')
+      .setTitle('Deny Request - Keswick Christian School')
       .addMetaTag('viewport', 'width=device-width, initial-scale=1')
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 
   } catch (error) {
     console.error('[SECURITY ERROR] doGet error:', error);
-    logSystemEvent('APPROVAL_WEBAPP_GET_ERROR', Session.getActiveUser().getEmail(), 0, {
-      error: error.toString()
-    });
-    return HtmlService.createHtmlOutput(
-      `<h2>Error</h2><p>${error.toString()}</p><p>Please try accessing the approval link again.</p>`
-    ).setTitle('Budget Approval System - Error');
+    return buildResultPage('Error', error.toString(), false);
   }
+}
+
+/**
+ * Looks up a user's display name from UserDirectory, falls back to email parsing.
+ */
+function getDisplayName(email) {
+  if (!email) return 'Unknown';
+  try {
+    const info = getUserBudgetInfo(email);
+    if (info && info.firstName) {
+      return `${info.firstName} ${info.lastName}`.trim();
+    }
+  } catch (e) { /* fall through */ }
+  // Fallback: parse email (e.g. mtrotter@ → Mtrotter)
+  const namePart = email.split('@')[0];
+  const parts = namePart.split('.');
+  return parts.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+}
+
+/**
+ * Builds a simple branded result page (approval confirmation, errors, etc.)
+ */
+function buildResultPage(title, message, isSuccess) {
+  const bgColor = isSuccess ? '#19573B' : '#b71c1c';
+  const icon = isSuccess ? '&#10003;' : '&#10007;';
+  const html = `<!DOCTYPE html><html><head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+      .card { background: white; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); max-width: 480px; width: 90%; overflow: hidden; text-align: center; }
+      .card-header { background: ${bgColor}; padding: 32px 24px; color: white; }
+      .card-header .icon { font-size: 48px; margin-bottom: 12px; }
+      .card-header h1 { font-size: 22px; font-weight: 600; }
+      .card-body { padding: 28px 24px; color: #444; font-size: 15px; line-height: 1.6; }
+      .card-footer { padding: 16px 24px; background: #fafafa; border-top: 1px solid #eee; font-size: 13px; color: #888; }
+      .logo { max-width: 200px; height: auto; margin-bottom: 16px; filter: brightness(0) invert(1); }
+    </style></head><body>
+    <div class="card">
+      <div class="card-header">
+        <img src="https://lh3.googleusercontent.com/d/1HDkW_xGIc4jOBH4REnXb3VJcZaEjPHKj" alt="Keswick" class="logo" onerror="this.style.display='none'">
+        <div class="icon">${icon}</div>
+        <h1>${title}</h1>
+      </div>
+      <div class="card-body"><p>${message}</p></div>
+      <div class="card-footer">Keswick Christian School &middot; Budget Management System<br>You may close this window.</div>
+    </div></body></html>`;
+
+  return HtmlService.createHtmlOutput(html)
+    .setTitle(`${title} - Keswick Christian School`)
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
 
 /**
@@ -677,37 +703,87 @@ function getRequestDetails(transactionId) {
  */
 /**
  * Handles approval/rejection from WebApp UI (called via google.script.run).
- * Now uses token-based system for security.
+ * Uses token-based system for security.
  *
- * @deprecated This function is maintained for backward compatibility with WebApp UI.
- * The WebApp now passes the token instead of transactionId and approverEmail.
- * @param {string} token - The secure approval token (new parameter)
+ * @param {string} token - The secure approval token
  * @param {string} decision - 'approve' or 'reject'
- * @param {string} reason - Optional rejection reason (unused for security)
+ * @param {string} reason - Optional rejection reason
  * @returns {Object} Result with success and status or error
  */
 function handleApprovalFromWebApp(token, decision, reason) {
   try {
-    console.log(`[SECURITY] WebApp approval initiated - Decision: ${decision}`);
-    const result = processApprovalDecision(token, decision);
+    console.log(`[SECURITY] WebApp rejection initiated`);
 
-    if (result.success) {
-      console.log(`[SECURITY] WebApp approval successful - Status: ${result.status}`);
-      logSystemEvent('WEBAPP_APPROVAL_PROCESSED', Session.getActiveUser().getEmail(), 0, {
-        decision: result.status,
+    // Validate token
+    const tokenValidation = validateAndRetrieveToken(token);
+    if (!tokenValidation.valid) {
+      return { success: false, error: tokenValidation.error };
+    }
+
+    const tokenData = tokenValidation.data;
+    const transactionId = tokenData.transactionId;
+    const approverEmail = tokenData.approver;
+
+    // Fetch request
+    const request = findRequestInQueues(transactionId);
+    if (!request) {
+      return { success: false, error: 'Request not found or already processed' };
+    }
+    if (request.status !== 'PENDING') {
+      return { success: false, error: `Request already ${request.status.toLowerCase()}` };
+    }
+
+    // Process the decision
+    const status = decision === 'approve' ? 'APPROVED' : 'REJECTED';
+    updateQueueStatus(transactionId, status, approverEmail, false);
+    markTokenUsed(token, approverEmail);
+
+    // Send notification to requestor
+    if (decision === 'reject') {
+      sendRejectionNotification(request.email, {
+        transactionId: transactionId,
+        amount: request.amount,
+        type: request.type || 'Request',
+        approver: approverEmail,
         reason: reason || ''
       });
     } else {
-      console.warn(`[SECURITY] WebApp approval failed - Error: ${result.error}`);
+      sendApprovalNotification(request.email, {
+        transactionId: transactionId,
+        amount: request.amount,
+        type: request.type || 'Request',
+        approver: approverEmail
+      });
     }
 
-    return result;
+    logSystemEvent('WEBAPP_APPROVAL_PROCESSED', approverEmail, request.amount || 0, {
+      decision: status, reason: reason || '', transactionId: transactionId
+    });
+
+    return { success: true, status: status };
   } catch (error) {
     console.error('[SECURITY ERROR] handleApprovalFromWebApp error:', error);
-    logSystemEvent('WEBAPP_APPROVAL_ERROR', Session.getActiveUser().getEmail(), 0, {
-      error: error.toString()
-    });
     return { success: false, error: error.toString() };
+  }
+}
+
+/**
+ * Marks an approval token as used to prevent replay attacks
+ */
+function markTokenUsed(token, usedBy) {
+  try {
+    const props = PropertiesService.getScriptProperties();
+    const tokenKey = `approval_token_${token}`;
+    const tokenJson = props.getProperty(tokenKey);
+    if (tokenJson) {
+      const tokenData = JSON.parse(tokenJson);
+      tokenData.used = true;
+      tokenData.usedAt = Date.now();
+      tokenData.usedBy = usedBy;
+      props.setProperty(tokenKey, JSON.stringify(tokenData));
+    }
+  } catch (e) {
+    console.warn(`Could not mark token as used: ${e.message}`);
   }
 }
 
@@ -739,24 +815,3 @@ function testSequentialIds() {
   console.log('Admin:', generateSequentialTransactionId('ADMIN'));
 }
 
-function generateTestUrl() {
-  const testId = `TEST_${Date.now()}`;
-  
-  // Create test entry in automated queue
-  const autoHub = SpreadsheetApp.openById(CONFIG.AUTOMATED_HUB_ID);
-  const queue = autoHub.getSheetByName('AutomatedQueue');
-  
-  queue.appendRow([
-    testId, 'test@keswickchristian.org', 'AMAZON', 'English', 'Upper School',
-    100, 'Test approval URL', 'PENDING', new Date(), '', '', 'TEST'
-  ]);
-  
-  const url = `${CONFIG.WEBAPP_URL}?action=approve&transactionId=${testId}&approver=${CONFIG.TEST_EMAIL}&decision=approve&timestamp=${Date.now()}`;
-  
-  console.log('=== TEST URL GENERATED ===');
-  console.log('Transaction:', testId);
-  console.log('URL:', url);
-  
-  return url;
-}
-// Preflight check Thu Feb  5 13:14:18 EST 2026

@@ -68,13 +68,65 @@ function getApproverForRequest(requestData, userBudget) {
   // Simply return the approver listed in the user's directory row
   
   if (userBudget && userBudget.approver && userBudget.approver.trim() !== '') {
-    console.log(`📋 Using designated approver for ${userBudget.email}: ${userBudget.approver}`);
+    console.log(`📋 Using designated approver for ${userBudget.email || userBudget.organization}: ${userBudget.approver}`);
     return userBudget.approver;
   }
   
   // Fallback to business office if no approver specified
-  console.log(`⚠️ No approver found for ${userBudget?.email || 'unknown user'}, using business office`);
+  console.log(`⚠️ No approver found for ${userBudget?.email || userBudget?.organization || 'unknown user'}, using business office`);
   return CONFIG.BUSINESS_OFFICE_EMAIL;
+}
+
+// ============================================================================
+// ORGANIZATION BUDGET QUERYING
+// ============================================================================
+
+function getOrganizationBudgetInfo(orgName) {
+  try {
+    const budgetHub = SpreadsheetApp.openById(CONFIG.BUDGET_HUB_ID);
+    const orgSheet = budgetHub.getSheetByName('OrganizationBudgets');
+    if (!orgSheet) throw new Error('OrganizationBudgets tab not found');
+    const data = orgSheet.getDataRange().getValues();
+    
+    const searchOrg = orgName.toString().trim().toLowerCase();
+    
+    for (let i = 1; i < data.length; i++) {
+      if (!data[i][0]) continue;
+      
+      const storedOrg = data[i][0].toString().trim().toLowerCase();
+      
+      if (storedOrg === searchOrg) {
+        const allocated = parseFloat(data[i][1]) || 0;
+        const spent = parseFloat(data[i][2]) || 0;
+        const encumbered = parseFloat(data[i][3]) || 0;
+        const available = parseFloat(data[i][4]) || 0;
+        const utilizationRate = allocated > 0 ? (spent + encumbered) / allocated : 0;
+
+        return {
+          organization: data[i][0],
+          approver: data[i][5] || '',
+          allocated: allocated,
+          spent: spent,
+          encumbered: encumbered,
+          available: available,
+          utilizationRate: utilizationRate,
+          active: data[i][6] === true || data[i][6] === 'TRUE',
+          // Maps to user format for unified templates
+          firstName: data[i][0], 
+          lastName: 'Budget',
+          department: data[i][0],
+          division: data[i][0]
+        };
+      }
+    }
+    
+    console.warn(`⚠️ Organization budget not found for ${orgName}`);
+    return null;
+    
+  } catch (error) {
+    console.error('Error getting organization budget info:', error);
+    return null;
+  }
 }
 
 function validateBudgetBeforeApproval(request) {
@@ -271,6 +323,104 @@ function calculateUserRealTimeEncumbrance(userEmail) {
   }
   
   return totalEncumbrance;
+}
+
+/**
+ * Calculates real-time encumbrance for an organization by scanning active queues.
+ * Used for departments or divisions.
+ */
+function calculateOrganizationRealTimeEncumbrance(orgName) {
+  let totalEncumbrance = 0;
+  
+  // Target columns:
+  // F = Amount (index 5)
+  // D = Department (index 3)
+  // E = Division (index 4)
+  // H = Status (index 7)
+  
+  const searchOrg = orgName.toString().trim().toLowerCase();
+
+  try {
+    const manualHub = SpreadsheetApp.openById(CONFIG.MANUAL_HUB_ID);
+    const manualQueue = manualHub.getSheetByName('ManualQueue');
+    const manualData = manualQueue.getDataRange().getValues();
+    
+    for (let i = 1; i < manualData.length; i++) {
+      const type = String(manualData[i][2]).trim(); // Column C: Form Type
+      const dept = String(manualData[i][3]).trim().toLowerCase();
+      const div = String(manualData[i][4]).trim().toLowerCase();
+      const status = manualData[i][7];
+      
+      // Match constraint based on form type scopes:
+      // FIELD_TRIP scopes to Division
+      // CURRICULUM scopes to Department
+      let isMatch = false;
+      if (type === 'FIELD_TRIP' && div === searchOrg) isMatch = true;
+      if (type === 'CURRICULUM' && dept === searchOrg) isMatch = true;
+      
+      if (isMatch && (status === 'PENDING' || status === 'APPROVED')) {
+        totalEncumbrance += parseFloat(manualData[i][5]) || 0;
+      }
+    }
+  } catch (e) {
+    console.error('Error scanning Organization ManualQueue:', e);
+  }
+
+  // Cross-check Curriculum items that auto-routed to AutomatedQueue (CI-AMZ)
+  try {
+    const autoHub = SpreadsheetApp.openById(CONFIG.AUTOMATED_HUB_ID);
+    const autoQueue = autoHub.getSheetByName('AutomatedQueue');
+    const autoData = autoQueue.getDataRange().getValues();
+
+    for (let i = 1; i < autoData.length; i++) {
+      const txnId = String(autoData[i][0]);
+      const dept = String(autoData[i][3]).trim().toLowerCase();
+      const status = autoData[i][7];
+      
+      // CI-AMZ Curriculum items pull from department budget
+      if (txnId.startsWith('CI-AMZ') && dept === searchOrg) {
+        if (status === 'PENDING' || status === 'APPROVED' || status === 'ORDERED') {
+          totalEncumbrance += parseFloat(autoData[i][5]) || 0;
+        }
+      }
+    }
+  } catch (e) {
+    console.error('Error scanning Organization AutoQueue:', e);
+  }
+  
+  return totalEncumbrance;
+}
+
+/**
+ * Updates an organization's encumbrance in real-time by recalculating from the queues.
+ */
+function updateOrganizationEncumbranceRealTime(orgName) {
+  try {
+    console.log(`🔄 Recalculating encumbrance for Organization: ${orgName}...`);
+    const currentEncumbrance = calculateOrganizationRealTimeEncumbrance(orgName);
+    
+    const budgetHub = SpreadsheetApp.openById(CONFIG.BUDGET_HUB_ID);
+    const orgSheet = budgetHub.getSheetByName('OrganizationBudgets');
+    const data = orgSheet.getDataRange().getValues();
+    
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][0].toString().trim().toLowerCase() === orgName.toString().trim().toLowerCase()) {
+        const allocated = parseFloat(data[i][1]) || 0;
+        const spent = parseFloat(data[i][2]) || 0;
+        const available = allocated - spent - currentEncumbrance;
+        
+        // Update Encumbered (Column D -> 4)
+        orgSheet.getRange(i + 1, 4).setValue(currentEncumbrance);
+        // Update Available (Column E -> 5)
+        orgSheet.getRange(i + 1, 5).setValue(available);
+        
+        console.log(`✅ Updated Org ${orgName}: Encumbered=$${currentEncumbrance.toFixed(2)}, Available=$${available.toFixed(2)}`);
+        break;
+      }
+    }
+  } catch (error) {
+    console.error(`Error updating encumbrance for org ${orgName}:`, error);
+  }
 }
 
 /**

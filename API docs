@@ -1,0 +1,374 @@
+# Amazon Business API — Keswick Christian School Procurement Automation
+## Developer Reference: Price Verification · Order Placement · Reconciliation
+
+**Organization:** Keswick Christian School, Inc. — Saint Petersburg, FL 33710  
+**Use Case:** Teacher submits purchase request (ASIN/link + price + quantity) → GAS automation verifies live catalog price → price tolerance check → auto-order OR bounce-back for re-approval → budget adjustment → reconciliation logging  
+**Access Model:** Siloed Google Workspace org account, 2FA enforced, 3 business office users only, GAS automation layer, email-to-reviewer on every action  
+**API Suite:** Amazon Business APIs (Solution Provider Portal — approved)  
+**Region:** US · Endpoint: `https://na.business-api.amazon.com`
+
+---
+
+## Table of Contents
+
+1. [Architecture Overview](#1-architecture-overview)
+2. [Credentials & Environment Variables](#2-credentials--environment-variables)
+3. [Authentication — LWA Token Management](#3-authentication--lwa-token-management)
+4. [Required Headers Reference](#4-required-headers-reference)
+5. [Product Search API — Price Catalog Verification](#5-product-search-api--price-catalog-verification)
+6. [Price Tolerance Logic](#6-price-tolerance-logic)
+7. [Ordering API — Placing Orders](#7-ordering-api--placing-orders)
+8. [Order Response Parsing — Accepted & Rejected Items](#8-order-response-parsing--accepted--rejected-items)
+9. [Order Status Retrieval](#9-order-status-retrieval)
+10. [Reconciliation API — Transaction & Invoice Reconciliation](#10-reconciliation-api--transaction--invoice-reconciliation)
+11. [Complete GAS Procurement Orchestrator](#11-complete-gas-procurement-orchestrator)
+12. [Google Sheets Logging Schema](#12-google-sheets-logging-schema)
+13. [Email Notification Templates](#13-email-notification-templates)
+14. [Error Handling Reference](#14-error-handling-reference)
+15. [Rate Limits Summary](#15-rate-limits-summary)
+16. [Testing with Trial Mode](#16-testing-with-trial-mode)
+17. [Full JSON Schema Quick Reference](#17-full-json-schema-quick-reference)
+
+---
+
+## 1. Architecture Overview
+
+```
+Teacher (Google Form / Sheet)
+        │
+        ▼
+  GAS Trigger fires on form submission
+        │
+        ▼
+   fetchLivePrice(asin)           ← Product Search API[1]
+        │
+        ▼
+   priceTolerance(submitted, live)[2]
+        │
+        ├── BOUNCE_BACK → email teacher → halt
+        │
+        ├── WITHIN_TOLERANCE → adjustBudget() → continue
+        │
+        └── AUTO_APPROVE (live ≤ submitted) → continue
+        │
+        ▼
+   placeOrder(asin, qty, livePrice) ← Ordering API[3]
+        │
+        ├── rejectedItems → parse BrokenUnitPriceExpectation → email office
+        │
+        └── acceptedItems → log orderId, unitPrice, delivery range
+        │
+        ▼
+   logToSheet(orderResult)
+        │
+        ▼
+   emailReviewer(summary)
+        │
+        ▼
+   reconcileTransactions()          ← Reconciliation API (scheduled nightly)
+        │
+        └── match orderId → invoiceNumber → write to budget ledger sheet
+```
+
+---
+
+## 2. Credentials & Environment Variables
+
+Store these in **GAS Script Properties** (`File > Project settings > Script properties`), never hardcoded:
+
+| Property Key | Description |
+|---|---|
+| `AMZ_CLIENT_ID` | LWA Client ID from Solution Provider Portal |
+| `AMZ_CLIENT_SECRET` | LWA Client Secret from Solution Provider Portal |
+| `AMZ_REFRESH_TOKEN` | OAuth refresh token generated during app authorization |
+| `AMZ_USER_EMAIL` | Business account email for `x-amz-user-email` header |
+| `KCS_SHIPPING_POSTAL` | `33710` |
+| `PRICE_TOLERANCE_PCT` | e.g. `0.05` for 5% |
+| `REVIEWER_EMAIL` | Business office reviewer email address |
+| `ORDERS_SHEET_ID` | Google Sheet ID for order log |
+| `BUDGET_SHEET_ID` | Google Sheet ID for budget ledger |
+
+```javascript
+// GAS helper to read script properties
+function getProp(key) {
+  return PropertiesService.getScriptProperties().getProperty(key);
+}
+```
+
+---
+
+## 3. Authentication — LWA Token Management
+
+**Token endpoint:** `https://api.amazon.com/auth/o2/token`  
+**Token TTL:** 3600 seconds (1 hour) — cache and refresh proactively
+
+```javascript
+/**
+ * Returns a valid LWA access token, using cache to avoid redundant token fetches.
+ * Stores token + expiry in CacheService (6-hour max, refresh at 55 min).
+ * @returns {string} access_token
+ */
+function getAccessToken() {
+  const cache = CacheService.getScriptCache();
+  const cached = cache.get('amz_access_token');
+  if (cached) return cached;
+
+  const payload = {
+    grant_type: 'refresh_token',
+    refresh_token: getProp('AMZ_REFRESH_TOKEN'),
+    client_id: getProp('AMZ_CLIENT_ID'),
+    client_secret: getProp('AMZ_CLIENT_SECRET')
+  };
+
+  const response = UrlFetchApp.fetch('https://api.amazon.com/auth/o2/token', {
+    method: 'POST',
+    contentType: 'application/x-www-form-urlencoded',
+    payload: Object.entries(payload).map(([k,v]) => `${k}=${encodeURIComponent(v)}`).join('&'),
+    muteHttpExceptions: true
+  });
+
+  const code = response.getResponseCode();
+  if (code !== 200) {
+    throw new Error(`LWA token fetch failed [${code}]: ${response.getContentText()}`);
+  }
+
+  const json = JSON.parse(response.getContentText());
+  // Cache for 55 minutes (3300 seconds) — token expires in 3600
+  cache.put('amz_access_token', json.access_token, 3300);
+  return json.access_token;
+}
+```
+
+---
+
+## 4. Required Headers Reference
+
+Every request to `na.business-api.amazon.com` requires these headers:
+
+| Header | Value | Notes |
+|---|---|---|
+| `x-amz-access-token` | LWA access_token | Required on ALL calls |
+| `x-amz-user-email` | org account email | Required on Product Search & Order Details |
+| `x-amz-date` | `YYYYMMDDTHHmmssZ` | UTC timestamp |
+| `Content-Type` | `application/json` | Required on POST requests |
+| `user-agent` | `KCSProcurement/1.0 (Language=GAS;Platform=Google)` | Helps Amazon diagnose issues |
+
+```javascript
+/**
+ * Builds standard headers for all Amazon Business API requests.
+ * @param {boolean} includeUserEmail - include x-amz-user-email header
+ * @returns {Object} headers object
+ */
+function buildHeaders(includeUserEmail = true) {
+  const headers = {
+    'x-amz-access-token': getAccessToken(),
+    'x-amz-date': getAmzDate(),
+    'user-agent': 'KCSProcurement/1.0 (Language=GAS;Platform=Google)',
+    'Content-Type': 'application/json'
+  };
+  if (includeUserEmail) {
+    headers['x-amz-user-email'] = getProp('AMZ_USER_EMAIL');
+  }
+  return headers;
+}
+
+/**
+ * Returns current UTC time in Amazon-required format: YYYYMMDDTHHmmssZ
+ */
+function getAmzDate() {
+  const now = new Date();
+  return now.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+}
+```
+
+---
+
+## 5. Product Search API — Price Catalog Verification
+
+**Base URL:** `https://na.business-api.amazon.com`  
+**API Version:** `2020-08-26`  
+**Rate Limit:** 0.5 req/sec, burst 10  
+**Purpose:** Verify the teacher's submitted price against the live Amazon catalog price before committing to any order.
+
+### 5.1 Get Product & Price by ASIN (Primary Method)
+
+Use this when the teacher's request contains an ASIN (e.g., extracted from an Amazon URL).
+
+```
+GET /products/2020-08-26/products/{asin}
+  ?productRegion=US
+  &locale=en_US
+  &shippingPostalCode=33710
+  &quantity={qty}
+  &facets=OFFERS
+```
+
+```javascript
+/**
+ * Fetches live product data and offer price for a single ASIN.
+ * @param {string} asin - Amazon Standard Item Number
+ * @param {number} quantity - quantity intended to purchase (affects quantity pricing)
+ * @returns {Object} parsed product result or throws on error
+ */
+function getProductByAsin(asin, quantity) {
+  quantity = quantity || 1;
+  const postal = getProp('KCS_SHIPPING_POSTAL') || '33710';
+  
+  const url = `https://na.business-api.amazon.com/products/2020-08-26/products/${asin}` +
+    `?productRegion=US&locale=en_US&shippingPostalCode=${postal}` +
+    `&quantity=${quantity}&facets=OFFERS`;
+
+  const response = UrlFetchApp.fetch(url, {
+    method: 'GET',
+    headers: buildHeaders(true),
+    muteHttpExceptions: true
+  });
+
+  const code = response.getResponseCode();
+  const body = JSON.parse(response.getContentText());
+
+  if (code === 200) return body;
+
+  // Structured error handling
+  throw new ApiError('ProductSearch', code, body);
+}
+```
+
+### 5.2 Search by Keyword (Fallback — when no ASIN available)
+
+Use this if the teacher only provides a product name or URL without an ASIN.
+
+```
+GET /products/2020-08-26/products
+  ?productRegion=US
+  &locale=en_US
+  &keywords={encoded_keywords}
+  &shippingPostalCode=33710
+  &availability=InStockOnly
+  &pageSize=5
+  &facets=OFFERS
+```
+
+```javascript
+/**
+ * Searches for products by keyword. Returns top 5 results for review.
+ * @param {string} keywords - search terms
+ * @returns {Object} SearchProductsResult
+ */
+function searchProductsByKeyword(keywords) {
+  const postal = getProp('KCS_SHIPPING_POSTAL') || '33710';
+  
+  const url = `https://na.business-api.amazon.com/products/2020-08-26/products` +
+    `?productRegion=US&locale=en_US` +
+    `&keywords=${encodeURIComponent(keywords)}` +
+    `&shippingPostalCode=${postal}` +
+    `&availability=InStockOnly` +
+    `&pageSize=5&facets=OFFERS`;
+
+  const response = UrlFetchApp.fetch(url, {
+    method: 'GET',
+    headers: buildHeaders(true),
+    muteHttpExceptions: true
+  });
+
+  const code = response.getResponseCode();
+  const body = JSON.parse(response.getContentText());
+
+  if (code === 200) return body;
+  throw new ApiError('ProductSearch', code, body);
+}
+```
+
+### 5.3 Batch Lookup by ASIN List (up to 30 ASINs)
+
+Useful for reconciliation or bulk verification passes.
+
+```
+POST /products/2020-08-26/products/getProductsByAsins
+Content-Type: application/json
+```
+
+**Request body:**
+```json
+{
+  "productIds": ["B08N5WRWNW", "B07XJ8C8F5"],
+  "productRegion": "US",
+  "locale": "en_US",
+  "shippingPostalCode": "33710",
+  "quantity": 1,
+  "facets": ["OFFERS"]
+}
+```
+
+```javascript
+/**
+ * Fetches price data for multiple ASINs in one call.
+ * @param {string[]} asinList - array of ASINs, max 30
+ * @returns {Object} { matchingProductCount, products[], notFoundAsins[] }
+ */
+function getProductsByAsinBatch(asinList) {
+  if (asinList.length > 30) throw new Error('Batch limit is 30 ASINs per call');
+
+  const body = {
+    productIds: asinList,
+    productRegion: 'US',
+    locale: 'en_US',
+    shippingPostalCode: getProp('KCS_SHIPPING_POSTAL') || '33710',
+    quantity: 1,
+    facets: ['OFFERS']
+  };
+
+  const response = UrlFetchApp.fetch(
+    'https://na.business-api.amazon.com/products/2020-08-26/products/getProductsByAsins',
+    {
+      method: 'POST',
+      headers: buildHeaders(true),
+      payload: JSON.stringify(body),
+      muteHttpExceptions: true
+    }
+  );
+
+  const code = response.getResponseCode();
+  const parsed = JSON.parse(response.getContentText());
+  if (code === 200) return parsed;
+  throw new ApiError('ProductSearch/Batch', code, parsed);
+}
+```
+
+### 5.4 Parse Price from Product Response
+
+This is the critical extraction step — pulls the featured offer price out of the API response.
+
+```javascript
+/**
+ * Extracts the best available offer price and offerId from a ProductsResult.
+ * The first offer in OFFERS facet is always the featured/best offer.
+ *
+ * @param {Object} productResult - single product from API response
+ * @returns {Object|null} { offerId, asin, title, amount, currencyCode, formattedPrice, taxExclusiveAmount, available }
+ */
+function extractBestOffer(productResult) {
+  const offers = productResult?.includedDataTypes?.OFFERS;
+  if (!offers || offers.length === 0) return null;
+
+  // First offer = featured offer (Amazon's recommended buying option)
+  const offer = offers;
+
+  return {
+    offerId: offer.offerId,
+    asin: productResult.asin,
+    title: productResult.title,
+    // Primary price (what customer pays, may include tax)
+    amount: offer.price?.value?.amount,
+    currencyCode: offer.price?.value?.currencyCode || 'USD',
+    formattedPrice: offer.price?.formattedPrice,
+    // Tax-exclusive price (use for budget comparison)
+    taxExclusiveAmount: offer.taxExclusivePrice?.taxExclusiveAmount?.amount,
+    // Availability string e.g. "In Stock"
+    available: offer.availability,
+    // Merchant info for audit trail
+    merchantName: offer.merchant?.name,
+    merchantId: offer.merchant?.merchantId,
+    // Quantity limits (min/max purchasable)
+    minQty: offer.quantityLimits?.minQuantity,
+    maxQty: offer.quantityLimits?.maxQuantity

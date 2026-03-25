@@ -62,17 +62,38 @@ function extractASIN(url) {
 function extractPdfLink(uploadResponse) {
   try {
     if (!uploadResponse || uploadResponse === '') return null;
-    
-    // Google Forms uploads return file IDs, convert to viewable links
-    const fileId = uploadResponse.toString().trim();
-    
-    // Check if it's already a full link or just a file ID
-    if (fileId.includes('drive.google.com')) {
-      return fileId;
-    } else {
-      // Convert file ID to viewable link
-      return `https://drive.google.com/file/d/${fileId}/view`;
+
+    let fileId = uploadResponse.toString().trim();
+
+    // Extract file ID from various Google Drive URL formats
+    if (fileId.includes('drive.google.com') || fileId.includes('docs.google.com')) {
+      const patterns = [
+        /\/d\/([a-zA-Z0-9_-]+)/,
+        /[?&]id=([a-zA-Z0-9_-]+)/,
+        /\/open\?id=([a-zA-Z0-9_-]+)/
+      ];
+      for (const pattern of patterns) {
+        const match = fileId.match(pattern);
+        if (match) { fileId = match[1]; break; }
+      }
     }
+
+    // Make file viewable by anyone with the link so approvers can access it
+    try {
+      const file = DriveApp.getFileById(fileId);
+      file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+      console.log(`📎 Set sharing to "anyone with link" for uploaded file: ${fileId} (${file.getName()})`);
+    } catch (shareError) {
+      console.warn(`⚠️ Could not set sharing on file ${fileId}: ${shareError.message}`);
+      // Try alternative: set access via permission add
+      try {
+        DriveApp.getFileById(fileId).addViewer('anyone');
+      } catch (e2) {
+        console.warn(`⚠️ Fallback sharing also failed: ${e2.message}`);
+      }
+    }
+
+    return `https://drive.google.com/file/d/${fileId}/view?usp=sharing`;
   } catch (error) {
     console.error('Error extracting PDF link:', error);
     return null;
@@ -83,7 +104,7 @@ function extractPdfLink(uploadResponse) {
 // ID GENERATION
 // ============================================================================
 
-function generateSequentialTransactionId(formType) {
+function generateSequentialTransactionId(formType, division = 'Admin') {
   try {
     // Determine which hub to check
     const isAutomated = ['AMAZON', 'WAREHOUSE'].includes(formType);
@@ -91,25 +112,40 @@ function generateSequentialTransactionId(formType) {
     const hub = SpreadsheetApp.openById(hubId);
     const queueSheet = hub.getSheetByName(isAutomated ? 'AutomatedQueue' : 'ManualQueue');
     
-    // Map form type to prefix
+    // Map form type to code
     const prefixMap = {
       'AMAZON': 'AMZ',
       'WAREHOUSE': 'PCW',
       'FIELD_TRIP': 'FT',
       'CURRICULUM': 'CI',
-      'ADMIN': 'ADMIN'
+      'ADMIN': 'ADM'
     };
+    const typeCode = prefixMap[formType] || 'TXN';
     
-    const prefix = prefixMap[formType] || 'TXN';
+    // Map division to code
+    const divisionStr = (division || 'Admin').toLowerCase();
+    const divisionCode = divisionStr.includes('upper') ? 'US' :
+                         divisionStr.includes('lower') ? 'LS' :
+                         divisionStr.includes('keswick') ? 'KK' :
+                         'AD';
+                         
+    // Format Date: MMDD
+    const now = new Date();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const dateStr = month + day;
     
-    // Get all existing IDs with this prefix
+    // Build daily pattern: [TYPE]-[DIV]-[MMDD]
+    const prefix = `${typeCode}-${divisionCode}-${dateStr}`;
+    
+    // Get all existing IDs with this prefix to find the max NN
     const data = queueSheet.getDataRange().getValues();
     let maxNumber = 0;
     
     for (let i = 1; i < data.length; i++) {
       const id = data[i][0];
       if (id && id.toString().startsWith(prefix + '-')) {
-        const numberPart = id.substring(prefix.length + 1);
+        const numberPart = id.toString().split('-').pop();
         const number = parseInt(numberPart);
         if (!isNaN(number) && number > maxNumber) {
           maxNumber = number;
@@ -117,9 +153,9 @@ function generateSequentialTransactionId(formType) {
       }
     }
     
-    // Next sequential number
+    // Generate next sequential number with suffix padding
     const nextNumber = maxNumber + 1;
-    const transactionId = `${prefix}-${nextNumber.toString().padStart(3, '0')}`;
+    const transactionId = `${prefix}-${nextNumber.toString().padStart(2, '0')}`;
     
     console.log(`✅ Generated sequential ID: ${transactionId}`);
     return transactionId;
@@ -242,5 +278,5 @@ function getDivisionFromDepartment(department) {
   }
   
   // Default to Admin
-  return 'Administration';
+  return 'Admin';
 }

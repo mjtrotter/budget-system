@@ -12,12 +12,31 @@ const CONFIG = {
   // ========== DEMO MODE TOGGLE ==========
   // Set to true to show demo/mock data, false for live spreadsheet data
   // Toggle this when presenting to stakeholders vs production use
-  DEMO_MODE: false,
+  DEMO_MODE: (function() { 
+    try { 
+      let isDemo = PropertiesService.getScriptProperties().getProperty('DEMO_MODE') === 'true'; 
+      if (isDemo) {
+        let email = Session.getActiveUser().getEmail();
+        if (!email) email = Session.getEffectiveUser().getEmail();
+        const authorizedDemoUsers = [
+          'nstratis@keswickchristian.org', 
+          'bendrulat@keswickchristian.org', 
+          'sneel@keswickchristian.org', 
+          'mtrotter@keswickchristian.org',
+          'invoicing@keswickchristian.org' // Including deploying admin
+        ];
+        if (email && !authorizedDemoUsers.includes(email.toLowerCase())) {
+          return false; // Lock down demo mode for non-test users
+        }
+      }
+      return isDemo;
+    } catch(e) { return false; } 
+  })(),
 
-  // Hub Spreadsheet IDs - invoicing@keswickchristian.org account
-  BUDGET_HUB_ID: '1wbv44RU18vJXlImWwxf4VRX932LgWCTBEn6JNws9HhQ',
-  AUTOMATED_HUB_ID: '1CfktVXDNTY499U7zgkBVJ0DyBePH_BsYJeMtwyaxolM',
-  MANUAL_HUB_ID: '1-t7YnyVvk0vxqbKGNteNHOQ92XOJNme4eJPjxVRVI5M',
+  // Hub Spreadsheet IDs - OWNED by invoicing@keswickchristian.org
+  BUDGET_HUB_ID: '1GpCs2p3dra7xf68Ezz-FSsIScqtc7A62h95FIDc-mKY',
+  AUTOMATED_HUB_ID: '1nYl89UUBtk4U1CpcVtX0p3V6wZkCkKD8XtR1eWNza5E',
+  MANUAL_HUB_ID: '1MxYNCHZD1SsqcB2oeX5FEgddA6pFRyK-0foCT8SZjYw',
 
   // Authentication
   ORGANIZATION_DOMAIN: 'keswickchristian.org',
@@ -302,29 +321,43 @@ class KeswickDashboardService {
       // Check if user exists in config
       let userConfig = CONFIG.USER_ACCESS[email];
 
-      // CRITICAL SECURITY FIX: Removed testing fallback
-      // Unauthorized users will now be denied access
+      // Try to get user info from directory
+      let userInfo = this.getUserFromDirectory(email);
+
+      // If not in hardcoded config, evaluate directory role
       if (!userConfig) {
-        console.warn(`Unauthorized access attempt: ${email}`);
-        return {
-          email: email,
-          authenticated: false,
-          error: 'ACCESS_DENIED'
+        if (!userInfo) {
+          console.warn(`Unauthorized access attempt (Not in directory): ${email}`);
+          return { email: email, authenticated: false, error: 'ACCESS_DENIED' };
+        }
+
+        const dirRole = (userInfo.role || '').toLowerCase();
+        const rawDiv = userInfo.division || '';
+        const rawDept = userInfo.department || '';
+        
+        // Map directory roles to dashboard roles
+        if (dirRole.includes('exec') || dirRole.includes('cfo') || dirRole.includes('head of school')) {
+          userConfig = { role: 'executive', divisions: ['US', 'LS', 'KK', 'AD'], departments: ['ALL'] };
+        } else if (dirRole.includes('princip') || dirRole.includes('director')) {
+          userConfig = { role: 'division', divisions: [rawDiv], departments: ['ALL'] };
+        } else if (dirRole.includes('dept') || dirRole.includes('department')) {
+          userConfig = { role: 'department', divisions: [rawDiv], departments: [rawDept] };
+        } else {
+          // Deny standard users/teachers access
+          console.warn(`Unauthorized access attempt (Role ${dirRole} not allowed): ${email}`);
+          return { email: email, authenticated: false, error: 'ACCESS_DENIED' };
+        }
+      }
+
+      // Default userInfo if still null (for hardcoded users not in directory)
+      if (!userInfo) {
+        userInfo = {
+          firstName: email.split('@')[0],
+          lastName: '',
+          department: 'ALL',
+          division: 'ALL'
         };
       }
-
-      if (!userConfig) {
-        console.error('No user config found');
-        return null;
-      }
-
-      // Try to get user info from directory
-      const userInfo = this.getUserFromDirectory(email) || {
-        firstName: 'Test',
-        lastName: 'User',
-        department: 'All',
-        division: 'All'
-      };
 
       const authenticatedUser = {
         email: email,
@@ -1803,6 +1836,18 @@ class KeswickDashboardService {
   // ============================================================================
 
   getMockExecutiveDashboard() {
+    // FY 2025-26: July 2025 - June 2026, ~8 months elapsed (through Feb 2026)
+    // Total budget: $5M across 4 divisions
+    // US $2.1M (58%), LS $1.7M (52%), KK $750K (45%), AD $450K (38%)
+    const totalBudget = 5000000;
+    const usSpent = 1218000;  // 58% of $2.1M
+    const lsSpent = 884000;   // 52% of $1.7M
+    const kkSpent = 337500;   // 45% of $750K
+    const adSpent = 171000;   // 38% of $450K
+    const totalSpent = usSpent + lsSpent + kkSpent + adSpent; // $2,610,500
+    const totalEncumbered = 385000;
+    const utilizationRate = 52.2; // totalSpent / totalBudget * 100
+
     return {
       user: {
         firstName: 'Demo',
@@ -1813,95 +1858,95 @@ class KeswickDashboardService {
         {
           id: 'total_budget',
           label: 'Total Annual Budget',
-          value: 5000000,
+          value: totalBudget,
           format: 'currency',
           trend: 'stable',
-          description: 'FY 2024-25 allocated budget'
+          description: 'FY 2025-26 allocated budget'
         },
         {
           id: 'ytd_spending',
           label: 'YTD Spending',
-          value: 2100000,
+          value: totalSpent,
           format: 'currency',
           trend: 'up',
-          trendValue: 5.2,
-          description: '42% of annual budget'
+          trendValue: 3.8,
+          description: '52.2% of annual budget'
         },
         {
           id: 'budget_utilization',
           label: 'Budget Utilization',
-          value: 42,
+          value: utilizationRate,
           format: 'percentage',
           trend: 'stable',
-          description: 'On track for fiscal year'
+          description: 'On track for fiscal year (8 of 12 months elapsed)'
         },
         {
           id: 'pending_approvals',
           label: 'Pending Approvals',
-          value: 12,
+          value: 9,
           format: 'number',
           urgent: true,
-          description: 'Requires attention'
+          description: '3 pending > 72 hours'
         }
       ],
       divisionSummary: [
         {
           division: 'US',
           name: 'Upper School',
-          allocated: 2000000,
-          spent: 840000,
-          encumbered: 160000,
-          available: 1000000,
-          utilization: 42,
-          trend: 'stable'
+          allocated: 2100000,
+          spent: usSpent,
+          encumbered: 189000,
+          available: 2100000 - usSpent - 189000,
+          utilization: 58,
+          trend: 'up'
         },
         {
           division: 'LS',
           name: 'Lower School',
-          allocated: 1800000,
-          spent: 756000,
-          encumbered: 144000,
-          available: 900000,
-          utilization: 42,
+          allocated: 1700000,
+          spent: lsSpent,
+          encumbered: 119000,
+          available: 1700000 - lsSpent - 119000,
+          utilization: 52,
           trend: 'stable'
         },
         {
           division: 'KK',
           name: 'Keswick Kids',
-          allocated: 800000,
-          spent: 336000,
-          encumbered: 64000,
-          available: 400000,
-          utilization: 42,
+          allocated: 750000,
+          spent: kkSpent,
+          encumbered: 48500,
+          available: 750000 - kkSpent - 48500,
+          utilization: 45,
           trend: 'stable'
         },
         {
           division: 'AD',
           name: 'Administration',
-          allocated: 400000,
-          spent: 168000,
-          encumbered: 32000,
-          available: 200000,
-          utilization: 42,
-          trend: 'stable'
+          allocated: 450000,
+          spent: adSpent,
+          encumbered: 28500,
+          available: 450000 - adSpent - 28500,
+          utilization: 38,
+          trend: 'down'
         }
       ],
       financialHealth: {
         status: 'healthy',
-        paceStatus: 'on_track',  // on_track, over_pace, under_pace
+        paceStatus: 'on_track',
         metrics: {
           cashFlow: 'positive',
           burnRate: 'normal',
-          runway: '8 months',
+          runway: '4 months',
           risk: 'low'
         },
         details: {
-          totalBudget: 5000000,
-          totalSpent: 2100000,
-          totalEncumbered: 400000,
-          utilizationRate: 42,
-          monthlyBurnRate: 350000,
-          expectedUtilization: 45,  // Based on current fiscal month pacing
+          totalBudget: totalBudget,
+          totalSpent: totalSpent,
+          totalEncumbered: totalEncumbered,
+          utilizationRate: utilizationRate,
+          monthlyBurnRate: 326312,
+          expectedUtilization: 55,
           fiscalMonth: this.getCurrentFiscalMonth(),
           tolerance: CONFIG.BUDGET_PACING.tolerance
         }
@@ -1916,14 +1961,14 @@ class KeswickDashboardService {
         }
       },
       tacSummary: {
-        totalCollected: 850000,
-        totalAllocated: 800000,
-        totalSpent: 340000,
-        totalAvailable: 460000,
+        totalCollected: 825000,
+        totalAllocated: 783750,
+        totalSpent: 412800,
+        totalAvailable: 370950,
         byCategory: {
-          technology: { allocated: 440000, spent: 187000 },
-          activities: { allocated: 200000, spent: 85000 },
-          consumables: { allocated: 160000, spent: 68000 }
+          technology: { allocated: 430000, spent: 228500 },
+          activities: { allocated: 196000, spent: 102300 },
+          consumables: { allocated: 157750, spent: 82000 }
         }
       },
       transactions: this.getMockTransactions(20),
@@ -1943,6 +1988,13 @@ class KeswickDashboardService {
           category: 'approval',
           message: '3 purchase orders pending approval > 72 hours',
           timestamp: new Date()
+        },
+        {
+          id: 3,
+          type: 'info',
+          category: 'processing',
+          message: 'Warehouse order processing delayed — expected 48hr turnaround',
+          timestamp: new Date()
         }
       ],
       trends: {
@@ -1953,189 +2005,408 @@ class KeswickDashboardService {
   }
 
   getMockTransactions(count) {
-    const vendors = ['Amazon', 'Staples', 'Apple', 'Best Buy', 'Office Depot'];
-    const statuses = ['Approved', 'Pending', 'Processing'];
-    const divisions = ['US', 'LS', 'KK', 'AD'];
-    const departments = ['Math', 'Science', 'English', 'Elementary', 'Administration'];
+    // Deterministic realistic transactions for Keswick Christian School
+    const allTransactions = [
+      { transactionId: 'AMZ-US-0115', date: new Date('2026-01-15'), division: 'US', department: 'Math', vendor: 'Amazon', description: 'Amazon - 30 TI-84 Plus CE Calculators', amount: 3450, tac: 3450, status: 'Approved', submitter: 'nstratis@keswickchristian.org' },
+      { transactionId: 'CUR-US-0118', date: new Date('2026-01-18'), division: 'US', department: 'Math', vendor: 'Pearson', description: 'Curriculum - Pearson Algebra II Textbooks', amount: 4200, tac: 0, status: 'Approved', submitter: 'nstratis@keswickchristian.org' },
+      { transactionId: 'AMZ-US-0122', date: new Date('2026-01-22'), division: 'US', department: 'Science', vendor: 'Amazon', description: 'Amazon - Chemistry Lab Goggles (class set of 30)', amount: 285, tac: 285, status: 'Approved', submitter: 'bendrulat@keswickchristian.org' },
+      { transactionId: 'WHS-LS-0220', date: new Date('2026-02-20'), division: 'LS', department: 'Grade 3', vendor: 'County Warehouse', description: 'Warehouse - Copy Paper Case x12', amount: 156, tac: 0, status: 'Approved', submitter: 'sneel@keswickchristian.org' },
+      { transactionId: 'AMZ-US-0205', date: new Date('2026-02-05'), division: 'US', department: 'Science', vendor: 'Amazon', description: 'Amazon - Dissection Kit Refills x15', amount: 675, tac: 675, status: 'Approved', submitter: 'bendrulat@keswickchristian.org' },
+      { transactionId: 'FLD-LS-0305', date: new Date('2026-03-05'), division: 'LS', department: 'Grade 5', vendor: 'Kennedy Space Center', description: 'Field Trip - Kennedy Space Center (Grade 5)', amount: 2800, tac: 2800, status: 'Approved', submitter: 'sneel@keswickchristian.org' },
+      { transactionId: 'ADM-AD-0210', date: new Date('2026-02-10'), division: 'AD', department: 'Business Office', vendor: 'FACTS Management', description: 'Admin - Annual FACTS License Renewal', amount: 8500, tac: 0, status: 'Approved', submitter: 'mtrotter@keswickchristian.org' },
+      { transactionId: 'AMZ-US-0228', date: new Date('2026-02-28'), division: 'US', department: 'English', vendor: 'Amazon', description: 'Amazon - Novel Sets: "To Kill a Mockingbird" x35', amount: 315, tac: 0, status: 'Approved', submitter: 'nstratis@keswickchristian.org' },
+      { transactionId: 'CUR-US-0302', date: new Date('2026-03-02'), division: 'US', department: 'History', vendor: 'National Geographic', description: 'Curriculum - AP US History Document Reader', amount: 1890, tac: 0, status: 'Approved', submitter: 'bendrulat@keswickchristian.org' },
+      { transactionId: 'AMZ-US-0303', date: new Date('2026-03-03'), division: 'US', department: 'Art', vendor: 'Amazon', description: 'Amazon - Acrylic Paint Set (48 colors) x10', amount: 420, tac: 420, status: 'Pending', submitter: 'nstratis@keswickchristian.org' },
+      { transactionId: 'WHS-LS-0304', date: new Date('2026-03-04'), division: 'LS', department: 'Grade 1', vendor: 'County Warehouse', description: 'Warehouse - Glue Sticks Bulk Pack x200', amount: 89, tac: 0, status: 'Processing', submitter: 'sneel@keswickchristian.org' },
+      { transactionId: 'AMZ-KK-0225', date: new Date('2026-02-25'), division: 'KK', department: 'PreK4', vendor: 'Amazon', description: 'Amazon - Play-Doh Classroom Pack (24 tubs)', amount: 148, tac: 148, status: 'Approved', submitter: 'sneel@keswickchristian.org' },
+      { transactionId: 'FLD-KK-0310', date: new Date('2026-03-10'), division: 'KK', department: 'Kindergarten', vendor: 'Tampa Zoo', description: 'Field Trip - Tampa Zoo (Kindergarten)', amount: 450, tac: 450, status: 'Pending', submitter: 'sneel@keswickchristian.org' },
+      { transactionId: 'AMZ-US-0306', date: new Date('2026-03-06'), division: 'US', department: 'Music', vendor: 'Amazon', description: 'Amazon - Sheet Music: Spring Concert Collection', amount: 225, tac: 225, status: 'Pending', submitter: 'bendrulat@keswickchristian.org' },
+      { transactionId: 'ADM-AD-0301', date: new Date('2026-03-01'), division: 'AD', department: 'IT', vendor: 'CDW', description: 'Admin - Replacement Chromebook Chargers x25', amount: 625, tac: 0, status: 'Approved', submitter: 'mtrotter@keswickchristian.org' },
+      { transactionId: 'WHS-US-0307', date: new Date('2026-03-07'), division: 'US', department: 'PE', vendor: 'County Warehouse', description: 'Warehouse - Dodgeballs and Cones Set', amount: 210, tac: 210, status: 'Processing', submitter: 'nstratis@keswickchristian.org' },
+      { transactionId: 'AMZ-LS-0308', date: new Date('2026-03-08'), division: 'LS', department: 'Specials', vendor: 'Amazon', description: 'Amazon - STEM Building Blocks Classroom Kit', amount: 389, tac: 389, status: 'Approved', submitter: 'sneel@keswickchristian.org' },
+      { transactionId: 'CUR-US-0309', date: new Date('2026-03-09'), division: 'US', department: 'Bible', vendor: 'David C Cook', description: 'Curriculum - Bible Study Workbooks (Grade 10)', amount: 560, tac: 0, status: 'Approved', submitter: 'bendrulat@keswickchristian.org' },
+      { transactionId: 'AMZ-US-0311', date: new Date('2026-03-11'), division: 'US', department: 'World Languages', vendor: 'Amazon', description: 'Amazon - Spanish-English Dictionaries x20', amount: 340, tac: 0, status: 'Pending', submitter: 'nstratis@keswickchristian.org' },
+      { transactionId: 'ADM-AD-0312', date: new Date('2026-03-12'), division: 'AD', department: 'Facilities', vendor: 'Home Depot', description: 'Admin - Maintenance Supplies (HVAC Filters)', amount: 475, tac: 0, status: 'Processing', submitter: 'mtrotter@keswickchristian.org' },
+      { transactionId: 'AMZ-US-0125', date: new Date('2026-01-25'), division: 'US', department: 'Media', vendor: 'Amazon', description: 'Amazon - Podcast Microphones x4', amount: 520, tac: 520, status: 'Approved', submitter: 'bendrulat@keswickchristian.org' },
+      { transactionId: 'WHS-KK-0215', date: new Date('2026-02-15'), division: 'KK', department: 'Toddlers', vendor: 'County Warehouse', description: 'Warehouse - Finger Paint and Easel Paper', amount: 95, tac: 0, status: 'Approved', submitter: 'sneel@keswickchristian.org' },
+      { transactionId: 'AMZ-KK-0130', date: new Date('2026-01-30'), division: 'KK', department: 'Infants', vendor: 'Amazon', description: 'Amazon - Sensory Play Mat (set of 6)', amount: 234, tac: 234, status: 'Approved', submitter: 'sneel@keswickchristian.org' },
+      { transactionId: 'FLD-US-0218', date: new Date('2026-02-18'), division: 'US', department: 'History', vendor: 'Ybor City Museum', description: 'Field Trip - Ybor City Museum (AP History)', amount: 680, tac: 680, status: 'Approved', submitter: 'bendrulat@keswickchristian.org' },
+      { transactionId: 'CUR-LS-0203', date: new Date('2026-02-03'), division: 'LS', department: 'Grade 2', vendor: 'Scholastic', description: 'Curriculum - Guided Reading Level J-M Book Set', amount: 1250, tac: 0, status: 'Approved', submitter: 'sneel@keswickchristian.org' },
+      { transactionId: 'ADM-AD-0115', date: new Date('2026-01-15'), division: 'AD', department: 'Development', vendor: 'Constant Contact', description: 'Admin - Annual Email Marketing Platform License', amount: 1800, tac: 0, status: 'Approved', submitter: 'mtrotter@keswickchristian.org' },
+      { transactionId: 'AMZ-LS-0208', date: new Date('2026-02-08'), division: 'LS', department: 'Grade 4', vendor: 'Amazon', description: 'Amazon - Fraction Manipulatives Kit x6', amount: 198, tac: 198, status: 'Approved', submitter: 'sneel@keswickchristian.org' },
+      { transactionId: 'WHS-US-0212', date: new Date('2026-02-12'), division: 'US', department: 'Science', vendor: 'County Warehouse', description: 'Warehouse - Lab Notebooks x120', amount: 360, tac: 0, status: 'Approved', submitter: 'bendrulat@keswickchristian.org' },
+      { transactionId: 'AMZ-KK-0305', date: new Date('2026-03-05'), division: 'KK', department: 'PreK3', vendor: 'Amazon', description: 'Amazon - Wooden Block Set (200 piece)', amount: 165, tac: 165, status: 'Approved', submitter: 'sneel@keswickchristian.org' },
+      { transactionId: 'CUR-US-0128', date: new Date('2026-01-28'), division: 'US', department: 'Science', vendor: 'Carolina Biological', description: 'Curriculum - AP Biology Lab Kit (Semester 2)', amount: 2150, tac: 0, status: 'Approved', submitter: 'bendrulat@keswickchristian.org' },
+      { transactionId: 'AMZ-US-0201', date: new Date('2026-02-01'), division: 'US', department: 'Math', vendor: 'Amazon', description: 'Amazon - Graphing Calculator Screen Protectors x30', amount: 90, tac: 90, status: 'Approved', submitter: 'nstratis@keswickchristian.org' },
+      { transactionId: 'WHS-LS-0110', date: new Date('2026-01-10'), division: 'LS', department: 'Grade 1', vendor: 'County Warehouse', description: 'Warehouse - Construction Paper Bulk (20 colors)', amount: 124, tac: 0, status: 'Approved', submitter: 'sneel@keswickchristian.org' },
+      { transactionId: 'AMZ-AD-0120', date: new Date('2026-01-20'), division: 'AD', department: 'IT', vendor: 'Amazon', description: 'Amazon - USB-C Hubs for Teacher Laptops x10', amount: 350, tac: 0, status: 'Approved', submitter: 'mtrotter@keswickchristian.org' },
+      { transactionId: 'FLD-LS-0215', date: new Date('2026-02-15'), division: 'LS', department: 'Grade 3', vendor: 'MOSI', description: 'Field Trip - Museum of Science & Industry (Grade 3)', amount: 1650, tac: 1650, status: 'Approved', submitter: 'sneel@keswickchristian.org' },
+      { transactionId: 'AMZ-US-0310', date: new Date('2026-03-10'), division: 'US', department: 'English', vendor: 'Amazon', description: 'Amazon - Composition Notebooks x100', amount: 275, tac: 0, status: 'Approved', submitter: 'nstratis@keswickchristian.org' },
+      { transactionId: 'CUR-KK-0201', date: new Date('2026-02-01'), division: 'KK', department: 'Kindergarten', vendor: 'Scholastic', description: 'Curriculum - Sight Words Flash Card System', amount: 320, tac: 0, status: 'Approved', submitter: 'sneel@keswickchristian.org' },
+      { transactionId: 'WHS-US-0120', date: new Date('2026-01-20'), division: 'US', department: 'Art', vendor: 'County Warehouse', description: 'Warehouse - Drawing Pencil Set (H-9B) x25', amount: 175, tac: 0, status: 'Approved', submitter: 'nstratis@keswickchristian.org' },
+      { transactionId: 'AMZ-LS-0125', date: new Date('2026-01-25'), division: 'LS', department: 'Grade 5', vendor: 'Amazon', description: 'Amazon - Science Fair Display Boards x30', amount: 210, tac: 210, status: 'Approved', submitter: 'sneel@keswickchristian.org' },
+      { transactionId: 'ADM-AD-0205', date: new Date('2026-02-05'), division: 'AD', department: 'Business Office', vendor: 'Staples', description: 'Admin - Office Supplies Quarterly Order', amount: 425, tac: 0, status: 'Approved', submitter: 'mtrotter@keswickchristian.org' },
+      { transactionId: 'AMZ-US-0215', date: new Date('2026-02-15'), division: 'US', department: 'PE', vendor: 'Amazon', description: 'Amazon - Resistance Bands Set (class pack)', amount: 189, tac: 189, status: 'Approved', submitter: 'nstratis@keswickchristian.org' },
+      { transactionId: 'CUR-US-0220', date: new Date('2026-02-20'), division: 'US', department: 'World Languages', vendor: 'Vista Higher Learning', description: 'Curriculum - AP Spanish Workbooks x25', amount: 1125, tac: 0, status: 'Approved', submitter: 'nstratis@keswickchristian.org' },
+      { transactionId: 'WHS-KK-0310', date: new Date('2026-03-10'), division: 'KK', department: 'PreK4', vendor: 'County Warehouse', description: 'Warehouse - Sanitizing Wipes Bulk Case', amount: 68, tac: 0, status: 'Approved', submitter: 'sneel@keswickchristian.org' },
+      { transactionId: 'AMZ-US-0105', date: new Date('2026-01-05'), division: 'US', department: 'Music', vendor: 'Amazon', description: 'Amazon - Ukulele Strings Replacement Set x20', amount: 140, tac: 140, status: 'Approved', submitter: 'bendrulat@keswickchristian.org' },
+      { transactionId: 'FLD-US-0312', date: new Date('2026-03-12'), division: 'US', department: 'Science', vendor: 'Florida Aquarium', description: 'Field Trip - Florida Aquarium (Marine Bio)', amount: 1200, tac: 1200, status: 'Pending', submitter: 'bendrulat@keswickchristian.org' },
+      { transactionId: 'AMZ-LS-0301', date: new Date('2026-03-01'), division: 'LS', department: 'Grade 2', vendor: 'Amazon', description: 'Amazon - Math Counting Bears Set x8', amount: 176, tac: 176, status: 'Approved', submitter: 'sneel@keswickchristian.org' },
+      { transactionId: 'ADM-AD-0308', date: new Date('2026-03-08'), division: 'AD', department: 'Facilities', vendor: 'Grainger', description: 'Admin - Replacement Light Fixtures (LED) x12', amount: 960, tac: 0, status: 'Approved', submitter: 'mtrotter@keswickchristian.org' },
+      { transactionId: 'CUR-LS-0310', date: new Date('2026-03-10'), division: 'LS', department: 'Grade 4', vendor: 'Houghton Mifflin', description: 'Curriculum - Social Studies Atlas Set x30', amount: 840, tac: 0, status: 'Approved', submitter: 'sneel@keswickchristian.org' },
+      { transactionId: 'AMZ-US-0313', date: new Date('2026-03-13'), division: 'US', department: 'Bible', vendor: 'Amazon', description: 'Amazon - Devotional Journals x35', amount: 385, tac: 0, status: 'Processing', submitter: 'bendrulat@keswickchristian.org' },
+      { transactionId: 'WHS-LS-0313', date: new Date('2026-03-13'), division: 'LS', department: 'Specials', vendor: 'County Warehouse', description: 'Warehouse - Laminating Film Rolls x6', amount: 132, tac: 0, status: 'Processing', submitter: 'sneel@keswickchristian.org' },
+      { transactionId: 'AMZ-KK-0313', date: new Date('2026-03-13'), division: 'KK', department: 'Toddlers', vendor: 'Amazon', description: 'Amazon - Soft Stacking Rings (set of 12)', amount: 108, tac: 108, status: 'Pending', submitter: 'sneel@keswickchristian.org' }
+    ];
 
-    return Array.from({ length: count }, (_, i) => ({
-      transactionId: `TRX-2024-${(1000 + i).toString().padStart(4, '0')}`,
-      date: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000),
-      division: divisions[Math.floor(Math.random() * divisions.length)],
-      department: departments[Math.floor(Math.random() * departments.length)],
-      vendor: vendors[Math.floor(Math.random() * vendors.length)],
-      description: `Purchase Order ${i + 1}`,
-      amount: Math.round(Math.random() * 5000 + 100),
-      tac: Math.round(Math.random() * 500),
-      status: statuses[Math.floor(Math.random() * statuses.length)],
-      submitter: `teacher${i + 1}@keswickchristian.org`
-    }));
+    return allTransactions.slice(0, count);
   }
 
   getMockMonthlyTrend() {
-    const months = ['Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan'];
-    return months.map((month, i) => ({
-      month: month,
-      budget: 416667,
-      actual: 350000 + Math.random() * 100000,
-      forecast: 400000 + Math.random() * 50000
-    }));
+    // FY 2025-26: Seasonal pattern — high Aug-Sep (back to school), dip Dec, uptick Jan-Feb
+    return [
+      { month: 'Jul',  budget: 416667, actual: 285000, forecast: 290000 },
+      { month: 'Aug',  budget: 416667, actual: 520000, forecast: 510000 },
+      { month: 'Sep',  budget: 416667, actual: 485000, forecast: 475000 },
+      { month: 'Oct',  budget: 416667, actual: 365000, forecast: 370000 },
+      { month: 'Nov',  budget: 416667, actual: 310000, forecast: 320000 },
+      { month: 'Dec',  budget: 416667, actual: 195000, forecast: 210000 },
+      { month: 'Jan',  budget: 416667, actual: 380000, forecast: 375000 },
+      { month: 'Feb',  budget: 416667, actual: 345000, forecast: 350000 }
+    ];
   }
 
   getMockCategoricalSpending() {
+    // Total YTD spending ~$2.61M broken down by category
     return [
-      { category: 'Technology', amount: 450000, percentage: 21.4 },
-      { category: 'Curriculum', amount: 380000, percentage: 18.1 },
-      { category: 'Supplies', amount: 320000, percentage: 15.2 },
-      { category: 'Professional Development', amount: 280000, percentage: 13.3 },
-      { category: 'Facilities', amount: 240000, percentage: 11.4 },
-      { category: 'Activities', amount: 220000, percentage: 10.5 },
-      { category: 'Other', amount: 210000, percentage: 10.0 }
+      { category: 'Technology',                amount: 542000, percentage: 20.8 },
+      { category: 'Curriculum & Textbooks',    amount: 495000, percentage: 19.0 },
+      { category: 'Classroom Supplies',        amount: 391500, percentage: 15.0 },
+      { category: 'Professional Development',  amount: 313200, percentage: 12.0 },
+      { category: 'Facilities & Maintenance',  amount: 287100, percentage: 11.0 },
+      { category: 'Field Trips & Activities',  amount: 261000, percentage: 10.0 },
+      { category: 'Administrative & Licensing', amount: 182700, percentage: 7.0 },
+      { category: 'Other',                     amount: 138000, percentage: 5.3 }
     ];
   }
 
   getMockPrincipalKPIs() {
+    // Default to Upper School view
     return [
-      { id: 'division_budget', label: 'Division Budget', value: 1800000, format: 'currency' },
-      { id: 'division_spent', label: 'Spent to Date', value: 756000, format: 'currency' },
-      { id: 'division_utilization', label: 'Utilization Rate', value: 42, format: 'percentage' },
-      { id: 'pending_requests', label: 'Pending Requests', value: 8, format: 'number' }
+      { id: 'division_budget', label: 'Division Budget', value: 2100000, format: 'currency' },
+      { id: 'division_spent', label: 'Spent to Date', value: 1218000, format: 'currency' },
+      { id: 'division_utilization', label: 'Utilization Rate', value: 58, format: 'percentage' },
+      { id: 'pending_requests', label: 'Pending Requests', value: 5, format: 'number' }
     ];
   }
 
   getMockDepartmentKPIs() {
+    // Default to Science department (highest utilization — alert state)
     return [
-      { id: 'dept_budget', label: 'Department Budget', value: 250000, format: 'currency' },
-      { id: 'dept_spent', label: 'Spent to Date', value: 105000, format: 'currency' },
-      { id: 'dept_available', label: 'Available Budget', value: 145000, format: 'currency' },
-      { id: 'dept_utilization', label: 'Utilization Rate', value: 42, format: 'percentage' }
+      { id: 'dept_budget', label: 'Department Budget', value: 310000, format: 'currency' },
+      { id: 'dept_spent', label: 'Spent to Date', value: 263500, format: 'currency' },
+      { id: 'dept_available', label: 'Available Budget', value: 46500, format: 'currency' },
+      { id: 'dept_utilization', label: 'Utilization Rate', value: 85, format: 'percentage' }
     ];
   }
 
   getMockDepartmentSummary(divisions) {
-    return [
-      { department: 'Math', allocated: 250000, spent: 105000, available: 145000, utilization: 42 },
-      { department: 'Science', allocated: 300000, spent: 126000, available: 174000, utilization: 42 },
-      { department: 'English', allocated: 200000, spent: 84000, available: 116000, utilization: 42 },
-      { department: 'History', allocated: 180000, spent: 75600, available: 104400, utilization: 42 }
-    ];
+    const deptData = {
+      US: [
+        { department: 'Science',          division: 'US', allocated: 310000, spent: 263500, available: 46500,  utilization: 85 },
+        { department: 'Math',             division: 'US', allocated: 280000, spent: 173600, available: 106400, utilization: 62 },
+        { department: 'English',          division: 'US', allocated: 240000, spent: 115200, available: 124800, utilization: 48 },
+        { department: 'History',          division: 'US', allocated: 220000, spent: 121000, available: 99000,  utilization: 55 },
+        { department: 'World Languages',  division: 'US', allocated: 180000, spent: 79200,  available: 100800, utilization: 44 },
+        { department: 'Art',              division: 'US', allocated: 160000, spent: 56000,  available: 104000, utilization: 35 },
+        { department: 'Music',            division: 'US', allocated: 175000, spent: 89250,  available: 85750,  utilization: 51 },
+        { department: 'PE',               division: 'US', allocated: 145000, spent: 68150,  available: 76850,  utilization: 47 },
+        { department: 'Media',            division: 'US', allocated: 195000, spent: 131625, available: 63375,  utilization: 67.5 },
+        { department: 'Bible',            division: 'US', allocated: 195000, spent: 120900, available: 74100,  utilization: 62 }
+      ],
+      LS: [
+        { department: 'Grade 1',  division: 'LS', allocated: 290000, spent: 156600, available: 133400, utilization: 54 },
+        { department: 'Grade 2',  division: 'LS', allocated: 285000, spent: 145350, available: 139650, utilization: 51 },
+        { department: 'Grade 3',  division: 'LS', allocated: 295000, spent: 162250, available: 132750, utilization: 55 },
+        { department: 'Grade 4',  division: 'LS', allocated: 280000, spent: 137200, available: 142800, utilization: 49 },
+        { department: 'Grade 5',  division: 'LS', allocated: 300000, spent: 162000, available: 138000, utilization: 54 },
+        { department: 'Specials', division: 'LS', allocated: 250000, spent: 120000, available: 130000, utilization: 48 }
+      ],
+      KK: [
+        { department: 'Infants',      division: 'KK', allocated: 120000, spent: 48000,  available: 72000,  utilization: 40 },
+        { department: 'Toddlers',     division: 'KK', allocated: 130000, spent: 54600,  available: 75400,  utilization: 42 },
+        { department: 'PreK3',        division: 'KK', allocated: 155000, spent: 72850,  available: 82150,  utilization: 47 },
+        { department: 'PreK4',        division: 'KK', allocated: 170000, spent: 81600,  available: 88400,  utilization: 48 },
+        { department: 'Kindergarten', division: 'KK', allocated: 175000, spent: 80500,  available: 94500,  utilization: 46 }
+      ],
+      AD: [
+        { department: 'Business Office', division: 'AD', allocated: 125000, spent: 50000,  available: 75000,  utilization: 40 },
+        { department: 'IT',              division: 'AD', allocated: 135000, spent: 54000,  available: 81000,  utilization: 40 },
+        { department: 'Facilities',      division: 'AD', allocated: 115000, spent: 40250,  available: 74750,  utilization: 35 },
+        { department: 'Development',     division: 'AD', allocated: 75000,  spent: 26250,  available: 48750,  utilization: 35 }
+      ]
+    };
+
+    const result = [];
+    (divisions || ['US']).forEach(function(div) {
+      if (deptData[div]) {
+        deptData[div].forEach(function(dept) { result.push(dept); });
+      }
+    });
+    return result;
   }
 
   getMockTACAnalysis(divisions) {
-    return {
-      total: 400000,
-      allocated: 380000,
-      spent: 160000,
-      available: 220000,
-      byGrade: [
-        { grade: '9', students: 100, fee: 1250, total: 125000, allocated: 118750, spent: 50000 },
-        { grade: '10', students: 95, fee: 1250, total: 118750, allocated: 112512, spent: 47250 },
-        { grade: '11', students: 90, fee: 1300, total: 117000, allocated: 111150, spent: 46800 },
-        { grade: '12', students: 85, fee: 1300, total: 110500, allocated: 104975, spent: 44200 }
-      ]
+    const tacData = {
+      US: {
+        total: 471250,
+        allocated: 447688,
+        spent: 236000,
+        available: 211688,
+        byGrade: [
+          { grade: '9',  students: 105, fee: 1250, total: 131250, allocated: 124688, spent: 65800 },
+          { grade: '10', students: 98,  fee: 1250, total: 122500, allocated: 116375, spent: 61400 },
+          { grade: '11', students: 92,  fee: 1300, total: 119600, allocated: 113620, spent: 59900 },
+          { grade: '12', students: 87,  fee: 1300, total: 113100, allocated: 107445, spent: 48900 }
+        ]
+      },
+      LS: {
+        total: 225000,
+        allocated: 213750,
+        spent: 112500,
+        available: 101250,
+        byGrade: [
+          { grade: '1', students: 72, fee: 650, total: 46800, allocated: 44460, spent: 23400 },
+          { grade: '2', students: 68, fee: 650, total: 44200, allocated: 41990, spent: 22100 },
+          { grade: '3', students: 70, fee: 650, total: 45500, allocated: 43225, spent: 22750 },
+          { grade: '4', students: 65, fee: 650, total: 42250, allocated: 40138, spent: 21125 },
+          { grade: '5', students: 71, fee: 650, total: 46150, allocated: 43843, spent: 23075 }
+        ]
+      },
+      KK: {
+        total: 128750,
+        allocated: 122312,
+        spent: 64300,
+        available: 58012,
+        byGrade: [
+          { grade: 'Infants',      students: 24, fee: 500, total: 12000, allocated: 11400, spent: 6000 },
+          { grade: 'Toddlers',     students: 30, fee: 500, total: 15000, allocated: 14250, spent: 7500 },
+          { grade: 'PreK3',        students: 45, fee: 550, total: 24750, allocated: 23512, spent: 12375 },
+          { grade: 'PreK4',        students: 52, fee: 600, total: 31200, allocated: 29640, spent: 16400 },
+          { grade: 'Kindergarten', students: 55, fee: 600, total: 33000, allocated: 31350, spent: 17400 }
+        ]
+      }
     };
+
+    const combined = { total: 0, allocated: 0, spent: 0, available: 0, byGrade: [] };
+    (divisions || ['US']).forEach(function(div) {
+      if (tacData[div]) {
+        combined.total += tacData[div].total;
+        combined.allocated += tacData[div].allocated;
+        combined.spent += tacData[div].spent;
+        combined.available += tacData[div].available;
+        tacData[div].byGrade.forEach(function(g) { combined.byGrade.push(g); });
+      }
+    });
+    return combined;
   }
 
   getMockBudgetStatus(divisions) {
-    return divisions.map(div => ({
-      division: div,
-      status: 'on-track',
-      projectedYearEnd: 1750000,
-      variance: 50000,
-      risk: 'low'
-    }));
+    const statusData = {
+      US: { division: 'US', status: 'on-track',  projectedYearEnd: 1890000, variance: 210000, risk: 'low' },
+      LS: { division: 'LS', status: 'on-track',  projectedYearEnd: 1530000, variance: 170000, risk: 'low' },
+      KK: { division: 'KK', status: 'under',     projectedYearEnd: 620000,  variance: 130000, risk: 'low' },
+      AD: { division: 'AD', status: 'under',      projectedYearEnd: 380000,  variance: 70000,  risk: 'low' }
+    };
+
+    return (divisions || ['US']).map(function(div) {
+      return statusData[div] || { division: div, status: 'unknown', projectedYearEnd: 0, variance: 0, risk: 'unknown' };
+    });
   }
 
   getMockApprovalQueue(divisions) {
-    return Array.from({ length: 8 }, (_, i) => ({
-      id: `APR-${1000 + i}`,
-      date: new Date(Date.now() - i * 24 * 60 * 60 * 1000),
-      requester: `teacher${i + 1}@keswickchristian.org`,
-      amount: Math.round(Math.random() * 2000 + 500),
-      description: `Purchase Request ${i + 1}`,
-      urgency: i < 3 ? 'high' : 'normal',
-      daysWaiting: i + 1
-    }));
+    const allApprovals = [
+      { id: 'APR-2026-1001', date: new Date('2026-03-08'), requester: 'bendrulat@keswickchristian.org', division: 'US', department: 'Science', amount: 1200, description: 'Field Trip - Florida Aquarium (Marine Bio)', urgency: 'high', daysWaiting: 5 },
+      { id: 'APR-2026-1002', date: new Date('2026-03-09'), requester: 'nstratis@keswickchristian.org', division: 'US', department: 'Art', amount: 420, description: 'Amazon - Acrylic Paint Set (48 colors) x10', urgency: 'high', daysWaiting: 4 },
+      { id: 'APR-2026-1003', date: new Date('2026-03-10'), requester: 'sneel@keswickchristian.org', division: 'KK', department: 'Kindergarten', amount: 450, description: 'Field Trip - Tampa Zoo (Kindergarten)', urgency: 'high', daysWaiting: 3 },
+      { id: 'APR-2026-1004', date: new Date('2026-03-11'), requester: 'nstratis@keswickchristian.org', division: 'US', department: 'World Languages', amount: 340, description: 'Amazon - Spanish-English Dictionaries x20', urgency: 'normal', daysWaiting: 2 },
+      { id: 'APR-2026-1005', date: new Date('2026-03-11'), requester: 'bendrulat@keswickchristian.org', division: 'US', department: 'Music', amount: 225, description: 'Amazon - Sheet Music: Spring Concert Collection', urgency: 'normal', daysWaiting: 2 },
+      { id: 'APR-2026-1006', date: new Date('2026-03-12'), requester: 'sneel@keswickchristian.org', division: 'KK', department: 'Toddlers', amount: 108, description: 'Amazon - Soft Stacking Rings (set of 12)', urgency: 'normal', daysWaiting: 1 },
+      { id: 'APR-2026-1007', date: new Date('2026-03-12'), requester: 'mtrotter@keswickchristian.org', division: 'AD', department: 'Facilities', amount: 475, description: 'Admin - Maintenance Supplies (HVAC Filters)', urgency: 'normal', daysWaiting: 1 },
+      { id: 'APR-2026-1008', date: new Date('2026-03-13'), requester: 'nstratis@keswickchristian.org', division: 'US', department: 'PE', amount: 210, description: 'Warehouse - Dodgeballs and Cones Set', urgency: 'normal', daysWaiting: 0 },
+      { id: 'APR-2026-1009', date: new Date('2026-03-13'), requester: 'bendrulat@keswickchristian.org', division: 'US', department: 'Bible', amount: 385, description: 'Amazon - Devotional Journals x35', urgency: 'normal', daysWaiting: 0 }
+    ];
+
+    if (!divisions || divisions.length === 0) return allApprovals;
+    return allApprovals.filter(function(a) { return divisions.indexOf(a.division) !== -1; });
   }
 
   getMockDivisionAlerts(divisions) {
-    return [
+    const allAlerts = [
       {
         type: 'warning',
-        message: 'Math department approaching budget limit (85%)',
-        division: divisions[0],
-        timestamp: new Date()
+        message: 'Science department at 85% budget utilization — review remaining allocations',
+        division: 'US',
+        department: 'Science',
+        timestamp: new Date('2026-03-13')
       },
       {
         type: 'info',
-        message: '2 purchase orders pending > 48 hours',
-        division: divisions[0],
-        timestamp: new Date()
+        message: '3 purchase orders pending approval > 72 hours',
+        division: 'US',
+        timestamp: new Date('2026-03-13')
+      },
+      {
+        type: 'info',
+        message: 'Warehouse order processing delayed — expected 48hr turnaround',
+        division: 'LS',
+        timestamp: new Date('2026-03-12')
       }
     ];
+
+    if (!divisions || divisions.length === 0) return allAlerts;
+    return allAlerts.filter(function(a) { return !a.division || divisions.indexOf(a.division) !== -1; });
   }
 
   getMockDepartmentBudget(department) {
+    const budgets = {
+      'Science':          { allocated: 310000, spent: 263500, encumbered: 18600, monthlyBurn: 32937 },
+      'Math':             { allocated: 280000, spent: 173600, encumbered: 14000, monthlyBurn: 21700 },
+      'English':          { allocated: 240000, spent: 115200, encumbered: 9600,  monthlyBurn: 14400 },
+      'History':          { allocated: 220000, spent: 121000, encumbered: 11000, monthlyBurn: 15125 },
+      'Art':              { allocated: 160000, spent: 56000,  encumbered: 6400,  monthlyBurn: 7000 },
+      'Music':            { allocated: 175000, spent: 89250,  encumbered: 8750,  monthlyBurn: 11156 },
+      'PE':               { allocated: 145000, spent: 68150,  encumbered: 5800,  monthlyBurn: 8519 },
+      'Media':            { allocated: 195000, spent: 131625, encumbered: 11700, monthlyBurn: 16453 },
+      'Bible':            { allocated: 195000, spent: 120900, encumbered: 9750,  monthlyBurn: 15112 },
+      'World Languages':  { allocated: 180000, spent: 79200,  encumbered: 7200,  monthlyBurn: 9900 },
+      'Grade 1':          { allocated: 290000, spent: 156600, encumbered: 11600, monthlyBurn: 19575 },
+      'Grade 2':          { allocated: 285000, spent: 145350, encumbered: 11400, monthlyBurn: 18169 },
+      'Grade 3':          { allocated: 295000, spent: 162250, encumbered: 14750, monthlyBurn: 20281 },
+      'Grade 4':          { allocated: 280000, spent: 137200, encumbered: 11200, monthlyBurn: 17150 },
+      'Grade 5':          { allocated: 300000, spent: 162000, encumbered: 15000, monthlyBurn: 20250 },
+      'Specials':         { allocated: 250000, spent: 120000, encumbered: 10000, monthlyBurn: 15000 },
+      'Infants':          { allocated: 120000, spent: 48000,  encumbered: 4800,  monthlyBurn: 6000 },
+      'Toddlers':         { allocated: 130000, spent: 54600,  encumbered: 5200,  monthlyBurn: 6825 },
+      'PreK3':            { allocated: 155000, spent: 72850,  encumbered: 6200,  monthlyBurn: 9106 },
+      'PreK4':            { allocated: 170000, spent: 81600,  encumbered: 6800,  monthlyBurn: 10200 },
+      'Kindergarten':     { allocated: 175000, spent: 80500,  encumbered: 7000,  monthlyBurn: 10062 },
+      'Business Office':  { allocated: 125000, spent: 50000,  encumbered: 5000,  monthlyBurn: 6250 },
+      'IT':               { allocated: 135000, spent: 54000,  encumbered: 5400,  monthlyBurn: 6750 },
+      'Facilities':       { allocated: 115000, spent: 40250,  encumbered: 4600,  monthlyBurn: 5031 },
+      'Development':      { allocated: 75000,  spent: 26250,  encumbered: 3000,  monthlyBurn: 3281 }
+    };
+
+    var data = budgets[department] || budgets['Science'];
+    var projectedYearEnd = data.spent + (data.monthlyBurn * 4); // 4 months remaining
     return {
       department: department,
-      fiscalYear: '2024-25',
-      allocated: 250000,
-      spent: 105000,
-      encumbered: 20000,
-      available: 125000,
-      monthlyBurn: 21000,
-      projectedYearEnd: 252000,
-      variance: -2000
+      fiscalYear: '2025-26',
+      allocated: data.allocated,
+      spent: data.spent,
+      encumbered: data.encumbered,
+      available: data.allocated - data.spent - data.encumbered,
+      monthlyBurn: data.monthlyBurn,
+      projectedYearEnd: projectedYearEnd,
+      variance: data.allocated - projectedYearEnd
     };
   }
 
   getMockTACBreakdown(departments) {
+    var breakdown = {
+      technology: { allocated: 0, spent: 0, available: 0 },
+      activities: { allocated: 0, spent: 0, available: 0 },
+      consumables: { allocated: 0, spent: 0, available: 0 }
+    };
+
+    // TAC splits per department (deterministic lookup)
+    var tacByDept = {
+      'Science':     { technology: { a: 18000, s: 10800 }, activities: { a: 8000,  s: 4800  }, consumables: { a: 6500, s: 3900  } },
+      'Math':        { technology: { a: 15000, s: 9000  }, activities: { a: 5000,  s: 3000  }, consumables: { a: 5000, s: 3000  } },
+      'English':     { technology: { a: 8000,  s: 4000  }, activities: { a: 4000,  s: 2000  }, consumables: { a: 6000, s: 3600  } },
+      'History':     { technology: { a: 7000,  s: 3500  }, activities: { a: 6000,  s: 3600  }, consumables: { a: 4000, s: 2400  } },
+      'Art':         { technology: { a: 5000,  s: 1750  }, activities: { a: 3000,  s: 1050  }, consumables: { a: 8000, s: 2800  } },
+      'Music':       { technology: { a: 9000,  s: 4590  }, activities: { a: 5000,  s: 2550  }, consumables: { a: 3000, s: 1530  } },
+      'PE':          { technology: { a: 3000,  s: 1410  }, activities: { a: 7000,  s: 3290  }, consumables: { a: 4000, s: 1880  } },
+      'Media':       { technology: { a: 16000, s: 10720 }, activities: { a: 3000,  s: 2010  }, consumables: { a: 2000, s: 1340  } },
+      'Bible':       { technology: { a: 6000,  s: 3720  }, activities: { a: 4000,  s: 2480  }, consumables: { a: 3000, s: 1860  } },
+      'World Languages': { technology: { a: 8000, s: 3520 }, activities: { a: 3000, s: 1320 }, consumables: { a: 3000, s: 1320 } }
+    };
+    // Default fallback for departments not listed
+    var defaultTac = { technology: { a: 5000, s: 2500 }, activities: { a: 3000, s: 1500 }, consumables: { a: 2000, s: 1000 } };
+
+    var total = 0;
+    (departments || ['Science']).forEach(function(dept) {
+      var d = tacByDept[dept] || defaultTac;
+      breakdown.technology.allocated += d.technology.a;
+      breakdown.technology.spent += d.technology.s;
+      breakdown.activities.allocated += d.activities.a;
+      breakdown.activities.spent += d.activities.s;
+      breakdown.consumables.allocated += d.consumables.a;
+      breakdown.consumables.spent += d.consumables.s;
+      total += d.technology.a + d.activities.a + d.consumables.a;
+    });
+
+    breakdown.technology.available = breakdown.technology.allocated - breakdown.technology.spent;
+    breakdown.activities.available = breakdown.activities.allocated - breakdown.activities.spent;
+    breakdown.consumables.available = breakdown.consumables.allocated - breakdown.consumables.spent;
+
     return {
-      total: 50000,
-      byCategory: {
-        technology: { allocated: 27500, spent: 11550, available: 15950 },
-        activities: { allocated: 12500, spent: 5250, available: 7250 },
-        consumables: { allocated: 10000, spent: 4200, available: 5800 }
-      }
+      total: total,
+      byCategory: breakdown
     };
   }
 
   getMockDepartmentSpending(departments) {
+    // Deterministic monthly spending with seasonal pattern
     return {
       monthly: [
-        { month: 'Aug', budget: 20833, actual: 18000 },
-        { month: 'Sep', budget: 20833, actual: 22000 },
-        { month: 'Oct', budget: 20833, actual: 21000 },
-        { month: 'Nov', budget: 20833, actual: 19500 },
-        { month: 'Dec', budget: 20833, actual: 24500 }
+        { month: 'Jul', budget: 20833, actual: 12500 },
+        { month: 'Aug', budget: 20833, actual: 32800 },
+        { month: 'Sep', budget: 20833, actual: 28500 },
+        { month: 'Oct', budget: 20833, actual: 22100 },
+        { month: 'Nov', budget: 20833, actual: 18900 },
+        { month: 'Dec', budget: 20833, actual: 11200 },
+        { month: 'Jan', budget: 20833, actual: 24600 },
+        { month: 'Feb', budget: 20833, actual: 21400 }
       ],
       byVendor: [
-        { vendor: 'Amazon', amount: 35000, percentage: 33.3 },
-        { vendor: 'Staples', amount: 25000, percentage: 23.8 },
-        { vendor: 'Apple', amount: 20000, percentage: 19.0 },
-        { vendor: 'Other', amount: 25000, percentage: 23.8 }
+        { vendor: 'Amazon',              amount: 42500, percentage: 30.2 },
+        { vendor: 'Carolina Biological', amount: 28000, percentage: 19.9 },
+        { vendor: 'Pearson',             amount: 22000, percentage: 15.6 },
+        { vendor: 'County Warehouse',    amount: 18500, percentage: 13.1 },
+        { vendor: 'CDW',                 amount: 15000, percentage: 10.6 },
+        { vendor: 'Other',               amount: 14900, percentage: 10.6 }
       ]
     };
   }
 
   getMockDepartmentComparison(department) {
-    return {
-      currentYear: {
-        allocated: 250000,
-        spent: 105000,
-        utilization: 42
+    var comparisons = {
+      'Science': {
+        currentYear:  { allocated: 310000, spent: 263500, utilization: 85 },
+        previousYear: { allocated: 295000, spent: 278300, utilization: 94.3 },
+        variance:     { budget: 15000, spending: -14800, efficiency: 'improved' }
       },
-      previousYear: {
-        allocated: 240000,
-        spent: 238000,
-        utilization: 99.2
+      'Math': {
+        currentYear:  { allocated: 280000, spent: 173600, utilization: 62 },
+        previousYear: { allocated: 265000, spent: 251750, utilization: 95.0 },
+        variance:     { budget: 15000, spending: -78150, efficiency: 'improved' }
       },
-      variance: {
-        budget: 10000,
-        spending: -133000,
-        efficiency: 'improved'
+      'English': {
+        currentYear:  { allocated: 240000, spent: 115200, utilization: 48 },
+        previousYear: { allocated: 230000, spent: 218500, utilization: 95.0 },
+        variance:     { budget: 10000, spending: -103300, efficiency: 'improved' }
       }
     };
+
+    var defaultComparison = {
+      currentYear:  { allocated: 200000, spent: 104000, utilization: 52 },
+      previousYear: { allocated: 190000, spent: 180500, utilization: 95.0 },
+      variance:     { budget: 10000, spending: -76500, efficiency: 'improved' }
+    };
+
+    return comparisons[department] || defaultComparison;
   }
 
   getMockPrincipalDashboard() {
@@ -2182,19 +2453,15 @@ class KeswickDashboardService {
       return {
         summary: this.getMockExecutiveDashboard().tacSummary,
         details: {
-          byDivision: Object.keys(CONFIG.DIVISIONS).map(div => ({
-            division: div,
-            name: CONFIG.DIVISIONS[div].name,
-            students: 300,
-            totalFees: 375000,
-            allocated: 356250,
-            spent: 150000,
-            available: 206250
-          })),
+          byDivision: [
+            { division: 'US', name: 'Upper School',    students: 382, totalFees: 471250, allocated: 447688, spent: 236000, available: 211688 },
+            { division: 'LS', name: 'Lower School',    students: 346, totalFees: 225000, allocated: 213750, spent: 112500, available: 101250 },
+            { division: 'KK', name: 'Keswick Kids',    students: 206, totalFees: 128750, allocated: 122312, spent: 64300,  available: 58012 }
+          ],
           byCategory: {
-            technology: { percentage: 55, amount: 440000 },
-            activities: { percentage: 25, amount: 200000 },
-            consumables: { percentage: 20, amount: 160000 }
+            technology: { percentage: 55, amount: 430000 },
+            activities: { percentage: 25, amount: 196000 },
+            consumables: { percentage: 20, amount: 157750 }
           }
         }
       };

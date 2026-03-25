@@ -2,11 +2,41 @@
 <html>
 <head>
   <meta charset="UTF-8">
+  <link href="https://fonts.googleapis.com/css2?family=Bonheur+Royale&display=swap" rel="stylesheet">
   <style>
-/* Page Setup */
+:root {
+  --logo-green: #13381f;
+}
+
 @page {
-  size: 8.5in 11in;
-  margin: 0.5in;
+  size: letter;
+  margin: 0.75in;
+  counter-increment: page;
+
+  @bottom-left {
+    content: "Page " counter(page) " of " counter(pages);
+    font-family: 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
+    font-size: 7pt;
+    color: var(--logo-green);
+    font-weight: 600;
+    border-top: 1px solid var(--logo-green);
+    padding-top: 8px;
+  }
+
+  @bottom-center {
+    content: "Keswick Christian School Purchase Order System";
+    font-family: 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
+    font-size: 7pt;
+    color: var(--logo-green);
+    border-top: 1px solid var(--logo-green);
+    padding-top: 8px;
+  }
+
+  @bottom-right {
+    content: "";
+    border-top: 1px solid var(--logo-green);
+    padding-top: 8px;
+  }
 }
 
 * {
@@ -16,467 +46,461 @@
 }
 
 body {
-  font-family: 'Segoe UI', -apple-system, Arial, sans-serif;
-  font-size: 10pt;
+  font-family: 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
+  font-size: 9pt;
   line-height: 1.4;
   color: #333;
+  background: #f0f0f0;
+}
+
+.page-container {
+  width: 100%;
+  margin: 20px auto;
   background: white;
+  padding: 0.75in;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.15);
   position: relative;
 }
 
-/* Watermark - Visible */
+/* Watermark */
 .watermark {
-  position: fixed;
+  position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  opacity: 0.08;
-  pointer-events: none;
+  opacity: 0.04;
   z-index: 0;
+  pointer-events: none;
 }
-.watermark img {
-  width: 400px;
-  height: auto;
-}
+.watermark img { width: 400px; }
 
-/* Header - Green Theme for Consistency */
+/* Header - Three-section layout */
 .header {
-  background: linear-gradient(135deg, #1B5E20 0%, #2E7D32 100%);
-  padding: 20px 24px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-  border-radius: 0 0 8px 8px;
-}
-
-.logo-section {
-  display: flex;
-  align-items: center;
-}
-
-.logo {
-  height: 40px;
-  width: auto;
-  filter: brightness(0) invert(1);
-}
-
-.header-right {
-  text-align: right;
-}
-
-.order-type {
-  color: white;
-  font-size: 20pt;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
-}
-
-.order-subtype {
-  color: rgba(255,255,255,0.85);
-  font-size: 10pt;
-  margin-top: 4px;
-}
-
-/* Warehouse Notice Banner */
-.warehouse-notice {
-  background: linear-gradient(135deg, #E8F5E9 0%, #C8E6C9 100%);
-  border-left: 4px solid #1B5E20;
-  padding: 12px 16px;
-  border-radius: 0 6px 6px 0;
-  margin-bottom: 20px;
-  font-size: 10pt;
-  color: #1B5E20;
-  font-weight: 500;
-}
-
-.warehouse-notice strong {
-  color: #1B5E20;
-}
-
-/* Content Container */
-.content {
-  padding: 0 8px;
+  margin-bottom: 18px;
+  padding-bottom: 12px;
   position: relative;
   z-index: 1;
 }
 
-/* Info Grid */
-.info-grid {
+.header-top {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-bottom: 20px;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  column-gap: 40px;
+  margin-bottom: 18px;
 }
 
-.info-card {
-  background: #f8f9fa;
-  border-radius: 6px;
-  padding: 14px 16px;
-  border-left: 4px solid #1B5E20;
+/* Left: School name image */
+.school-name-img {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+}
+.school-name-img img {
+  height: 81px;
+  width: auto;
 }
 
-.info-card h3 {
-  color: #1B5E20;
-  font-size: 11pt;
+/* Center: Shield/crest image */
+.shield-crest {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+}
+.shield-crest img {
+  height: 102px;
+  width: auto;
+}
+
+/* Right: Warehouse Order text */
+.invoice-title {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  text-align: right;
+}
+
+.invoice-title-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.invoice-title-text .main-word {
+  font-family: 'Lucida Bright', 'Lucida Serif', Georgia, serif;
+  font-size: 32pt;
   font-weight: 600;
-  margin-bottom: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  color: #13381f;
+  line-height: 1.1;
+  margin-bottom: 0px;
+  letter-spacing: 0.8px;
 }
 
-.info-row {
+.invoice-title-text .sub-word {
+  font-family: 'Lucida Bright', 'Lucida Serif', Georgia, serif;
+  font-size: 32pt;
+  font-weight: 600;
+  color: #13381f;
+  line-height: 1.1;
+  letter-spacing: 0.8px;
+}
+
+/* Bottom row: Address left, order details right */
+.header-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 40px;
+  margin-top: 15px;
+}
+
+.school-info {
+  font-size: 10pt;
+  color: #333;
+  line-height: 1.7;
+  font-weight: 500;
+  flex: 1;
+  max-width: 45%;
+}
+
+.invoice-details {
+  text-align: right;
+  font-size: 10pt;
+  color: #333;
+  line-height: 1.7;
+  flex: 1;
+  max-width: 45%;
+}
+.invoice-details .detail-row {
+  margin-bottom: 3px;
+}
+.invoice-details .label {
+  color: #666;
+  display: inline;
+  font-weight: 400;
+  min-width: 80px;
+  text-align: right;
+}
+.invoice-details .value {
+  color: #000;
+  font-weight: 700;
+  display: inline;
+  margin-left: 8px;
+}
+
+/* Warehouse Notice Banner */
+.warehouse-notice {
+  background: #f0f7f1;
+  border-left: 4px solid var(--logo-green);
+  padding: 10px 15px;
+  border-radius: 0 4px 4px 0;
+  margin-bottom: 20px;
+  font-size: 9pt;
+  color: var(--logo-green);
+  font-weight: 500;
+  position: relative;
+  z-index: 1;
+}
+
+.warehouse-notice strong {
+  color: var(--logo-green);
+}
+
+/* Table */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 15px;
+  position: relative;
+  z-index: 1;
+}
+
+thead {
+  display: table-header-group;
+}
+
+thead th {
+  background: #f5f5f5;
+  border-top: 2px solid var(--logo-green);
+  border-bottom: 2px solid var(--logo-green);
+  padding: 10px 8px;
+  text-align: left;
+  font-size: 8pt;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #333;
+}
+
+thead th.right { text-align: right; }
+thead th.center { text-align: center; }
+
+tbody tr {
+  page-break-inside: avoid;
+}
+
+tbody td {
+  padding: 8px;
+  border-bottom: 1px solid #eee;
+  vertical-align: top;
+  font-size: 9pt;
+}
+
+td.item-id {
+  width: 85px;
+  font-family: 'Consolas', monospace;
+  font-size: 8pt;
+  color: var(--logo-green);
+  font-weight: 500;
+}
+td.description { }
+td.qty { width: 60px; text-align: center; }
+td.unit-price { width: 80px; text-align: right; font-family: monospace; }
+td.amount { width: 80px; text-align: right; font-family: monospace; font-weight: 500; }
+
+/* Totals & Signatures */
+.footer-section {
+  margin-top: 20px;
+  position: relative;
+  z-index: 1;
+}
+
+.totals {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 35px;
+}
+
+.totals-box {
+  width: 200px;
+  border-top: 2px solid var(--logo-green);
+  padding-top: 8px;
+}
+
+.totals-row {
   display: flex;
   justify-content: space-between;
   padding: 5px 0;
-  border-bottom: 1px dotted #ddd;
-}
-
-.info-row:last-child {
-  border-bottom: none;
-}
-
-.info-label {
-  color: #666;
-  font-size: 9pt;
-}
-
-.info-value {
-  font-weight: 600;
-  color: #333;
-  font-size: 9pt;
-}
-
-.info-value.highlight {
-  color: #1B5E20;
-  font-family: 'Consolas', monospace;
-}
-
-/* Section Titles */
-.section-title {
-  color: #1B5E20;
-  font-size: 12pt;
-  font-weight: 600;
-  padding-bottom: 8px;
-  border-bottom: 2px solid #1B5E20;
-  margin-bottom: 12px;
-}
-
-/* Items Table */
-.items-section {
-  margin-bottom: 20px;
-}
-
-.items-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 9pt;
-}
-
-.items-table thead th {
-  background: linear-gradient(135deg, #1B5E20 0%, #2E7D32 100%);
-  color: white;
-  padding: 10px 12px;
-  text-align: left;
-  font-weight: 600;
-  font-size: 9pt;
-}
-
-.items-table thead th.id-col {
-  width: 80px;
-}
-
-.items-table thead th.qty-col {
-  width: 70px;
-  text-align: center;
-}
-
-.items-table thead th.price-col {
-  width: 90px;
-  text-align: right;
-}
-
-.items-table tbody td {
-  padding: 10px 12px;
-  border-bottom: 1px solid #eee;
-}
-
-.items-table tbody td.id-col {
-  font-family: 'Consolas', monospace;
-  color: #1B5E20;
-  font-weight: 600;
-}
-
-.items-table tbody td.qty-col {
-  text-align: center;
-}
-
-.items-table tbody td.price-col {
-  text-align: right;
-  font-weight: 600;
-}
-
-.items-table tbody tr:hover {
-  background: #f9f9f9;
-}
-
-/* Total Section */
-.total-section {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 24px;
-}
-
-.total-box {
-  background: linear-gradient(135deg, #1B5E20 0%, #2E7D32 100%);
-  color: white;
-  padding: 14px 24px;
-  border-radius: 6px;
-  text-align: right;
-  min-width: 200px;
-}
-
-.total-label {
-  font-size: 9pt;
-  opacity: 0.9;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.total-amount {
-  font-size: 22pt;
-  font-weight: 700;
-  text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
-}
-
-/* Signature Section */
-.signature-section {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  padding-top: 20px;
-  border-top: 2px solid #e0e0e0;
-  margin-top: auto;
-}
-
-.processed-info {
-  font-size: 9pt;
-  color: #666;
-}
-
-.processed-info .label {
-  font-weight: 600;
-  color: #1B5E20;
-}
-
-.status-badge {
-  display: inline-block;
-  background: #E8F5E9;
-  color: #1B5E20;
-  padding: 4px 12px;
-  border-radius: 12px;
-  font-size: 9pt;
-  font-weight: 600;
-  margin-top: 6px;
-}
-
-.signature-box {
-  text-align: center;
-  min-width: 180px;
-}
-
-.signature-line {
-  width: 100%;
-  height: 50px;
-  border-bottom: 2px solid #333;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  margin-bottom: 6px;
-}
-
-.signature-line img {
-  max-width: 140px;
-  max-height: 45px;
-  object-fit: contain;
-}
-
-.signature-name {
-  font-weight: 700;
-  color: #1B5E20;
   font-size: 10pt;
 }
 
-.signature-title {
-  font-size: 9pt;
-  color: #666;
+.totals-row.grand {
+  font-size: 14pt;
+  font-weight: 700;
 }
 
-.signature-date {
-  font-size: 8pt;
-  color: #999;
-  margin-top: 2px;
+.totals-row.grand .value {
+  color: var(--logo-green);
 }
 
-/* Footer */
-.footer {
-  background: #1B5E20;
-  color: rgba(255,255,255,0.9);
-  padding: 10px 20px;
+/* Signatures */
+.signatures {
+  display: flex;
+  justify-content: space-between;
+  padding-top: 25px;
+  border-top: 2px solid var(--logo-green);
+}
+
+.signature-block {
   text-align: center;
-  font-size: 8pt;
-  margin-top: 20px;
-  border-radius: 8px 8px 0 0;
+  width: 220px;
 }
+
+.signature-label {
+  font-size: 8pt;
+  color: var(--logo-green);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 5px;
+  font-weight: 600;
+}
+
+.signature-line {
+  height: 55px;
+  border-bottom: 2px solid var(--logo-green);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  margin-bottom: 5px;
+}
+
+.signature-line .signature-cursive {
+  font-family: 'Bonheur Royale', cursive;
+  font-size: 28pt;
+  color: #000;
+  line-height: 1;
+}
+
+.signature-line img {
+  max-width: 160px;
+  max-height: 48px;
+  object-fit: contain;
+}
+
+.sig-name { font-weight: 600; font-size: 9pt; }
+.sig-title { font-size: 8pt; color: #666; }
+.sig-date { font-size: 8pt; color: #999; margin-top: 3px; }
 
 /* Print Optimization */
 @media print {
-  body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .header, .items-table thead th, .total-box, .footer, .warehouse-notice {
+  body { background: white; }
+  .page-container {
+    box-shadow: none;
+    margin: 0;
+    padding: 0;
+  }
+  .warehouse-notice {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  thead th {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
 }
-</style>
+  </style>
 </head>
 <body>
-  <!-- Watermark -->
-  <? if (data.sealBase64) { ?>
-  <div class="watermark">
-    <img src="data:image/jpeg;base64,<?= data.sealBase64 ?>" alt="School Seal" />
-  </div>
-  <? } ?>
-
-  <!-- Header -->
-  <div class="header">
-    <div class="logo-section">
-      <? if (data.logoBase64) { ?>
-        <img class="logo" src="data:image/png;base64,<?= data.logoBase64 ?>" alt="Keswick Christian School" />
-      <? } else { ?>
-        <span style="color: white; font-size: 14pt; font-weight: 700;">Keswick Christian School</span>
-      <? } ?>
+  <div class="page-container">
+    <!-- Watermark -->
+    <? if (data.sealBase64) { ?>
+    <div class="watermark">
+      <img src="data:image/jpeg;base64,<?= data.sealBase64 ?>" alt="School Seal" />
     </div>
-    <div class="header-right">
-      <div class="order-type">Warehouse Order</div>
-      <div class="order-subtype">Purchase Order Request</div>
-    </div>
-  </div>
+    <? } ?>
 
-  <div class="content">
+    <!-- Header -->
+    <div class="header">
+      <div class="header-top">
+        <!-- Left: School name image -->
+        <div class="school-name-img">
+          <? if (data.logoBase64 || data.schoolNameBase64) { ?>
+            <img src="data:image/png;base64,<?= data.schoolNameBase64 || data.logoBase64 ?>" alt="Keswick Christian School" />
+          <? } else { ?>
+            <span style="font-family: 'Lucida Bright', Georgia, serif; font-size: 18pt; font-weight: 600; color: var(--logo-green);">Keswick Christian School</span>
+          <? } ?>
+        </div>
+
+        <!-- Center: Shield/crest image -->
+        <div class="shield-crest">
+          <? if (data.crestBase64 || data.sealBase64) { ?>
+            <img src="data:image/png;base64,<?= data.crestBase64 || data.sealBase64 ?>" alt="KCS Crest" />
+          <? } ?>
+        </div>
+
+        <!-- Right: Warehouse Order text -->
+        <div class="invoice-title">
+          <div class="invoice-title-text">
+            <div class="main-word">Warehouse</div>
+            <div class="sub-word">Order</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="header-bottom">
+        <div class="school-info">
+          10101 54th Avenue North<br>
+          St. Petersburg, FL 33708<br>
+          businessoffice@keswickchristian.org<br>
+          (727) 522-2111
+        </div>
+        <div class="invoice-details">
+          <div class="detail-row"><span class="label">Order No:</span> <span class="value"><?= data.orderId || data.orderNumber ?></span></div>
+          <div class="detail-row"><span class="label">Date:</span> <span class="value"><?= data.orderDate || new Date().toLocaleDateString() ?></span></div>
+        </div>
+      </div>
+    </div>
+
     <!-- Warehouse Notice -->
     <div class="warehouse-notice">
       <strong>External Order:</strong> This order is submitted to the <strong>Pinellas County Schools Warehouse</strong> for fulfillment and delivery.
     </div>
 
-    <!-- Info Grid -->
-    <div class="info-grid">
-      <div class="info-card">
-        <h3>Order Details</h3>
-        <div class="info-row">
-          <span class="info-label">Order ID</span>
-          <span class="info-value highlight"><?= data.orderId || data.orderNumber ?></span>
-        </div>
-        <div class="info-row">
-          <span class="info-label">Order Date</span>
-          <span class="info-value"><?= data.orderDate || new Date().toLocaleDateString() ?></span>
-        </div>
-        <div class="info-row">
-          <span class="info-label">Total Items</span>
-          <span class="info-value"><?= (data.aggregatedItems && data.aggregatedItems.length) || (data.lineItems && data.lineItems.length) || 0 ?></span>
+    <!-- Items Table -->
+    <table>
+      <thead>
+        <tr>
+          <th>Item ID</th>
+          <th>Description</th>
+          <th class="center">Quantity</th>
+          <th class="right">Unit Price</th>
+          <th class="right">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        <? if (data.aggregatedItems && data.aggregatedItems.length > 0) { ?>
+          <? data.aggregatedItems.forEach(function(item) { ?>
+        <tr>
+          <td class="item-id"><?= item.itemId || item.id || '-' ?></td>
+          <td class="description"><?= item.description || '' ?></td>
+          <td class="qty"><?= item.quantity || 1 ?></td>
+          <td class="unit-price">$<?= (item.unitPrice || item.price || 0).toFixed(2) ?></td>
+          <td class="amount">$<?= (item.totalAmount || item.totalPrice || (item.quantity || 1) * (item.unitPrice || item.price || 0) || 0).toFixed(2) ?></td>
+        </tr>
+          <? }); ?>
+        <? } else if (data.lineItems && data.lineItems.length > 0) { ?>
+          <? data.lineItems.forEach(function(item, index) { ?>
+        <tr>
+          <td class="item-id">WH-<?= index + 1 ?></td>
+          <td class="description"><?= item.description || '' ?></td>
+          <td class="qty"><?= item.quantity || 1 ?></td>
+          <td class="unit-price">$<?= (item.unitPrice || item.price || 0).toFixed(2) ?></td>
+          <td class="amount">$<?= (item.totalPrice || item.totalAmount || 0).toFixed(2) ?></td>
+        </tr>
+          <? }); ?>
+        <? } else { ?>
+        <tr>
+          <td colspan="5" style="text-align: center; color: #999; font-style: italic; padding: 20px;">No items specified</td>
+        </tr>
+        <? } ?>
+      </tbody>
+    </table>
+
+    <div class="footer-section">
+      <div class="totals">
+        <div class="totals-box">
+          <div class="totals-row">
+            <span>Line items</span>
+            <span class="value"><?= (data.aggregatedItems && data.aggregatedItems.length) || (data.lineItems && data.lineItems.length) || 0 ?></span>
+          </div>
+          <div class="totals-row grand">
+            <span>TOTAL</span>
+            <span class="value">$<?= (data.orderTotal || data.totalAmount || 0).toFixed(2) ?></span>
+          </div>
         </div>
       </div>
 
-      <div class="info-card">
-        <h3>Delivery Info</h3>
-        <div class="info-row">
-          <span class="info-label">Ship To</span>
-          <span class="info-value">Keswick Christian School</span>
+      <!-- Signature Section -->
+      <div class="signatures">
+        <div class="signature-block">
+          <div class="signature-label">Approved By</div>
+          <div class="signature-line">
+            <? if (data.approverSignatureBase64 || data.signatureBase64) { ?>
+              <img src="data:image/png;base64,<?= data.approverSignatureBase64 || data.signatureBase64 ?>" alt="Signature" />
+            <? } else if (data.approverName) { ?>
+              <span class="signature-cursive"><?= data.approverName ?></span>
+            <? } ?>
+          </div>
+          <div class="sig-name"><?= data.approverName || 'Principal' ?></div>
+          <div class="sig-title"><?= data.approverTitle || 'Keswick Christian School' ?></div>
+          <div class="sig-date"><?= data.approvalDate || new Date().toLocaleDateString() ?></div>
         </div>
-        <div class="info-row">
-          <span class="info-label">Address</span>
-          <span class="info-value">10100 4th St N</span>
+
+        <div class="signature-block">
+          <div class="signature-label">Ordered By</div>
+          <div class="signature-line">
+            <? if (data.processorSignatureBase64 || data.businessOfficeSignatureBase64) { ?>
+              <img src="data:image/png;base64,<?= data.processorSignatureBase64 || data.businessOfficeSignatureBase64 ?>" alt="Signature" />
+            <? } else if (data.processorName) { ?>
+              <span class="signature-cursive"><?= data.processorName ?></span>
+            <? } ?>
+          </div>
+          <div class="sig-name"><?= data.processorName || 'Business Office' ?></div>
+          <div class="sig-title"><?= data.processorTitle || 'Business Office' ?></div>
+          <div class="sig-date"><?= data.orderDate || new Date().toLocaleDateString() ?></div>
         </div>
-        <div class="info-row">
-          <span class="info-label">City/State</span>
-          <span class="info-value">St. Petersburg, FL 33716</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Line Items -->
-    <div class="items-section">
-      <h2 class="section-title">Order Items</h2>
-      <table class="items-table">
-        <thead>
-          <tr>
-            <th class="id-col">Item ID</th>
-            <th>Description</th>
-            <th class="qty-col">Quantity</th>
-            <th class="price-col">Price</th>
-          </tr>
-        </thead>
-        <tbody>
-          <? if (data.aggregatedItems && data.aggregatedItems.length > 0) { ?>
-            <? data.aggregatedItems.forEach(function(item) { ?>
-          <tr>
-            <td class="id-col"><?= item.itemId || item.id || '-' ?></td>
-            <td><?= item.description || '' ?></td>
-            <td class="qty-col"><?= item.quantity || 1 ?></td>
-            <td class="price-col">$<?= (item.totalAmount || item.price || 0).toFixed(2) ?></td>
-          </tr>
-            <? }); ?>
-          <? } else if (data.lineItems && data.lineItems.length > 0) { ?>
-            <? data.lineItems.forEach(function(item, index) { ?>
-          <tr>
-            <td class="id-col">WH-<?= index + 1 ?></td>
-            <td><?= item.description || '' ?></td>
-            <td class="qty-col"><?= item.quantity || 1 ?></td>
-            <td class="price-col">$<?= (item.totalPrice || item.totalAmount || 0).toFixed(2) ?></td>
-          </tr>
-            <? }); ?>
-          <? } else { ?>
-          <tr>
-            <td colspan="4" style="text-align: center; color: #999; font-style: italic; padding: 20px;">No items specified</td>
-          </tr>
-          <? } ?>
-        </tbody>
-      </table>
-    </div>
-
-    <!-- Total -->
-    <div class="total-section">
-      <div class="total-box">
-        <div class="total-label">Order Total</div>
-        <div class="total-amount">$<?= (data.orderTotal || data.totalAmount || 0).toFixed(2) ?></div>
-      </div>
-    </div>
-
-    <!-- Signature Section -->
-    <div class="signature-section">
-      <div class="processed-info">
-        <div><span class="label">Processed:</span> <?= new Date().toLocaleDateString() ?></div>
-        <div><span class="label">Order Type:</span> Warehouse</div>
-        <div class="status-badge">AUTHORIZED</div>
-      </div>
-
-      <div class="signature-box">
-        <div class="signature-line">
-          <? if (data.businessOfficeSignatureBase64 || data.signatureBase64) { ?>
-            <img src="data:image/png;base64,<?= data.businessOfficeSignatureBase64 || data.signatureBase64 ?>" alt="Signature" />
-          <? } ?>
-        </div>
-        <div class="signature-name">Business Office</div>
-        <div class="signature-title">Keswick Christian School</div>
-        <div class="signature-date"><?= new Date().toLocaleDateString() ?></div>
       </div>
     </div>
-  </div>
-
-  <!-- Footer -->
-  <div class="footer">
-    Keswick Christian School | 10100 4th St N, St. Petersburg, FL 33716 | (727) 576-5457
   </div>
 </body>
 </html>

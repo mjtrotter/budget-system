@@ -9,10 +9,10 @@
 // GLOBAL CONFIGURATION WITH ACTUAL IDS
 // ============================================================================
 const CONFIG = {
-  // Spreadsheet IDs - invoicing@keswickchristian.org account
-  BUDGET_HUB_ID: '1wbv44RU18vJXlImWwxf4VRX932LgWCTBEn6JNws9HhQ',
-  AUTOMATED_HUB_ID: '1CfktVXDNTY499U7zgkBVJ0DyBePH_BsYJeMtwyaxolM',
-  MANUAL_HUB_ID: '1-t7YnyVvk0vxqbKGNteNHOQ92XOJNme4eJPjxVRVI5M',
+  // Spreadsheet IDs - OWNED by invoicing@keswickchristian.org
+  BUDGET_HUB_ID: '1GpCs2p3dra7xf68Ezz-FSsIScqtc7A62h95FIDc-mKY',
+  AUTOMATED_HUB_ID: '1nYl89UUBtk4U1CpcVtX0p3V6wZkCkKD8XtR1eWNza5E',
+  MANUAL_HUB_ID: '1MxYNCHZD1SsqcB2oeX5FEgddA6pFRyK-0foCT8SZjYw',
   
   // Invoice Configuration - CONFIGURED
   INVOICE_ROOT_FOLDER_ID: '1a6fw86-zYsTL75f4zkkgYPgh2sSxkNR5',
