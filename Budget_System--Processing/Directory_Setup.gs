@@ -55,7 +55,7 @@ function updateAllApproversByDivision() {
     let newApprover;
 
     // Check if this is an admin user (self-approving)
-    if (division === 'AD' || division === 'Admin' || division === 'Administration') {
+    if (division === 'AD' || division === 'Admin' || division === 'Admin') {
       newApprover = email; // Self-approve
     } else {
       // Map division to approver
@@ -259,7 +259,7 @@ function ensureApproversInDirectory() {
       firstName: 'Matt',
       lastName: 'Trotter',
       role: 'Administrator',
-      department: 'Administration',
+      department: 'Admin',
       division: 'AD',
       approver: 'mtrotter@keswickchristian.org', // Self
       budgetAllocated: 10000,
@@ -274,7 +274,7 @@ function ensureApproversInDirectory() {
       firstName: 'Nick',
       lastName: 'Stratis',
       role: 'Administrator',
-      department: 'Administration',
+      department: 'Admin',
       division: 'AD',
       approver: 'nstratis@keswickchristian.org', // Self
       budgetAllocated: 10000,
@@ -289,7 +289,7 @@ function ensureApproversInDirectory() {
       firstName: 'Sherilyn',
       lastName: 'Neel',
       role: 'Business Office',
-      department: 'Administration',
+      department: 'Admin',
       division: 'AD',
       approver: 'sneel@keswickchristian.org', // Self
       budgetAllocated: 10000,
@@ -304,7 +304,7 @@ function ensureApproversInDirectory() {
       firstName: 'Beth',
       lastName: 'Endrulat',
       role: 'CFO',
-      department: 'Administration',
+      department: 'Admin',
       division: 'AD',
       approver: 'bendrulat@keswickchristian.org', // Self
       budgetAllocated: 10000,

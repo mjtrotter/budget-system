@@ -596,7 +596,7 @@ function generateCompleteFallbackData(role = 'executive') {
       },
       {
         division: 'AD',
-        name: 'Administration',
+        name: 'Admin',
         allocated: 400000,
         spent: 168000,
         encumbered: 32000,
@@ -693,7 +693,7 @@ function generateDemoTransactions(count) {
   const vendors = ['Amazon', 'Staples', 'Apple', 'Best Buy', 'Office Depot'];
   const statuses = ['Approved', 'Pending', 'Processing'];
   const divisions = ['US', 'LS', 'KK', 'AD'];
-  const departments = ['Math', 'Science', 'English', 'Elementary', 'Administration'];
+  const departments = ['Math', 'Science', 'English', 'Elementary', 'Admin'];
   
   return Array.from({ length: count }, (_, i) => ({
     transactionId: `TRX-2024-${(1000 + i).toString().padStart(4, '0')}`,
@@ -862,7 +862,7 @@ function getDepartmentsByDivision(divisionCode) {
       'US': ['Math', 'Science', 'English', 'History', 'Foreign Language', 'Fine Arts', 'Athletics'],
       'LS': ['Elementary', 'Art', 'Music', 'PE', 'Library'],
       'KK': ['Keswick Kids', 'Early Childhood'],
-      'AD': ['Administration', 'Finance', 'HR', 'Facilities', 'IT']
+      'AD': ['Admin', 'Finance', 'HR', 'Facilities', 'IT']
     };
 
     const depts = divisionDepartments[divisionCode] || [];

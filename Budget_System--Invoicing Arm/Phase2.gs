@@ -50,7 +50,7 @@ const PHASE_2_CONFIG = {
     'Upper School': 'US',
     'Lower School': 'LS', 
     'Keswick Kids': 'KK',
-    'Administration': 'AD',
+    'Admin': 'AD',
     'Admin': 'AD'
   }
 };
@@ -616,7 +616,7 @@ function getDivisionFromTransaction(transaction) {
       if (orgStr.includes('upper')) return 'Upper School';
       if (orgStr.includes('lower')) return 'Lower School';
       if (orgStr.includes('keswick kids') || orgStr.includes('kk')) return 'Keswick Kids';
-      if (orgStr.includes('admin')) return 'Administration';
+      if (orgStr.includes('admin')) return 'Admin';
     }
     
     // Try requestor email domain or department lookup
@@ -628,11 +628,11 @@ function getDivisionFromTransaction(transaction) {
     }
     
     // Default fallback
-    return 'Administration';
+    return 'Admin';
     
   } catch (error) {
     console.error('Error determining division:', error);
-    return 'Administration';
+    return 'Admin';
   }
 }
 
@@ -722,7 +722,7 @@ function getDivisionBudgetInfo(division) {
  */
 function getDivisionCode(divisionName) {
   const nameMap = {
-    'Administration': 'AD',
+    'Admin': 'AD',
     'Upper School': 'US',
     'Lower School': 'LS',
     'Keswick Kids': 'KK'
@@ -737,7 +737,7 @@ function getDivisionCode(divisionName) {
  */
 function getDivisionNameFromCode(code) {
   const codeMap = {
-    'AD': 'Administration',
+    'AD': 'Admin',
     'US': 'Upper School',
     'LS': 'Lower School',
     'KK': 'Keswick Kids'

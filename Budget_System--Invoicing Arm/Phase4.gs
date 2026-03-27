@@ -562,7 +562,7 @@ function groupWarehouseByDivision(transactions) {
   const groups = {};
   
   transactions.forEach(transaction => {
-    const division = transaction.division || 'Administration';
+    const division = transaction.division || 'Admin';
     
     if (!groups[division]) {
       groups[division] = [];
@@ -1800,7 +1800,7 @@ function diagnosticTest() {
         description: 'Diagnostic test'
       }],
       formType: 'Amazon', // Also at group level
-      division: 'Administration',
+      division: 'Admin',
       lineItems: [{
         description: 'Test item',
         quantity: 1,

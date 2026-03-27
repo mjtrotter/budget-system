@@ -85,7 +85,7 @@ The Budget System generates two types of invoices:
 #### Admin
 - **Trigger:** Auto-approved, invoice generated immediately
 - **Content:** Single transaction
-- **Organization:** Administration
+- **Organization:** Admin
 - **Signatures:** Self (the admin) + Beth Endrulat (CFO)
 
 ---

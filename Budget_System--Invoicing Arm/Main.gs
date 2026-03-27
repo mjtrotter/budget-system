@@ -40,7 +40,7 @@ const CONFIG = {
     'Upper School': { name: 'Upper School Principal', title: 'Principal', signatureFileId: null },
     'Lower School': { name: 'Lower School Principal', title: 'Principal', signatureFileId: null },
     'Keswick Kids': { name: 'Keswick Kids Director', title: 'Director', signatureFileId: null },
-    'Administration': { name: 'Business Administrator', title: 'Administrator', signatureFileId: null }
+    'Admin': { name: 'Business Administrator', title: 'Administrator', signatureFileId: null }
   },
   
   // Template Configuration
@@ -363,7 +363,7 @@ function generateInvoiceId(transaction, isReprocess = false) {
       'Upper School': 'US',
       'Lower School': 'LS',
       'Keswick Kids': 'KK',
-      'Administration': 'AD',
+      'Admin': 'AD',
       'Admin': 'AD'
     }[divisionName] || 'AD';
     
@@ -1222,7 +1222,7 @@ function prepareTemplateData(group, template, invoiceId) {
   const divisionBudget = getDivisionBudgetInfo(division);
   
   // Get signature info
-  const signatureInfo = CONFIG.DIVISION_SIGNATURES[division] || CONFIG.DIVISION_SIGNATURES['Administration'];
+  const signatureInfo = CONFIG.DIVISION_SIGNATURES[division] || CONFIG.DIVISION_SIGNATURES['Admin'];
   
   // Build template data
   const templateData = {
@@ -1762,7 +1762,7 @@ function savePDFToDrive(pdfBlob, invoiceId, division) {
  * @return {string} Division name
  */
 function getDivisionFromTransaction(transaction) {
-  if (!transaction) return 'Administration';
+  if (!transaction) return 'Admin';
   
   // Check explicit division field first
   if (transaction.division) return transaction.division;
@@ -1781,7 +1781,7 @@ function getDivisionFromTransaction(transaction) {
   if (dept.includes('lower')) return 'Lower School';
   if (dept.includes('kids')) return 'Keswick Kids';
   
-  return 'Administration';
+  return 'Admin';
 }
 
 /**
@@ -1794,7 +1794,7 @@ function getDivisionCode(divisionName) {
     'Upper School': 'US',
     'Lower School': 'LS',
     'Keswick Kids': 'KK',
-    'Administration': 'AD',
+    'Admin': 'AD',
     'Admin': 'AD'
   };
   return codes[divisionName] || 'AD';

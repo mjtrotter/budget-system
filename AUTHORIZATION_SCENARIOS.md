@@ -261,7 +261,7 @@ Result:
 | Upper School | usprincipal@keswickchristian.org |
 | Lower School | lsprincipal@keswickchristian.org |
 | Keswick Kids | kkprincipal@keswickchristian.org |
-| Administration | mtrotter@keswickchristian.org |
+| Admin | mtrotter@keswickchristian.org |
 
 **Note:** Actual approvers are defined per-user in UserDirectory.Approver column.
 

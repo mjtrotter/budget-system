@@ -524,7 +524,7 @@ td.amount { width: 75px; text-align: right; font-family: monospace; font-weight:
       </div>
 
       <!-- Signature Section -->
-      <div class="signatures">
+      <div class="signatures" <? if (data.isAdmin) { ?>style="justify-content: flex-end;"<? } ?>>
         <div class="signature-block">
           <div class="signature-label">Approved By</div>
           <div class="signature-line">
@@ -539,6 +539,7 @@ td.amount { width: 75px; text-align: right; font-family: monospace; font-weight:
           <div class="sig-date"><?= new Date().toLocaleDateString() ?></div>
         </div>
 
+        <? if (!data.isAdmin) { ?>
         <div class="signature-block">
           <div class="signature-label">Ordered By</div>
           <div class="signature-line">
@@ -552,6 +553,7 @@ td.amount { width: 75px; text-align: right; font-family: monospace; font-weight:
           <div class="sig-title"><?= data.processorTitle || 'Business Office' ?></div>
           <div class="sig-date"><?= new Date().toLocaleDateString() ?></div>
         </div>
+        <? } ?>
       </div>
     </div>
   </div>

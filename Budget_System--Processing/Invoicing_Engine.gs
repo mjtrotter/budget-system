@@ -26,53 +26,57 @@
  */
 function generateInvoiceId(formType, divisionOrId, existingIds = []) {
   const now = new Date();
-  const mmdd = String(now.getMonth() + 1).padStart(2, '0') + String(now.getDate()).padStart(2, '0');
+  const mmdd =
+    String(now.getMonth() + 1).padStart(2, "0") +
+    String(now.getDate()).padStart(2, "0");
 
   // Determine prefix and identifier
   let prefix, identifier;
 
   if (!formType) {
-    formType = 'INV';
+    formType = "INV";
   }
 
   switch (formType.toUpperCase()) {
-    case 'AMAZON':
-      prefix = 'AMZ';
+    case "AMAZON":
+      prefix = "AMZ";
       identifier = divisionOrId; // US, LS, KK
       break;
-    case 'WAREHOUSE':
-    case 'WAREHOUSE_INTERNAL':
-      prefix = 'WHS';
+    case "WAREHOUSE":
+    case "WAREHOUSE_INTERNAL":
+      prefix = "WHS";
       identifier = divisionOrId; // US, LS, KK
       break;
-    case 'WAREHOUSE_EXTERNAL':
-      prefix = 'WHS';
+    case "WAREHOUSE_EXTERNAL":
+      prefix = "WHS";
       identifier = null; // No division for external
       break;
-    case 'FIELD_TRIP':
-      prefix = 'FLD';
+    case "FIELD_TRIP":
+      prefix = "FLD";
       identifier = divisionOrId; // US, LS, KK
       break;
-    case 'CURRICULUM':
-      prefix = 'CUR';
+    case "CURRICULUM":
+      prefix = "CUR";
       identifier = divisionOrId; // MATH, SCIENCE, etc.
       break;
-    case 'ADMIN':
-      prefix = 'ADM';
+    case "ADMIN":
+      prefix = "ADM";
       identifier = divisionOrId; // User initials (MJT, etc.)
       break;
     default:
-      prefix = 'INV';
+      prefix = "INV";
       identifier = divisionOrId;
   }
 
   // Build base ID
-  const baseId = identifier ? `${prefix}-${identifier}-${mmdd}` : `${prefix}-${mmdd}`;
+  const baseId = identifier
+    ? `${prefix}-${identifier}-${mmdd}`
+    : `${prefix}-${mmdd}`;
 
   // Check for existing IDs today and increment if needed
   const todayIds = existingIds
-    .map(id => (id || '').toString())
-    .filter(id => id && id.startsWith(baseId));
+    .map((id) => (id || "").toString())
+    .filter((id) => id && id.startsWith(baseId));
 
   if (todayIds.length === 0) {
     return baseId; // First invoice of the day
@@ -80,14 +84,14 @@ function generateInvoiceId(formType, divisionOrId, existingIds = []) {
 
   // Find highest increment
   let maxIncrement = 1;
-  todayIds.forEach(id => {
+  todayIds.forEach((id) => {
     const match = id.toString().match(/-(\d+)$/);
     if (match) {
       maxIncrement = Math.max(maxIncrement, parseInt(match[1]));
     }
   });
 
-  return `${baseId}-${String(maxIncrement + 1).padStart(2, '0')}`;
+  return `${baseId}-${String(maxIncrement + 1).padStart(2, "0")}`;
 }
 
 /**
@@ -95,50 +99,59 @@ function generateInvoiceId(formType, divisionOrId, existingIds = []) {
  */
 function getUserInitials(email) {
   const budgetHub = SpreadsheetApp.openById(CONFIG.BUDGET_HUB_ID);
-  const userSheet = budgetHub.getSheetByName('UserDirectory');
+  const userSheet = budgetHub.getSheetByName("UserDirectory");
   const data = userSheet.getDataRange().getValues();
 
   for (let i = 1; i < data.length; i++) {
-    if (data[i][0] && data[i][0].toString().toLowerCase() === email.toLowerCase()) {
-      const firstName = data[i][1] || '';
-      const lastName = data[i][2] || '';
-      return (firstName.charAt(0) + lastName.charAt(0)).toUpperCase() || email.split('@')[0].substring(0, 3).toUpperCase();
+    if (
+      data[i][0] &&
+      data[i][0].toString().toLowerCase() === email.toLowerCase()
+    ) {
+      const firstName = data[i][1] || "";
+      const lastName = data[i][2] || "";
+      return (
+        (firstName.charAt(0) + lastName.charAt(0)).toUpperCase() ||
+        email.split("@")[0].substring(0, 3).toUpperCase()
+      );
     }
   }
 
   // Fallback: use first 3 chars of email
-  return email.split('@')[0].substring(0, 3).toUpperCase();
+  return email.split("@")[0].substring(0, 3).toUpperCase();
 }
 
 // ============================================================================
 // BATCH INVOICE GENERATION
 // ============================================================================
 
-
-
 /**
  * Runs Warehouse batch invoicing (called Wednesday)
  */
 function runWarehouseBatch() {
-  console.log('🏪 === WAREHOUSE BATCH INVOICING ===');
+  console.log("🏪 === WAREHOUSE BATCH INVOICING ===");
 
   // Generate internal invoices (by division)
-  const internalResult = runBatchInvoicing('WAREHOUSE_INTERNAL');
+  const internalResult = runBatchInvoicing("WAREHOUSE_INTERNAL");
 
   // Generate external invoice (all combined)
   const externalResult = generateWarehouseExternalInvoice();
 
   // Send combined email to Business Office
-  if ((internalResult && internalResult.success && internalResult.invoices && internalResult.invoices.length > 0) || 
-      (externalResult && externalResult.success && externalResult.fileUrl)) {
-    if (typeof sendWarehouseBatchEmailToBusinessOffice === 'function') {
+  if (
+    (internalResult &&
+      internalResult.success &&
+      internalResult.invoices &&
+      internalResult.invoices.length > 0) ||
+    (externalResult && externalResult.success && externalResult.fileUrl)
+  ) {
+    if (typeof sendWarehouseBatchEmailToBusinessOffice === "function") {
       sendWarehouseBatchEmailToBusinessOffice(internalResult, externalResult);
     }
   }
 
   return {
     internal: internalResult,
-    external: externalResult
+    external: externalResult,
   };
 }
 
@@ -150,16 +163,20 @@ function runBatchInvoicing(formType) {
   try {
     lock.waitLock(30000);
   } catch (e) {
-    console.log('Batch skipped: system busy');
-    return { success: false, error: 'System locked' };
+    console.log("Batch skipped: system busy");
+    return { success: false, error: "System locked" };
   }
 
   try {
     const budgetHub = SpreadsheetApp.openById(CONFIG.BUDGET_HUB_ID);
-    const ledger = budgetHub.getSheetByName('TransactionLedger');
+    const ledger = budgetHub.getSheetByName("TransactionLedger");
 
     if (!ledger) {
-      return { success: true, invoicesGenerated: 0, message: 'No ledger found' };
+      return {
+        success: true,
+        invoicesGenerated: 0,
+        message: "No ledger found",
+      };
     }
 
     const data = ledger.getDataRange().getValues();
@@ -167,19 +184,28 @@ function runBatchInvoicing(formType) {
 
     // Find column indices
     const cols = {
-      transactionId: 0, orderId: 1, processedOn: 2, requestor: 3,
-      approver: 4, organization: 5, form: 6, amount: 7,
-      description: 8, fiscalQuarter: 9, invoiceGenerated: 10,
-      invoiceId: 11, invoiceUrl: 12
+      transactionId: 0,
+      orderId: 1,
+      processedOn: 2,
+      requestor: 3,
+      approver: 4,
+      organization: 5,
+      form: 6,
+      amount: 7,
+      description: 8,
+      fiscalQuarter: 9,
+      invoiceGenerated: 10,
+      invoiceId: 11,
+      invoiceUrl: 12,
     };
 
     // Filter for matching form type, not yet invoiced
-    const formTypeMatch = formType.replace('_INTERNAL', '').toUpperCase();
+    const formTypeMatch = formType.replace("_INTERNAL", "").toUpperCase();
     const pendingTransactions = [];
 
     for (let i = 1; i < data.length; i++) {
       const row = data[i];
-      const rowForm = (row[cols.form] || '').toString().toUpperCase();
+      const rowForm = (row[cols.form] || "").toString().toUpperCase();
       const invoiced = row[cols.invoiceGenerated];
 
       if (rowForm === formTypeMatch && !invoiced) {
@@ -194,28 +220,33 @@ function runBatchInvoicing(formType) {
           form: row[cols.form],
           amount: parseFloat(row[cols.amount]) || 0,
           description: row[cols.description],
-          fiscalQuarter: row[cols.fiscalQuarter]
+          fiscalQuarter: row[cols.fiscalQuarter],
         });
       }
     }
 
     if (pendingTransactions.length === 0) {
-      console.log('No pending transactions to invoice');
+      console.log("No pending transactions to invoice");
       return { success: true, invoicesGenerated: 0 };
     }
 
-    console.log(`Found ${pendingTransactions.length} ${formTypeMatch} transactions to invoice`);
+    console.log(
+      `Found ${pendingTransactions.length} ${formTypeMatch} transactions to invoice`,
+    );
 
     // Group by division
     const byDivision = {};
-    pendingTransactions.forEach(txn => {
-      const div = getDivisionFromOrganization(txn.organization) || 'OTHER';
+    pendingTransactions.forEach((txn) => {
+      const div = getDivisionFromOrganization(txn.organization) || "OTHER";
       if (!byDivision[div]) byDivision[div] = [];
       byDivision[div].push(txn);
     });
 
     // Get existing invoice IDs for today (to handle increments)
-    const existingIds = data.slice(1).map(row => row[cols.invoiceId]).filter(Boolean);
+    const existingIds = data
+      .slice(1)
+      .map((row) => row[cols.invoiceId])
+      .filter(Boolean);
 
     const results = [];
 
@@ -226,35 +257,29 @@ function runBatchInvoicing(formType) {
       const invoiceId = generateInvoiceId(formType, division, existingIds);
       existingIds.push(invoiceId); // Add to list for increment tracking
 
-      console.log(`Generating ${invoiceId} with ${transactions.length} transactions`);
+      console.log(
+        `Generating ${invoiceId} with ${transactions.length} transactions`,
+      );
 
       const result = generateBatchInvoicePDF(transactions, {
         invoiceId: invoiceId,
         formType: formTypeMatch,
         division: division,
-        isExternal: false
+        isExternal: false,
       });
 
       if (result.success) {
         // Update ledger rows and notify requestors
         const notifiedEmails = new Set();
-        transactions.forEach(txn => {
-          ledger.getRange(txn.row, cols.invoiceGenerated + 1).setValue('YES');
+        transactions.forEach((txn) => {
+          ledger.getRange(txn.row, cols.invoiceGenerated + 1).setValue("YES");
           ledger.getRange(txn.row, cols.invoiceId + 1).setValue(invoiceId);
-          ledger.getRange(txn.row, cols.invoiceUrl + 1).setValue(result.fileUrl);
+          ledger
+            .getRange(txn.row, cols.invoiceUrl + 1)
+            .setValue(result.fileUrl);
 
-          // Send invoice-ready notification to each unique requestor
-          const requestorEmail = txn.requestor;
-          if (requestorEmail && !notifiedEmails.has(requestorEmail) && typeof sendInvoiceReadyNotification === 'function') {
-            sendInvoiceReadyNotification(requestorEmail, {
-              transactionId: txn.transactionId,
-              invoiceId: invoiceId,
-              invoiceUrl: result.fileUrl,
-              type: formTypeMatch,
-              amount: txn.amount
-            });
-            notifiedEmails.add(requestorEmail);
-          }
+          // Just record it in the ledger; emailing the invoice is not needed.
+          // (Link is already accessible in their dashboard/hub).
         });
 
         results.push({
@@ -262,71 +287,83 @@ function runBatchInvoicing(formType) {
           division: division,
           transactionCount: transactions.length,
           total: transactions.reduce((sum, t) => sum + t.amount, 0),
-          fileUrl: result.fileUrl
+          fileUrl: result.fileUrl,
         });
       }
     }
 
     console.log(`✅ Generated ${results.length} ${formTypeMatch} invoices`);
-    return { success: true, invoicesGenerated: results.length, invoices: results };
-
+    return {
+      success: true,
+      invoicesGenerated: results.length,
+      invoices: results,
+    };
   } catch (error) {
-    console.error('❌ Batch invoicing failed:', error);
+    console.error("❌ Batch invoicing failed:", error);
     return { success: false, error: error.toString() };
   } finally {
     lock.releaseLock();
   }
 }
 
-
-
 /**
  * Generates the combined external warehouse invoice
  */
 function generateWarehouseExternalInvoice() {
   const budgetHub = SpreadsheetApp.openById(CONFIG.BUDGET_HUB_ID);
-  const ledger = budgetHub.getSheetByName('TransactionLedger');
+  const ledger = budgetHub.getSheetByName("TransactionLedger");
 
-  if (!ledger) return { success: false, error: 'No ledger' };
+  if (!ledger) return { success: false, error: "No ledger" };
 
   const data = ledger.getDataRange().getValues();
 
   // Find warehouse transactions invoiced today (from internal batch)
   const today = new Date();
-  const todayStr = Utilities.formatDate(today, 'America/New_York', 'MMdd');
+  const todayStr = Utilities.formatDate(today, "America/New_York", "MMdd");
 
   const warehouseTransactions = [];
 
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
-    const form = (row[6] || '').toString().toUpperCase();
-    const invoiceId = (row[11] || '').toString();
+    const form = (row[6] || "").toString().toUpperCase();
+    const invoiceId = (row[11] || "").toString();
 
     // Match warehouse transactions invoiced today
-    if (form === 'WAREHOUSE' && invoiceId.includes(`WHS-`) && invoiceId.includes(`-${todayStr}`)) {
+    if (
+      form === "WAREHOUSE" &&
+      invoiceId.includes(`WHS-`) &&
+      invoiceId.includes(`-${todayStr}`)
+    ) {
       warehouseTransactions.push({
         transactionId: row[0],
         requestor: row[3],
         organization: row[5],
         amount: parseFloat(row[7]) || 0,
-        description: row[8]
+        description: row[8],
       });
     }
   }
 
   if (warehouseTransactions.length === 0) {
-    return { success: true, message: 'No warehouse transactions for external invoice' };
+    return {
+      success: true,
+      message: "No warehouse transactions for external invoice",
+    };
   }
 
   const todayForId = new Date();
-  const dateStrShort = Utilities.formatDate(todayForId, 'America/New_York', 'MMddyy');
+  const dateStrShort = Utilities.formatDate(
+    todayForId,
+    "America/New_York",
+    "MMddyy",
+  );
   const invoiceId = `PCW-${dateStrShort}`;
 
   const result = generateBatchInvoicePDF(warehouseTransactions, {
     invoiceId: invoiceId,
-    formType: 'WAREHOUSE',
+    formType: "WAREHOUSE",
     division: null,
-    isExternal: true
+    isExternal: true,
   });
 
   return result;
@@ -347,7 +384,12 @@ function generateWarehouseExternalInvoice() {
  * @param {Object} metadata - Transaction metadata
  * @return {Object} Result with package folder URL
  */
-function createInvoicePackage(internalPdfBlob, uploadedPdfUrl, invoiceId, metadata) {
+function createInvoicePackage(
+  internalPdfBlob,
+  uploadedPdfUrl,
+  invoiceId,
+  metadata,
+) {
   try {
     // Get the storage folder
     const baseFolder = getInvoiceStorageFolder(
@@ -355,7 +397,7 @@ function createInvoicePackage(internalPdfBlob, uploadedPdfUrl, invoiceId, metada
       metadata.division,
       metadata.department,
       null,
-      null
+      null,
     );
 
     // Create transaction-specific folder if there's an uploaded PDF
@@ -370,14 +412,16 @@ function createInvoicePackage(internalPdfBlob, uploadedPdfUrl, invoiceId, metada
     }
 
     // Save internal PO
-    const poFileName = uploadedPdfUrl ? `${invoiceId}_01_Internal_PO.pdf` : `${invoiceId}.pdf`;
+    const poFileName = uploadedPdfUrl
+      ? `${invoiceId}_01_Internal_PO.pdf`
+      : `${invoiceId}.pdf`;
     internalPdfBlob.setName(poFileName);
     const poFile = targetFolder.createFile(internalPdfBlob);
 
     try {
       poFile.setSharing(DriveApp.Access.DOMAIN, DriveApp.Permission.VIEW);
     } catch (e) {
-      console.warn('Could not set PO permissions:', e.message);
+      console.warn("Could not set PO permissions:", e.message);
     }
 
     let receiptFile = null;
@@ -389,23 +433,35 @@ function createInvoicePackage(internalPdfBlob, uploadedPdfUrl, invoiceId, metada
         const fileId = extractFileIdFromUrl(uploadedPdfUrl);
         if (fileId) {
           const sourceFile = DriveApp.getFileById(fileId);
-          receiptFile = sourceFile.makeCopy(`${invoiceId}_02_Receipt.pdf`, targetFolder);
+          receiptFile = sourceFile.makeCopy(
+            `${invoiceId}_02_Receipt.pdf`,
+            targetFolder,
+          );
 
           try {
-            receiptFile.setSharing(DriveApp.Access.DOMAIN, DriveApp.Permission.VIEW);
+            receiptFile.setSharing(
+              DriveApp.Access.DOMAIN,
+              DriveApp.Permission.VIEW,
+            );
           } catch (e) {
-            console.warn('Could not set receipt permissions:', e.message);
+            console.warn("Could not set receipt permissions:", e.message);
           }
 
           receiptUrl = receiptFile.getUrl();
           console.log(`✅ Copied receipt PDF: ${receiptUrl}`);
         }
       } catch (copyError) {
-        console.error('Failed to copy uploaded PDF:', copyError.message);
+        console.error("Failed to copy uploaded PDF:", copyError.message);
       }
 
       // Create cover sheet
-      createPackageCoverSheet(targetFolder, invoiceId, metadata, poFile.getUrl(), receiptUrl);
+      createPackageCoverSheet(
+        targetFolder,
+        invoiceId,
+        metadata,
+        poFile.getUrl(),
+        receiptUrl,
+      );
     }
 
     const result = {
@@ -414,14 +470,13 @@ function createInvoicePackage(internalPdfBlob, uploadedPdfUrl, invoiceId, metada
       fileId: poFile.getId(),
       fileUrl: poFile.getUrl(),
       packageFolder: uploadedPdfUrl ? targetFolder.getUrl() : null,
-      hasReceipt: !!receiptFile
+      hasReceipt: !!receiptFile,
     };
 
     console.log(`✅ Invoice package created: ${invoiceId}`);
     return result;
-
   } catch (error) {
-    console.error('Failed to create invoice package:', error);
+    console.error("Failed to create invoice package:", error);
     return { success: false, error: error.toString() };
   }
 }
@@ -429,9 +484,15 @@ function createInvoicePackage(internalPdfBlob, uploadedPdfUrl, invoiceId, metada
 /**
  * Creates a cover sheet PDF for the invoice package
  */
-function createPackageCoverSheet(folder, invoiceId, metadata, poUrl, receiptUrl) {
+function createPackageCoverSheet(
+  folder,
+  invoiceId,
+  metadata,
+  poUrl,
+  receiptUrl,
+) {
   const now = new Date();
-  const dateStr = Utilities.formatDate(now, 'America/New_York', 'MMMM d, yyyy');
+  const dateStr = Utilities.formatDate(now, "America/New_York", "MMMM d, yyyy");
 
   const html = `<!DOCTYPE html>
 <html>
@@ -520,11 +581,11 @@ function createPackageCoverSheet(folder, invoiceId, metadata, poUrl, receiptUrl)
     </div>
     <div class="info-row">
       <span class="info-label">Form Type:</span>
-      <span>${metadata.formType || 'N/A'}</span>
+      <span>${metadata.formType || "N/A"}</span>
     </div>
     <div class="info-row">
       <span class="info-label">Division:</span>
-      <span>${metadata.division || 'N/A'}</span>
+      <span>${metadata.division || "N/A"}</span>
     </div>
     <div class="info-row">
       <span class="info-label">Generated:</span>
@@ -543,7 +604,9 @@ function createPackageCoverSheet(folder, invoiceId, metadata, poUrl, receiptUrl)
       </div>
     </div>
 
-    ${receiptUrl ? `
+    ${
+      receiptUrl
+        ? `
     <div class="document-item">
       <div class="doc-title">2. Receipt / Supporting Documentation</div>
       <div class="doc-desc">
@@ -551,7 +614,9 @@ function createPackageCoverSheet(folder, invoiceId, metadata, poUrl, receiptUrl)
         <br><em>File: ${invoiceId}_02_Receipt.pdf</em>
       </div>
     </div>
-    ` : ''}
+    `
+        : ""
+    }
   </div>
 
   <div class="footer">
@@ -561,15 +626,15 @@ function createPackageCoverSheet(folder, invoiceId, metadata, poUrl, receiptUrl)
 </body>
 </html>`;
 
-  const blob = Utilities.newBlob(html, 'text/html', 'cover.html');
-  const pdf = blob.getAs('application/pdf');
+  const blob = Utilities.newBlob(html, "text/html", "cover.html");
+  const pdf = blob.getAs("application/pdf");
   pdf.setName(`${invoiceId}_00_Cover_Sheet.pdf`);
 
   const file = folder.createFile(pdf);
   try {
     file.setSharing(DriveApp.Access.DOMAIN, DriveApp.Permission.VIEW);
   } catch (e) {
-    console.warn('Could not set cover sheet permissions:', e.message);
+    console.warn("Could not set cover sheet permissions:", e.message);
   }
 
   return file;
@@ -583,10 +648,10 @@ function extractFileIdFromUrl(url) {
 
   // Handle various Drive URL formats
   const patterns = [
-    /\/d\/([a-zA-Z0-9_-]+)/,           // /d/FILE_ID/
-    /id=([a-zA-Z0-9_-]+)/,              // id=FILE_ID
-    /\/file\/d\/([a-zA-Z0-9_-]+)/,      // /file/d/FILE_ID
-    /^([a-zA-Z0-9_-]{25,})$/            // Just the ID
+    /\/d\/([a-zA-Z0-9_-]+)/, // /d/FILE_ID/
+    /id=([a-zA-Z0-9_-]+)/, // id=FILE_ID
+    /\/file\/d\/([a-zA-Z0-9_-]+)/, // /file/d/FILE_ID
+    /^([a-zA-Z0-9_-]{25,})$/, // Just the ID
   ];
 
   for (const pattern of patterns) {
@@ -606,19 +671,19 @@ function getUploadedPdfUrl(transactionId, formType) {
 
     // Determine which hub and column based on form type
     switch (formType.toUpperCase()) {
-      case 'FIELD_TRIP':
+      case "FIELD_TRIP":
         hubId = CONFIG.MANUAL_HUB_ID;
-        sheetName = 'FieldTrip';
+        sheetName = "FieldTrip";
         pdfColumn = 7; // Column H (0-indexed: 7)
         break;
-      case 'CURRICULUM':
+      case "CURRICULUM":
         hubId = CONFIG.MANUAL_HUB_ID;
-        sheetName = 'Curriculum';
+        sheetName = "Curriculum";
         pdfColumn = 9; // Column J (0-indexed: 9)
         break;
-      case 'ADMIN':
+      case "ADMIN":
         hubId = CONFIG.MANUAL_HUB_ID;
-        sheetName = 'Admin';
+        sheetName = "Admin";
         pdfColumn = 5; // Column F (0-indexed: 5)
         break;
       default:
@@ -638,7 +703,7 @@ function getUploadedPdfUrl(transactionId, formType) {
       const rowId = data[i][0];
       if (rowId && transactionId.includes(rowId.toString())) {
         const pdfValue = data[i][pdfColumn];
-        if (pdfValue && pdfValue.toString().includes('drive.google.com')) {
+        if (pdfValue && pdfValue.toString().includes("drive.google.com")) {
           return pdfValue.toString();
         }
       }
@@ -646,7 +711,7 @@ function getUploadedPdfUrl(transactionId, formType) {
 
     return null;
   } catch (error) {
-    console.error('Error getting uploaded PDF:', error);
+    console.error("Error getting uploaded PDF:", error);
     return null;
   }
 }
@@ -664,10 +729,10 @@ function generateSingleInvoice(transactionId) {
   console.log(`📄 Generating single invoice for ${transactionId}`);
 
   const budgetHub = SpreadsheetApp.openById(CONFIG.BUDGET_HUB_ID);
-  const ledger = budgetHub.getSheetByName('TransactionLedger');
+  const ledger = budgetHub.getSheetByName("TransactionLedger");
 
   if (!ledger) {
-    return { success: false, error: 'TransactionLedger not found' };
+    return { success: false, error: "TransactionLedger not found" };
   }
 
   const data = ledger.getDataRange().getValues();
@@ -687,7 +752,7 @@ function generateSingleInvoice(transactionId) {
         form: data[i][6],
         amount: parseFloat(data[i][7]) || 0,
         description: data[i][8],
-        fiscalQuarter: data[i][9]
+        fiscalQuarter: data[i][9],
       };
       rowIndex = i + 1;
       break;
@@ -695,54 +760,49 @@ function generateSingleInvoice(transactionId) {
   }
 
   if (!transaction) {
-    return { success: false, error: 'Transaction not found' };
+    return { success: false, error: "Transaction not found" };
   }
 
   // Determine invoice ID based on form type
   const formType = transaction.form.toUpperCase();
   let invoiceId;
 
-  const existingIds = data.slice(1).map(row => row[11]).filter(Boolean);
+  const existingIds = data
+    .slice(1)
+    .map((row) => row[11])
+    .filter(Boolean);
 
   switch (formType) {
-    case 'FIELD_TRIP':
+    case "FIELD_TRIP":
       const ftDivision = getDivisionFromOrganization(transaction.organization);
-      invoiceId = generateInvoiceId('FIELD_TRIP', ftDivision, existingIds);
+      invoiceId = generateInvoiceId("FIELD_TRIP", ftDivision, existingIds);
       break;
-    case 'CURRICULUM':
+    case "CURRICULUM":
       const deptCode = getDepartmentCode(transaction.organization);
-      invoiceId = generateInvoiceId('CURRICULUM', deptCode, existingIds);
+      invoiceId = generateInvoiceId("CURRICULUM", deptCode, existingIds);
       break;
-    case 'ADMIN':
+    case "ADMIN":
       const initials = getUserInitials(transaction.requestor);
-      invoiceId = generateInvoiceId('ADMIN', initials, existingIds);
+      invoiceId = generateInvoiceId("ADMIN", initials, existingIds);
       break;
     default:
-      invoiceId = generateInvoiceId(formType, 'GEN', existingIds);
+      invoiceId = generateInvoiceId(formType, "GEN", existingIds);
   }
 
   // Generate the PDF
   const result = generateSingleInvoicePDF(transaction, {
     invoiceId: invoiceId,
-    formType: formType
+    formType: formType,
   });
 
   if (result.success) {
     // Update ledger
-    ledger.getRange(rowIndex, 11).setValue('YES');
+    ledger.getRange(rowIndex, 11).setValue("YES");
     ledger.getRange(rowIndex, 12).setValue(invoiceId);
     ledger.getRange(rowIndex, 13).setValue(result.fileUrl);
 
     // Notify requestor that their invoice is ready
-    if (transaction.requestor && typeof sendInvoiceReadyNotification === 'function') {
-      sendInvoiceReadyNotification(transaction.requestor, {
-        transactionId: transactionId,
-        invoiceId: invoiceId,
-        invoiceUrl: result.fileUrl,
-        type: formType,
-        amount: transaction.amount
-      });
-    }
+    // (Link is already accessible in their dashboard/hub, emailing is not needed).
   }
 
   return result;
@@ -759,8 +819,12 @@ function generateBatchInvoicePDF(transactions, metadata) {
   try {
     const html = generateBatchInvoiceHTML(transactions, metadata);
 
-    const blob = Utilities.newBlob(html, 'text/html', `${metadata.invoiceId}.html`);
-    const pdf = blob.getAs('application/pdf');
+    const blob = Utilities.newBlob(
+      html,
+      "text/html",
+      `${metadata.invoiceId}.html`,
+    );
+    const pdf = blob.getAs("application/pdf");
     pdf.setName(`${metadata.invoiceId}.pdf`);
 
     // Store in appropriate folder
@@ -769,7 +833,7 @@ function generateBatchInvoicePDF(transactions, metadata) {
       metadata.division,
       null,
       null,
-      null
+      null,
     );
 
     const file = folder.createFile(pdf);
@@ -781,11 +845,10 @@ function generateBatchInvoicePDF(transactions, metadata) {
       success: true,
       invoiceId: metadata.invoiceId,
       fileId: file.getId(),
-      fileUrl: file.getUrl()
+      fileUrl: file.getUrl(),
     };
-
   } catch (error) {
-    console.error('❌ PDF generation failed:', error);
+    console.error("❌ PDF generation failed:", error);
     return { success: false, error: error.toString() };
   }
 }
@@ -796,7 +859,7 @@ function generateBatchInvoicePDF(transactions, metadata) {
  */
 function generateBatchInvoiceHTML(transactions, metadata) {
   const now = new Date();
-  const dateStr = Utilities.formatDate(now, 'America/New_York', 'MMMM d, yyyy');
+  const dateStr = Utilities.formatDate(now, "America/New_York", "MMMM d, yyyy");
 
   // Calculate total and count line items
   let totalAmount = 0;
@@ -806,7 +869,9 @@ function generateBatchInvoiceHTML(transactions, metadata) {
   const divisionName = getDivisionFullName(metadata.division);
 
   // Get signatures
-  const approverSig = metadata.isExternal ? null : getApproverSignatureForDivision(metadata.division);
+  const approverSig = metadata.isExternal
+    ? null
+    : getApproverSignatureForDivision(metadata.division);
   const boSig = getBusinessOfficeSignature(metadata.formType);
 
   // Pre-process: Group transactions by ID so items with same txnId are grouped together
@@ -816,23 +881,31 @@ function generateBatchInvoiceHTML(transactions, metadata) {
   transactions.forEach((txn) => {
     if (!currentGroup || currentGroup.transactionId !== txn.transactionId) {
       // Look up requestor display name from email
-      const requestorName = getDisplayNameFromEmail(txn.requestor) || txn.requestor;
+      const requestorName =
+        getDisplayNameFromEmail(txn.requestor) || txn.requestor;
 
       // Start new group
       currentGroup = {
         transactionId: txn.transactionId,
         requestor: requestorName,
-        items: []
+        items: [],
       };
       groupedTransactions.push(currentGroup);
     }
     // Add item to current group (use txn.items if present, otherwise create single item)
-    const txnItems = txn.items || [{ description: txn.description, quantity: 1, unitPrice: txn.amount, totalPrice: txn.amount }];
-    txnItems.forEach(item => currentGroup.items.push(item));
+    const txnItems = txn.items || [
+      {
+        description: txn.description,
+        quantity: 1,
+        unitPrice: txn.amount,
+        totalPrice: txn.amount,
+      },
+    ];
+    txnItems.forEach((item) => currentGroup.items.push(item));
   });
 
   // Build line items HTML with proper grouping (matching preview structure exactly)
-  let itemsHtml = '';
+  let itemsHtml = "";
 
   groupedTransactions.forEach((group) => {
     const items = group.items;
@@ -840,28 +913,28 @@ function generateBatchInvoiceHTML(transactions, metadata) {
     items.forEach((item, itemIndex) => {
       const qty = item.quantity || 1;
       const unitPrice = item.unitPrice || item.totalPrice || 0;
-      const lineTotal = item.totalPrice || (qty * unitPrice);
+      const lineTotal = item.totalPrice || qty * unitPrice;
       totalAmount += lineTotal;
       totalLineItems++;
 
       // Determine row class for visual grouping (single items get both first and last)
       let rowClass;
       if (items.length === 1) {
-        rowClass = 'txn-group-first txn-group-last';
+        rowClass = "txn-group-first txn-group-last";
       } else if (itemIndex === 0) {
-        rowClass = 'txn-group-first';
+        rowClass = "txn-group-first";
       } else if (itemIndex === items.length - 1) {
-        rowClass = 'txn-group-last';
+        rowClass = "txn-group-last";
       } else {
-        rowClass = 'txn-group-middle';
+        rowClass = "txn-group-middle";
       }
 
       // ALL rows have txn-id and requestor data - CSS hides non-first rows
       itemsHtml += `
         <tr class="${rowClass}">
-          <td class="txn-id">${group.transactionId || ''}</td>
-          ${metadata.isExternal && metadata.formType === 'WAREHOUSE' ? '' : `<td class="requestor">${group.requestor || ''}</td>`}
-          <td class="description">${item.description || ''}</td>
+          <td class="txn-id">${group.transactionId || ""}</td>
+          ${metadata.isExternal && metadata.formType === "WAREHOUSE" ? "" : `<td class="requestor">${group.requestor || ""}</td>`}
+          <td class="description">${item.description || ""}</td>
           <td class="qty">${qty}</td>
           <td class="unit-price">$${unitPrice.toFixed(2)}</td>
           <td class="amount">$${lineTotal.toFixed(2)}</td>
@@ -1028,21 +1101,21 @@ function generateBatchInvoiceHTML(transactions, metadata) {
   </style>
 </head>
 <body>
-  ${sealBase64 ? `<div class="watermark"><img src="data:image/png;base64,${sealBase64}" /></div>` : ''}
+  ${sealBase64 ? `<div class="watermark"><img src="data:image/png;base64,${sealBase64}" /></div>` : ""}
 
   <div class="header">
     <!-- FINAL DESIGN: Three-column balanced layout: school name | crest | purchase order -->
     <div class="header-top">
       <div class="school-name-img">
-        ${schoolNameBase64 ? `<img src="data:image/png;base64,${schoolNameBase64}" alt="Keswick Christian School" />` : ''}
+        ${schoolNameBase64 ? `<img src="data:image/png;base64,${schoolNameBase64}" alt="Keswick Christian School" />` : ""}
       </div>
       <div class="shield-crest">
-        ${crestBase64 ? `<img src="data:image/png;base64,${crestBase64}" alt="KCS Crest" />` : ''}
+        ${crestBase64 ? `<img src="data:image/png;base64,${crestBase64}" alt="KCS Crest" />` : ""}
       </div>
       <div class="invoice-title">
         <div class="invoice-title-text">
-          <div class="main-word">${metadata.isExternal ? 'EXTERNAL' : 'Purchase'}</div>
-          ${metadata.isExternal ? '' : '<div class="sub-word">Order</div>'}
+          <div class="main-word">${metadata.isExternal ? "EXTERNAL" : "Purchase"}</div>
+          ${metadata.isExternal ? "" : '<div class="sub-word">Order</div>'}
         </div>
       </div>
     </div>
@@ -1056,7 +1129,7 @@ function generateBatchInvoiceHTML(transactions, metadata) {
       <div class="invoice-details">
         <div class="detail-row"><span class="label">Order No:</span> <span class="value">${metadata.invoiceId}</span></div>
         <div class="detail-row"><span class="label">Date:</span> <span class="value">${dateStr}</span></div>
-        <div class="detail-row"><span class="label">Division:</span> <span class="value">${metadata.isExternal ? 'All Divisions' : divisionName}</span></div>
+        <div class="detail-row"><span class="label">Division:</span> <span class="value">${metadata.isExternal ? "All Divisions" : divisionName}</span></div>
       </div>
     </div>
   </div>
@@ -1065,7 +1138,7 @@ function generateBatchInvoiceHTML(transactions, metadata) {
     <thead>
       <tr>
         <th>Transaction</th>
-        ${metadata.isExternal && metadata.formType === 'WAREHOUSE' ? '' : '<th>Requestor</th>'}
+        ${metadata.isExternal && metadata.formType === "WAREHOUSE" ? "" : "<th>Requestor</th>"}
         <th>Description</th>
         <th class="center">Qty</th>
         <th class="right">Unit Price</th>
@@ -1092,7 +1165,9 @@ function generateBatchInvoiceHTML(transactions, metadata) {
     </div>
 
     <div class="signatures">
-      ${metadata.isExternal ? `
+      ${
+        metadata.isExternal
+          ? `
         <div class="signature-block">
           <div class="signature-label">Ordered By</div>
           <div class="signature-line">
@@ -1102,14 +1177,15 @@ function generateBatchInvoiceHTML(transactions, metadata) {
           <div class="sig-title">${boSig.title}</div>
           <div class="sig-date">${dateStr}</div>
         </div>
-      ` : `
+      `
+          : `
         <div class="signature-block">
           <div class="signature-label">Approved By</div>
           <div class="signature-line">
-            ${approverSig && approverSig.base64 ? `<img src="data:image/png;base64,${approverSig.base64}" />` : `<span class="signature">${approverSig ? approverSig.name : 'Approver'}</span>`}
+            ${approverSig && approverSig.base64 ? `<img src="data:image/png;base64,${approverSig.base64}" />` : `<span class="signature">${approverSig ? approverSig.name : "Approver"}</span>`}
           </div>
-          <div class="sig-name">${approverSig ? approverSig.name : 'Division Approver'}</div>
-          <div class="sig-title">${approverSig ? approverSig.title : ''}</div>
+          <div class="sig-name">${approverSig ? approverSig.name : "Division Approver"}</div>
+          <div class="sig-title">${approverSig ? approverSig.title : ""}</div>
           <div class="sig-date">${dateStr}</div>
         </div>
 
@@ -1122,7 +1198,8 @@ function generateBatchInvoiceHTML(transactions, metadata) {
           <div class="sig-title">${boSig.title}</div>
           <div class="sig-date">${dateStr}</div>
         </div>
-      `}
+      `
+      }
     </div>
   </div>
 </body>
@@ -1141,25 +1218,35 @@ function generateSingleInvoicePDF(transaction, metadata) {
   try {
     const html = generateSingleInvoiceHTML(transaction, metadata);
 
-    const blob = Utilities.newBlob(html, 'text/html', `${metadata.invoiceId}.html`);
-    const pdf = blob.getAs('application/pdf');
+    const blob = Utilities.newBlob(
+      html,
+      "text/html",
+      `${metadata.invoiceId}.html`,
+    );
+    const pdf = blob.getAs("application/pdf");
     pdf.setName(`${metadata.invoiceId}.pdf`);
 
     // Determine folder path
     const division = getDivisionFromOrganization(transaction.organization);
-    const department = metadata.formType === 'CURRICULUM' ? transaction.organization : null;
+    const department =
+      metadata.formType === "CURRICULUM" ? transaction.organization : null;
 
     // Check for uploaded PDF
-    const uploadedPdfUrl = getUploadedPdfUrl(transaction.transactionId, metadata.formType);
+    const uploadedPdfUrl = getUploadedPdfUrl(
+      transaction.transactionId,
+      metadata.formType,
+    );
 
     if (uploadedPdfUrl) {
-      console.log(`📎 Found uploaded PDF for ${metadata.invoiceId}, creating package...`);
+      console.log(
+        `📎 Found uploaded PDF for ${metadata.invoiceId}, creating package...`,
+      );
 
       // Create invoice package with both PDFs
       return createInvoicePackage(pdf, uploadedPdfUrl, metadata.invoiceId, {
         formType: metadata.formType,
         division: division,
-        department: department
+        department: department,
       });
     }
 
@@ -1169,14 +1256,14 @@ function generateSingleInvoicePDF(transaction, metadata) {
       division,
       department,
       null,
-      null
+      null,
     );
 
     const file = folder.createFile(pdf);
     try {
       file.setSharing(DriveApp.Access.DOMAIN, DriveApp.Permission.VIEW);
     } catch (e) {
-      console.warn('Could not set file permissions:', e.message);
+      console.warn("Could not set file permissions:", e.message);
     }
 
     console.log(`✅ Invoice ${metadata.invoiceId} created: ${file.getUrl()}`);
@@ -1186,11 +1273,10 @@ function generateSingleInvoicePDF(transaction, metadata) {
       invoiceId: metadata.invoiceId,
       fileId: file.getId(),
       fileUrl: file.getUrl(),
-      hasReceipt: false
+      hasReceipt: false,
     };
-
   } catch (error) {
-    console.error('❌ Single invoice PDF failed:', error);
+    console.error("❌ Single invoice PDF failed:", error);
     return { success: false, error: error.toString() };
   }
 }
@@ -1200,14 +1286,16 @@ function generateSingleInvoicePDF(transaction, metadata) {
  */
 function generateSingleInvoiceHTML(transaction, metadata) {
   const now = new Date();
-  const dateStr = Utilities.formatDate(now, 'America/New_York', 'MMMM d, yyyy');
+  const dateStr = Utilities.formatDate(now, "America/New_York", "MMMM d, yyyy");
 
   const logoBase64 = getLogoBase64();
   const sealBase64 = getSealBase64();
 
   // Get requestor info
   const requestorInfo = getUserBudgetInfo(transaction.requestor) || {};
-  const requestorName = `${requestorInfo.firstName || ''} ${requestorInfo.lastName || ''}`.trim() || transaction.requestor;
+  const requestorName =
+    `${requestorInfo.firstName || ""} ${requestorInfo.lastName || ""}`.trim() ||
+    transaction.requestor;
 
   // Get division
   const division = getDivisionFromOrganization(transaction.organization);
@@ -1216,18 +1304,18 @@ function generateSingleInvoiceHTML(transaction, metadata) {
   // Get signatures based on form type
   let approverSig, boSig;
 
-  if (metadata.formType === 'ADMIN') {
+  if (metadata.formType === "ADMIN") {
     // Admin: Self + CFO
     approverSig = getApproverSignatureInfo(transaction.requestor);
-    boSig = getBusinessOfficeSignature('ADMIN');
-  } else if (metadata.formType === 'FIELD_TRIP') {
+    boSig = getBusinessOfficeSignature("ADMIN");
+  } else if (metadata.formType === "FIELD_TRIP") {
     // Field Trip: Division Principal + CFO
     approverSig = getApproverSignatureForDivision(division);
-    boSig = getBusinessOfficeSignature('FIELD_TRIP');
+    boSig = getBusinessOfficeSignature("FIELD_TRIP");
   } else {
     // Curriculum: Division Principal + BO
     approverSig = getApproverSignatureForDivision(division);
-    boSig = getBusinessOfficeSignature('CURRICULUM');
+    boSig = getBusinessOfficeSignature("CURRICULUM");
   }
 
   // Get embedded font data for PDF generation
@@ -1427,11 +1515,11 @@ function generateSingleInvoiceHTML(transaction, metadata) {
   </style>
 </head>
 <body>
-  ${sealBase64 ? `<div class="watermark"><img src="data:image/jpeg;base64,${sealBase64}" /></div>` : ''}
+  ${sealBase64 ? `<div class="watermark"><img src="data:image/jpeg;base64,${sealBase64}" /></div>` : ""}
 
   <div class="header">
     <div class="header-row top">
-      ${logoBase64 ? `<img class="logo" src="data:image/png;base64,${logoBase64}" alt="KCS" />` : ''}
+      ${logoBase64 ? `<img class="logo" src="data:image/png;base64,${logoBase64}" alt="KCS" />` : ""}
       <div class="header-right-top"><h1>INVOICE</h1></div>
     </div>
     <div class="header-row bottom">
@@ -1454,14 +1542,18 @@ function generateSingleInvoiceHTML(transaction, metadata) {
         <span class="info-label">Transaction ID</span>
         <span class="info-value highlight">${transaction.transactionId}</span>
       </div>
-      ${transaction.orderId ? `
+      ${
+        transaction.orderId
+          ? `
       <div class="info-row">
         <span class="info-label">Order ID</span>
         <span class="info-value highlight">${transaction.orderId}</span>
-      </div>` : ''}
+      </div>`
+          : ""
+      }
       <div class="info-row">
         <span class="info-label">Form Type</span>
-        <span class="info-value">${metadata.formType.replace('_', ' ')}</span>
+        <span class="info-value">${metadata.formType.replace("_", " ")}</span>
       </div>
       <div class="info-row">
         <span class="info-label">Fiscal Period</span>
@@ -1477,7 +1569,7 @@ function generateSingleInvoiceHTML(transaction, metadata) {
       </div>
       <div class="info-row">
         <span class="info-label">Department</span>
-        <span class="info-value">${requestorInfo.department || transaction.organization || 'N/A'}</span>
+        <span class="info-value">${requestorInfo.department || transaction.organization || "N/A"}</span>
       </div>
       <div class="info-row">
         <span class="info-label">Division</span>
@@ -1485,7 +1577,7 @@ function generateSingleInvoiceHTML(transaction, metadata) {
       </div>
       <div class="info-row">
         <span class="info-label">Date Submitted</span>
-        <span class="info-value">${transaction.date ? Utilities.formatDate(new Date(transaction.date), 'America/New_York', 'MMM d, yyyy') : dateStr}</span>
+        <span class="info-value">${transaction.date ? Utilities.formatDate(new Date(transaction.date), "America/New_York", "MMM d, yyyy") : dateStr}</span>
       </div>
     </div>
   </div>
@@ -1504,7 +1596,7 @@ function generateSingleInvoiceHTML(transaction, metadata) {
         <tr>
           <td>1</td>
           <td>
-            <div class="item-desc">${transaction.description || 'Purchase'}</div>
+            <div class="item-desc">${transaction.description || "Purchase"}</div>
           </td>
           <td>1</td>
           <td class="amount">$${transaction.amount.toFixed(2)}</td>
@@ -1526,20 +1618,20 @@ function generateSingleInvoiceHTML(transaction, metadata) {
     <div class="signature-block">
       <div class="signature-label">Approved By</div>
       <div class="signature-line">
-        ${approverSig && approverSig.base64 ? `<img src="data:image/png;base64,${approverSig.base64}" />` : `<span class="signature">${approverSig ? approverSig.name : 'Approver'}</span>`}
+        ${approverSig && approverSig.base64 ? `<img src="data:image/png;base64,${approverSig.base64}" />` : `<span class="signature">${approverSig ? approverSig.name : "Approver"}</span>`}
       </div>
-      <div class="sig-name">${approverSig ? approverSig.name : 'Approver'}</div>
-      <div class="sig-title">${approverSig ? approverSig.title : ''}</div>
+      <div class="sig-name">${approverSig ? approverSig.name : "Approver"}</div>
+      <div class="sig-title">${approverSig ? approverSig.title : ""}</div>
       <div class="sig-date">${dateStr}</div>
     </div>
 
     <div class="signature-block">
       <div class="signature-label">Ordered By</div>
       <div class="signature-line">
-        ${boSig && boSig.base64 ? `<img src="data:image/png;base64,${boSig.base64}" />` : `<span class="signature">${boSig ? boSig.name : 'Business Office'}</span>`}
+        ${boSig && boSig.base64 ? `<img src="data:image/png;base64,${boSig.base64}" />` : `<span class="signature">${boSig ? boSig.name : "Business Office"}</span>`}
       </div>
-      <div class="sig-name">${boSig ? boSig.name : 'Business Office'}</div>
-      <div class="sig-title">${boSig ? boSig.title : ''}</div>
+      <div class="sig-name">${boSig ? boSig.name : "Business Office"}</div>
+      <div class="sig-title">${boSig ? boSig.title : ""}</div>
       <div class="sig-date">${dateStr}</div>
     </div>
   </div>
@@ -1559,25 +1651,35 @@ function generateSingleInvoiceHTML(transaction, metadata) {
  * Gets division code from organization name
  */
 function getDivisionFromOrganization(org) {
-  if (!org) return 'AD';
+  if (!org) return "AD";
   const orgLower = org.toString().toLowerCase();
 
-  if (orgLower.includes('upper') || orgLower === 'us') return 'US';
-  if (orgLower.includes('lower') || orgLower === 'ls') return 'LS';
-  if (orgLower.includes('keswick kids') || orgLower === 'kk' || orgLower.includes('prek')) return 'KK';
-  if (orgLower.includes('admin')) return 'AD';
+  if (orgLower.includes("upper") || orgLower === "us") return "US";
+  if (orgLower.includes("lower") || orgLower === "ls") return "LS";
+  if (
+    orgLower.includes("keswick kids") ||
+    orgLower === "kk" ||
+    orgLower.includes("prek")
+  )
+    return "KK";
+  if (orgLower.includes("admin")) return "AD";
 
   // Check if it's a department name - map to division
   const deptDivisionMap = {
-    'math': 'US', 'science': 'US', 'english': 'US', 'history': 'US',
-    'elementary': 'LS', 'kindergarten': 'KK', 'prek': 'KK'
+    math: "US",
+    science: "US",
+    english: "US",
+    history: "US",
+    elementary: "LS",
+    kindergarten: "KK",
+    prek: "KK",
   };
 
   for (const [dept, div] of Object.entries(deptDivisionMap)) {
     if (orgLower.includes(dept)) return div;
   }
 
-  return 'AD';
+  return "AD";
 }
 
 /**
@@ -1585,12 +1687,12 @@ function getDivisionFromOrganization(org) {
  */
 function getDivisionFullName(divCode) {
   const names = {
-    'US': 'Upper School',
-    'LS': 'Lower School',
-    'KK': 'Keswick Kids',
-    'AD': 'Administration'
+    US: "Upper School",
+    LS: "Lower School",
+    KK: "Keswick Kids",
+    AD: "Admin",
   };
-  return names[divCode] || divCode || 'General';
+  return names[divCode] || divCode || "General";
 }
 
 /**
@@ -1598,19 +1700,22 @@ function getDivisionFullName(divCode) {
  * Looks up in UserDirectory, falls back to formatted email prefix
  */
 function getDisplayNameFromEmail(email) {
-  if (!email) return '';
+  if (!email) return "";
 
   try {
     // Try to look up in UserDirectory
     const budgetHub = SpreadsheetApp.openById(CONFIG.BUDGET_HUB_ID);
-    const userSheet = budgetHub.getSheetByName('UserDirectory');
+    const userSheet = budgetHub.getSheetByName("UserDirectory");
 
     if (userSheet) {
       const data = userSheet.getDataRange().getValues();
       for (let i = 1; i < data.length; i++) {
-        if (data[i][0] && data[i][0].toString().toLowerCase() === email.toLowerCase()) {
-          const firstName = data[i][1] || '';
-          const lastName = data[i][2] || '';
+        if (
+          data[i][0] &&
+          data[i][0].toString().toLowerCase() === email.toLowerCase()
+        ) {
+          const firstName = data[i][1] || "";
+          const lastName = data[i][2] || "";
           if (firstName || lastName) {
             return `${firstName} ${lastName}`.trim();
           }
@@ -1622,7 +1727,7 @@ function getDisplayNameFromEmail(email) {
   }
 
   // Fallback: Format email prefix nicely (e.g., "sjohnson" -> "S Johnson")
-  const prefix = email.split('@')[0];
+  const prefix = email.split("@")[0];
   // Try to split on common patterns
   const match = prefix.match(/^([a-z])([a-z]+)$/i);
   if (match) {
@@ -1637,14 +1742,23 @@ function getDisplayNameFromEmail(email) {
  * Gets department code for invoice ID
  */
 function getDepartmentCode(org) {
-  if (!org) return 'GEN';
+  if (!org) return "GEN";
 
   const codes = {
-    'math': 'MATH', 'science': 'SCI', 'english': 'ENG',
-    'history': 'HIST', 'foreign language': 'LANG', 'spanish': 'LANG',
-    'bible': 'BIBL', 'art': 'ART', 'music': 'MUS',
-    'pe': 'PE', 'physical education': 'PE', 'technology': 'TECH',
-    'library': 'LIB', 'media': 'LIB'
+    math: "MATH",
+    science: "SCI",
+    english: "ENG",
+    history: "HIST",
+    "foreign language": "LANG",
+    spanish: "LANG",
+    bible: "BIBL",
+    art: "ART",
+    music: "MUS",
+    pe: "PE",
+    "physical education": "PE",
+    technology: "TECH",
+    library: "LIB",
+    media: "LIB",
   };
 
   const orgLower = org.toString().toLowerCase();
@@ -1660,13 +1774,13 @@ function getDepartmentCode(org) {
  */
 function getApproverSignatureForDivision(division) {
   const approvers = {
-    'US': 'lmortimer@keswickchristian.org',
-    'LS': 'ddumais@keswickchristian.org',
-    'KK': 'scarmichael@keswickchristian.org',
-    'AD': CONFIG.BUSINESS_OFFICE_EMAIL
+    US: "lmortimer@keswickchristian.org",
+    LS: "ddumais@keswickchristian.org",
+    KK: "scarmichael@keswickchristian.org",
+    AD: CONFIG.BUSINESS_OFFICE_EMAIL,
   };
 
-  const email = approvers[division] || approvers['AD'];
+  const email = approvers[division] || approvers["AD"];
   return getApproverSignatureInfo(email);
 }
 
@@ -1677,19 +1791,19 @@ function getBusinessOfficeSignature(formType) {
   const type = formType.toString().toUpperCase();
 
   // CFO signs Field Trip and Admin
-  if (type === 'FIELD_TRIP' || type === 'ADMIN') {
+  if (type === "FIELD_TRIP" || type === "ADMIN") {
     return {
-      name: 'Beth Endrulat',
-      title: 'Chief Financial Officer',
-      base64: getSignatureBase64ForUser('bendrulat@keswickchristian.org')
+      name: "Beth Endrulat",
+      title: "Chief Financial Officer",
+      base64: getSignatureBase64ForUser("bendrulat@keswickchristian.org"),
     };
   }
 
   // BO signs Amazon, Warehouse, Curriculum
   return {
-    name: 'Sherilyn Neel',
-    title: 'Business Office',
-    base64: getSignatureBase64ForUser('sneel@keswickchristian.org')
+    name: "Sherilyn Neel",
+    title: "Business Office",
+    base64: getSignatureBase64ForUser("sneel@keswickchristian.org"),
   };
 }
 
@@ -1698,7 +1812,7 @@ function getBusinessOfficeSignature(formType) {
  */
 function getSignatureBase64ForUser(email) {
   // Try to get from SIGNATURE_CONFIG if defined
-  if (typeof SIGNATURE_CONFIG !== 'undefined' && SIGNATURE_CONFIG[email]) {
+  if (typeof SIGNATURE_CONFIG !== "undefined" && SIGNATURE_CONFIG[email]) {
     const config = SIGNATURE_CONFIG[email];
     if (config.fileId) {
       return getSignatureBase64(config.fileId);
@@ -1712,11 +1826,11 @@ function getSignatureBase64ForUser(email) {
  */
 function getLogoBase64() {
   try {
-    const logoId = '1HDkW_xGIc4jOBH4REnXb3VJcZaEjPHKj'; // KCS text logo
+    const logoId = "1HDkW_xGIc4jOBH4REnXb3VJcZaEjPHKj"; // KCS text logo
     const file = DriveApp.getFileById(logoId);
     return Utilities.base64Encode(file.getBlob().getBytes());
   } catch (e) {
-    console.warn('Could not load logo:', e);
+    console.warn("Could not load logo:", e);
     return null;
   }
 }
@@ -1727,17 +1841,17 @@ function getLogoBase64() {
 function getSealBase64() {
   try {
     // Look for seal in signatures folder or use uploaded seal
-    const folders = DriveApp.getFoldersByName('Budget_System_Signatures');
+    const folders = DriveApp.getFoldersByName("Budget_System_Signatures");
     if (folders.hasNext()) {
       const folder = folders.next();
-      const files = folder.getFilesByName('seal.jpg');
+      const files = folder.getFilesByName("seal.jpg");
       if (files.hasNext()) {
         return Utilities.base64Encode(files.next().getBlob().getBytes());
       }
     }
     return null;
   } catch (e) {
-    console.warn('Could not load seal:', e);
+    console.warn("Could not load seal:", e);
     return null;
   }
 }
@@ -1748,10 +1862,10 @@ function getSealBase64() {
 function getCrestBase64() {
   try {
     // Look for crest in Budget_System_Assets folder
-    const folders = DriveApp.getFoldersByName('Budget_System_Assets');
+    const folders = DriveApp.getFoldersByName("Budget_System_Assets");
     if (folders.hasNext()) {
       const folder = folders.next();
-      const files = folder.getFilesByName('crest.png');
+      const files = folder.getFilesByName("crest.png");
       if (files.hasNext()) {
         return Utilities.base64Encode(files.next().getBlob().getBytes());
       }
@@ -1759,7 +1873,7 @@ function getCrestBase64() {
     // Fallback: use seal as crest
     return getSealBase64();
   } catch (e) {
-    console.warn('Could not load crest:', e);
+    console.warn("Could not load crest:", e);
     return null;
   }
 }
@@ -1770,10 +1884,10 @@ function getCrestBase64() {
 function getSchoolNameBase64() {
   try {
     // Look for school-name in Budget_System_Assets folder
-    const folders = DriveApp.getFoldersByName('Budget_System_Assets');
+    const folders = DriveApp.getFoldersByName("Budget_System_Assets");
     if (folders.hasNext()) {
       const folder = folders.next();
-      const files = folder.getFilesByName('school-name.png');
+      const files = folder.getFilesByName("school-name.png");
       if (files.hasNext()) {
         return Utilities.base64Encode(files.next().getBlob().getBytes());
       }
@@ -1781,7 +1895,7 @@ function getSchoolNameBase64() {
     // Fallback: use existing logo
     return getLogoBase64();
   } catch (e) {
-    console.warn('Could not load school name:', e);
+    console.warn("Could not load school name:", e);
     return null;
   }
 }
@@ -1791,10 +1905,10 @@ function getSchoolNameBase64() {
  */
 function getCurrentFiscalQuarter() {
   const month = new Date().getMonth();
-  if (month >= 6 && month <= 8) return 'Q1';
-  if (month >= 9 && month <= 11) return 'Q2';
-  if (month >= 0 && month <= 2) return 'Q3';
-  return 'Q4';
+  if (month >= 6 && month <= 8) return "Q1";
+  if (month >= 9 && month <= 11) return "Q2";
+  if (month >= 0 && month <= 2) return "Q3";
+  return "Q4";
 }
 
 // ============================================================================
@@ -1807,21 +1921,21 @@ function getCurrentFiscalQuarter() {
 function setupBatchInvoiceTriggers() {
   // Remove existing batch triggers
   const triggers = ScriptApp.getProjectTriggers();
-  triggers.forEach(trigger => {
+  triggers.forEach((trigger) => {
     const fn = trigger.getHandlerFunction();
-    if (fn === 'runWarehouseBatch') {
+    if (fn === "runWarehouseBatch") {
       ScriptApp.deleteTrigger(trigger);
     }
   });
 
   // Warehouse batch - Wednesday 6 AM
-  ScriptApp.newTrigger('runWarehouseBatch')
+  ScriptApp.newTrigger("runWarehouseBatch")
     .timeBased()
     .onWeekDay(ScriptApp.WeekDay.WEDNESDAY)
     .atHour(6)
     .create();
 
-  console.log('✅ Batch invoice triggers created: Warehouse (Wed 6AM)');
+  console.log("✅ Batch invoice triggers created: Warehouse (Wed 6AM)");
 }
 
 // ============================================================================
@@ -1836,48 +1950,192 @@ function testBatchInvoice() {
   // Test data with display names (matching preview format)
   const sampleTransactions = [
     // Group 1: Sarah Johnson - 3 items under same transaction ID
-    { transactionId: 'AMZ-0142', requestor: 'Sarah Johnson', organization: 'Upper School', amount: 74.97, description: 'Science Lab Safety Goggles (12-pack)' },
-    { transactionId: 'AMZ-0142', requestor: 'Sarah Johnson', organization: 'Upper School', amount: 62.50, description: 'Digital Thermometer Set' },
-    { transactionId: 'AMZ-0142', requestor: 'Sarah Johnson', organization: 'Upper School', amount: 37.50, description: 'Beaker Set 250ml (6-pack)' },
+    {
+      transactionId: "AMZ-0142",
+      requestor: "Sarah Johnson",
+      organization: "Upper School",
+      amount: 74.97,
+      description: "Science Lab Safety Goggles (12-pack)",
+    },
+    {
+      transactionId: "AMZ-0142",
+      requestor: "Sarah Johnson",
+      organization: "Upper School",
+      amount: 62.5,
+      description: "Digital Thermometer Set",
+    },
+    {
+      transactionId: "AMZ-0142",
+      requestor: "Sarah Johnson",
+      organization: "Upper School",
+      amount: 37.5,
+      description: "Beaker Set 250ml (6-pack)",
+    },
 
     // Group 2: Mike Chen - 2 items
-    { transactionId: 'AMZ-0145', requestor: 'Mike Chen', organization: 'Upper School', amount: 589.95, description: 'TI-84 Plus CE Graphing Calculator' },
-    { transactionId: 'AMZ-0145', requestor: 'Mike Chen', organization: 'Upper School', amount: 35.00, description: 'Classroom Whiteboard Markers, Bulk' },
+    {
+      transactionId: "AMZ-0145",
+      requestor: "Mike Chen",
+      organization: "Upper School",
+      amount: 589.95,
+      description: "TI-84 Plus CE Graphing Calculator",
+    },
+    {
+      transactionId: "AMZ-0145",
+      requestor: "Mike Chen",
+      organization: "Upper School",
+      amount: 35.0,
+      description: "Classroom Whiteboard Markers, Bulk",
+    },
 
     // Single item transactions
-    { transactionId: 'AMZ-0151', requestor: 'Lisa Park', organization: 'Upper School', amount: 45.99, description: 'HP Printer Paper, 8.5x11, 10 reams' },
+    {
+      transactionId: "AMZ-0151",
+      requestor: "Lisa Park",
+      organization: "Upper School",
+      amount: 45.99,
+      description: "HP Printer Paper, 8.5x11, 10 reams",
+    },
 
     // Group 3: David Wilson - 3 items
-    { transactionId: 'AMZ-0153', requestor: 'David Wilson', organization: 'Upper School', amount: 113.94, description: 'Acrylic Paint Set, 24 colors' },
-    { transactionId: 'AMZ-0153', requestor: 'David Wilson', organization: 'Upper School', amount: 53.94, description: 'Artist Brush Set, 15-piece' },
-    { transactionId: 'AMZ-0153', requestor: 'David Wilson', organization: 'Upper School', amount: 39.24, description: 'Canvas Panel, 11x14, 6-pack' },
+    {
+      transactionId: "AMZ-0153",
+      requestor: "David Wilson",
+      organization: "Upper School",
+      amount: 113.94,
+      description: "Acrylic Paint Set, 24 colors",
+    },
+    {
+      transactionId: "AMZ-0153",
+      requestor: "David Wilson",
+      organization: "Upper School",
+      amount: 53.94,
+      description: "Artist Brush Set, 15-piece",
+    },
+    {
+      transactionId: "AMZ-0153",
+      requestor: "David Wilson",
+      organization: "Upper School",
+      amount: 39.24,
+      description: "Canvas Panel, 11x14, 6-pack",
+    },
 
     // More items for multi-page testing
-    { transactionId: 'AMZ-0155', requestor: 'Emily Davis', organization: 'Upper School', amount: 225.00, description: 'To Kill a Mockingbird, Paperback' },
-    { transactionId: 'AMZ-0156', requestor: 'John Smith', organization: 'Upper School', amount: 89.99, description: 'Document Camera for Classroom' },
-    { transactionId: 'AMZ-0157', requestor: 'Amy Brown', organization: 'Upper School', amount: 149.99, description: 'Laminating Machine' },
-    { transactionId: 'AMZ-0158', requestor: 'Chris Jones', organization: 'Upper School', amount: 29.99, description: 'Stapler Heavy Duty' },
-    { transactionId: 'AMZ-0159', requestor: 'Mary Williams', organization: 'Upper School', amount: 75.00, description: 'Classroom Timer Set' },
-    { transactionId: 'AMZ-0160', requestor: 'Kevin Thomas', organization: 'Upper School', amount: 199.99, description: 'Wireless Presentation Clicker' },
-    { transactionId: 'AMZ-0161', requestor: 'Linda Miller', organization: 'Upper School', amount: 45.50, description: 'Dry Erase Markers, Assorted Colors' },
-    { transactionId: 'AMZ-0162', requestor: 'Robert Garcia', organization: 'Upper School', amount: 189.00, description: 'Scientific Calculator' },
-    { transactionId: 'AMZ-0163', requestor: 'Nancy Martinez', organization: 'Upper School', amount: 65.00, description: 'Protractors and Rulers Set' },
-    { transactionId: 'AMZ-0164', requestor: 'Steve Anderson', organization: 'Upper School', amount: 125.00, description: 'Colored Pencils, Classroom Pack' },
-    { transactionId: 'AMZ-0165', requestor: 'Tina Taylor', organization: 'Upper School', amount: 85.00, description: 'Classroom Headphones' },
-    { transactionId: 'AMZ-0166', requestor: 'William Moore', organization: 'Upper School', amount: 299.99, description: 'Portable Projector' },
-    { transactionId: 'AMZ-0167', requestor: 'Helen Jackson', organization: 'Upper School', amount: 55.00, description: 'Globe, 12-inch Diameter' },
-    { transactionId: 'AMZ-0168', requestor: 'Paul White', organization: 'Upper School', amount: 175.00, description: 'Wall Maps, US and World Set' },
-    { transactionId: 'AMZ-0169', requestor: 'Diana Harris', organization: 'Upper School', amount: 95.00, description: 'Reading Light Set' }
+    {
+      transactionId: "AMZ-0155",
+      requestor: "Emily Davis",
+      organization: "Upper School",
+      amount: 225.0,
+      description: "To Kill a Mockingbird, Paperback",
+    },
+    {
+      transactionId: "AMZ-0156",
+      requestor: "John Smith",
+      organization: "Upper School",
+      amount: 89.99,
+      description: "Document Camera for Classroom",
+    },
+    {
+      transactionId: "AMZ-0157",
+      requestor: "Amy Brown",
+      organization: "Upper School",
+      amount: 149.99,
+      description: "Laminating Machine",
+    },
+    {
+      transactionId: "AMZ-0158",
+      requestor: "Chris Jones",
+      organization: "Upper School",
+      amount: 29.99,
+      description: "Stapler Heavy Duty",
+    },
+    {
+      transactionId: "AMZ-0159",
+      requestor: "Mary Williams",
+      organization: "Upper School",
+      amount: 75.0,
+      description: "Classroom Timer Set",
+    },
+    {
+      transactionId: "AMZ-0160",
+      requestor: "Kevin Thomas",
+      organization: "Upper School",
+      amount: 199.99,
+      description: "Wireless Presentation Clicker",
+    },
+    {
+      transactionId: "AMZ-0161",
+      requestor: "Linda Miller",
+      organization: "Upper School",
+      amount: 45.5,
+      description: "Dry Erase Markers, Assorted Colors",
+    },
+    {
+      transactionId: "AMZ-0162",
+      requestor: "Robert Garcia",
+      organization: "Upper School",
+      amount: 189.0,
+      description: "Scientific Calculator",
+    },
+    {
+      transactionId: "AMZ-0163",
+      requestor: "Nancy Martinez",
+      organization: "Upper School",
+      amount: 65.0,
+      description: "Protractors and Rulers Set",
+    },
+    {
+      transactionId: "AMZ-0164",
+      requestor: "Steve Anderson",
+      organization: "Upper School",
+      amount: 125.0,
+      description: "Colored Pencils, Classroom Pack",
+    },
+    {
+      transactionId: "AMZ-0165",
+      requestor: "Tina Taylor",
+      organization: "Upper School",
+      amount: 85.0,
+      description: "Classroom Headphones",
+    },
+    {
+      transactionId: "AMZ-0166",
+      requestor: "William Moore",
+      organization: "Upper School",
+      amount: 299.99,
+      description: "Portable Projector",
+    },
+    {
+      transactionId: "AMZ-0167",
+      requestor: "Helen Jackson",
+      organization: "Upper School",
+      amount: 55.0,
+      description: "Globe, 12-inch Diameter",
+    },
+    {
+      transactionId: "AMZ-0168",
+      requestor: "Paul White",
+      organization: "Upper School",
+      amount: 175.0,
+      description: "Wall Maps, US and World Set",
+    },
+    {
+      transactionId: "AMZ-0169",
+      requestor: "Diana Harris",
+      organization: "Upper School",
+      amount: 95.0,
+      description: "Reading Light Set",
+    },
   ];
 
   const result = generateBatchInvoicePDF(sampleTransactions, {
-    invoiceId: 'AMZ-US-0212-TEST',
-    formType: 'AMAZON',
-    division: 'US',
-    isExternal: false
+    invoiceId: "AMZ-US-0212-TEST",
+    formType: "AMAZON",
+    division: "US",
+    isExternal: false,
   });
 
-  console.log('Test result:', result);
+  console.log("Test result:", result);
   return result;
 }
 
@@ -1886,24 +2144,24 @@ function testBatchInvoice() {
  */
 function testSingleInvoice() {
   const sampleTransaction = {
-    transactionId: 'FLD-0001',
+    transactionId: "FLD-0001",
     orderId: null,
     date: new Date(),
-    requestor: 'teacher1@keswickchristian.org',
-    approver: 'lmortimer@keswickchristian.org',
-    organization: 'Upper School',
-    form: 'FIELD_TRIP',
-    amount: 450.00,
-    description: 'Museum of Science field trip - 45 students',
-    fiscalQuarter: 'Q3'
+    requestor: "teacher1@keswickchristian.org",
+    approver: "lmortimer@keswickchristian.org",
+    organization: "Upper School",
+    form: "FIELD_TRIP",
+    amount: 450.0,
+    description: "Museum of Science field trip - 45 students",
+    fiscalQuarter: "Q3",
   };
 
   const result = generateSingleInvoicePDF(sampleTransaction, {
-    invoiceId: 'FLD-US-0211-TEST',
-    formType: 'FIELD_TRIP'
+    invoiceId: "FLD-US-0211-TEST",
+    formType: "FIELD_TRIP",
   });
 
-  console.log('Test result:', result);
+  console.log("Test result:", result);
   return result;
 }
 
@@ -1916,42 +2174,42 @@ function testSingleInvoice() {
  * Creates a complete set of invoices in the Budget_System_Invoices folder
  */
 function generateAllDemoInvoices() {
-  console.log('🎯 Generating demo invoices for all form types...');
+  console.log("🎯 Generating demo invoices for all form types...");
   const results = {
     amazon: null,
     warehouse: null,
     warehouseExternal: null,
     fieldTrip: null,
     curriculum: null,
-    admin: null
+    admin: null,
   };
 
   // 1. Amazon Batch Invoice (Upper School)
-  console.log('📦 Generating Amazon batch invoice...');
+  console.log("📦 Generating Amazon batch invoice...");
   results.amazon = generateDemoAmazonInvoice();
 
   // 2. Warehouse Internal Batch Invoice (Lower School)
-  console.log('🏪 Generating Warehouse internal invoice...');
+  console.log("🏪 Generating Warehouse internal invoice...");
   results.warehouse = generateDemoWarehouseInternalInvoice();
 
   // 3. Warehouse External Invoice (Combined)
-  console.log('📋 Generating Warehouse external invoice...');
+  console.log("📋 Generating Warehouse external invoice...");
   results.warehouseExternal = generateDemoWarehouseExternalInvoice();
 
   // 4. Field Trip Single Invoice
-  console.log('🚌 Generating Field Trip invoice...');
+  console.log("🚌 Generating Field Trip invoice...");
   results.fieldTrip = generateDemoFieldTripInvoice();
 
   // 5. Curriculum Single Invoice
-  console.log('📚 Generating Curriculum invoice...');
+  console.log("📚 Generating Curriculum invoice...");
   results.curriculum = generateDemoCurriculumInvoice();
 
   // 6. Admin Single Invoice
-  console.log('🏢 Generating Admin invoice...');
+  console.log("🏢 Generating Admin invoice...");
   results.admin = generateDemoAdminInvoice();
 
-  console.log('✅ Demo invoice generation complete!');
-  console.log('Results:', JSON.stringify(results, null, 2));
+  console.log("✅ Demo invoice generation complete!");
+  console.log("Results:", JSON.stringify(results, null, 2));
 
   return results;
 }
@@ -1961,20 +2219,62 @@ function generateAllDemoInvoices() {
  */
 function generateDemoAmazonInvoice() {
   const transactions = [
-    { transactionId: 'AMZ-DEMO-001', requestor: 'Sarah Johnson', organization: 'Upper School', amount: 299.99, description: 'TI-84 Plus CE Graphing Calculator (5 pack)' },
-    { transactionId: 'AMZ-DEMO-001', requestor: 'Sarah Johnson', organization: 'Upper School', amount: 89.99, description: 'Scientific Calculator (10 pack)' },
-    { transactionId: 'AMZ-DEMO-002', requestor: 'Michael Chen', organization: 'Upper School', amount: 149.95, description: 'Classroom Headphones, Bulk Pack' },
-    { transactionId: 'AMZ-DEMO-003', requestor: 'Emily Davis', organization: 'Upper School', amount: 225.00, description: 'Literature Set - To Kill a Mockingbird (30 copies)' },
-    { transactionId: 'AMZ-DEMO-003', requestor: 'Emily Davis', organization: 'Upper School', amount: 175.50, description: 'Literature Set - The Great Gatsby (30 copies)' },
-    { transactionId: 'AMZ-DEMO-004', requestor: 'Robert Martinez', organization: 'Upper School', amount: 445.00, description: 'Lab Equipment - Microscope Set' },
-    { transactionId: 'AMZ-DEMO-005', requestor: 'Jennifer Wilson', organization: 'Upper School', amount: 85.00, description: 'Art Supplies - Acrylic Paint Set' }
+    {
+      transactionId: "AMZ-DEMO-001",
+      requestor: "Sarah Johnson",
+      organization: "Upper School",
+      amount: 299.99,
+      description: "TI-84 Plus CE Graphing Calculator (5 pack)",
+    },
+    {
+      transactionId: "AMZ-DEMO-001",
+      requestor: "Sarah Johnson",
+      organization: "Upper School",
+      amount: 89.99,
+      description: "Scientific Calculator (10 pack)",
+    },
+    {
+      transactionId: "AMZ-DEMO-002",
+      requestor: "Michael Chen",
+      organization: "Upper School",
+      amount: 149.95,
+      description: "Classroom Headphones, Bulk Pack",
+    },
+    {
+      transactionId: "AMZ-DEMO-003",
+      requestor: "Emily Davis",
+      organization: "Upper School",
+      amount: 225.0,
+      description: "Literature Set - To Kill a Mockingbird (30 copies)",
+    },
+    {
+      transactionId: "AMZ-DEMO-003",
+      requestor: "Emily Davis",
+      organization: "Upper School",
+      amount: 175.5,
+      description: "Literature Set - The Great Gatsby (30 copies)",
+    },
+    {
+      transactionId: "AMZ-DEMO-004",
+      requestor: "Robert Martinez",
+      organization: "Upper School",
+      amount: 445.0,
+      description: "Lab Equipment - Microscope Set",
+    },
+    {
+      transactionId: "AMZ-DEMO-005",
+      requestor: "Jennifer Wilson",
+      organization: "Upper School",
+      amount: 85.0,
+      description: "Art Supplies - Acrylic Paint Set",
+    },
   ];
 
   return generateBatchInvoicePDF(transactions, {
-    invoiceId: 'AMZ-US-DEMO',
-    formType: 'AMAZON',
-    division: 'US',
-    isExternal: false
+    invoiceId: "AMZ-US-DEMO",
+    formType: "AMAZON",
+    division: "US",
+    isExternal: false,
   });
 }
 
@@ -1983,18 +2283,48 @@ function generateDemoAmazonInvoice() {
  */
 function generateDemoWarehouseInternalInvoice() {
   const transactions = [
-    { transactionId: 'WHS-DEMO-001', requestor: 'Amanda Foster', organization: 'Lower School', amount: 45.50, description: 'Copy Paper, 8.5x11, 10 reams' },
-    { transactionId: 'WHS-DEMO-001', requestor: 'Amanda Foster', organization: 'Lower School', amount: 28.75, description: 'Pencils #2, Gross Box' },
-    { transactionId: 'WHS-DEMO-002', requestor: 'Thomas Brown', organization: 'Lower School', amount: 67.25, description: 'Glue Sticks, Bulk Pack' },
-    { transactionId: 'WHS-DEMO-002', requestor: 'Thomas Brown', organization: 'Lower School', amount: 32.00, description: 'Scissors, Safety, 24 pack' },
-    { transactionId: 'WHS-DEMO-003', requestor: 'Karen White', organization: 'Lower School', amount: 89.99, description: 'Construction Paper, Assorted Colors' }
+    {
+      transactionId: "WHS-DEMO-001",
+      requestor: "Amanda Foster",
+      organization: "Lower School",
+      amount: 45.5,
+      description: "Copy Paper, 8.5x11, 10 reams",
+    },
+    {
+      transactionId: "WHS-DEMO-001",
+      requestor: "Amanda Foster",
+      organization: "Lower School",
+      amount: 28.75,
+      description: "Pencils #2, Gross Box",
+    },
+    {
+      transactionId: "WHS-DEMO-002",
+      requestor: "Thomas Brown",
+      organization: "Lower School",
+      amount: 67.25,
+      description: "Glue Sticks, Bulk Pack",
+    },
+    {
+      transactionId: "WHS-DEMO-002",
+      requestor: "Thomas Brown",
+      organization: "Lower School",
+      amount: 32.0,
+      description: "Scissors, Safety, 24 pack",
+    },
+    {
+      transactionId: "WHS-DEMO-003",
+      requestor: "Karen White",
+      organization: "Lower School",
+      amount: 89.99,
+      description: "Construction Paper, Assorted Colors",
+    },
   ];
 
   return generateBatchInvoicePDF(transactions, {
-    invoiceId: 'WHS-LS-DEMO',
-    formType: 'WAREHOUSE',
-    division: 'LS',
-    isExternal: false
+    invoiceId: "WHS-LS-DEMO",
+    formType: "WAREHOUSE",
+    division: "LS",
+    isExternal: false,
   });
 }
 
@@ -2003,20 +2333,48 @@ function generateDemoWarehouseInternalInvoice() {
  */
 function generateDemoWarehouseExternalInvoice() {
   const transactions = [
-    { transactionId: 'WHS-EXT-001', requestor: 'Upper School', organization: 'Upper School', amount: 125.00, description: 'Printer Toner, Black' },
-    { transactionId: 'WHS-EXT-002', requestor: 'Lower School', organization: 'Lower School', amount: 89.50, description: 'Laminating Pouches, 200 count' },
-    { transactionId: 'WHS-EXT-003', requestor: 'Keswick Kids', organization: 'Keswick Kids', amount: 45.75, description: 'Crayons, Classroom Pack' },
-    { transactionId: 'WHS-EXT-004', requestor: 'Administration', organization: 'Administration', amount: 156.00, description: 'Office Supplies - Misc' }
+    {
+      transactionId: "WHS-EXT-001",
+      requestor: "Upper School",
+      organization: "Upper School",
+      amount: 125.0,
+      description: "Printer Toner, Black",
+    },
+    {
+      transactionId: "WHS-EXT-002",
+      requestor: "Lower School",
+      organization: "Lower School",
+      amount: 89.5,
+      description: "Laminating Pouches, 200 count",
+    },
+    {
+      transactionId: "WHS-EXT-003",
+      requestor: "Keswick Kids",
+      organization: "Keswick Kids",
+      amount: 45.75,
+      description: "Crayons, Classroom Pack",
+    },
+    {
+      transactionId: "WHS-EXT-004",
+      requestor: "Admin",
+      organization: "Admin",
+      amount: 156.0,
+      description: "Office Supplies - Misc",
+    },
   ];
 
   const todayForId = new Date();
-  const dateStrShort = Utilities.formatDate(todayForId, 'America/New_York', 'MMddyy');
+  const dateStrShort = Utilities.formatDate(
+    todayForId,
+    "America/New_York",
+    "MMddyy",
+  );
 
   return generateBatchInvoicePDF(transactions, {
     invoiceId: `PCW-${dateStrShort}-DEMO`,
-    formType: 'WAREHOUSE',
+    formType: "WAREHOUSE",
     division: null,
-    isExternal: true
+    isExternal: true,
   });
 }
 
@@ -2025,21 +2383,22 @@ function generateDemoWarehouseExternalInvoice() {
  */
 function generateDemoFieldTripInvoice() {
   const transaction = {
-    transactionId: 'FLD-DEMO-001',
+    transactionId: "FLD-DEMO-001",
     orderId: null,
     date: new Date(),
-    requestor: 'teacher1@keswickchristian.org',
-    approver: 'lmortimer@keswickchristian.org',
-    organization: 'Upper School',
-    form: 'FIELD_TRIP',
-    amount: 1250.00,
-    description: 'Museum of Science & Industry Field Trip - Grade 10 Biology (45 students, includes admission and bus)',
-    fiscalQuarter: getCurrentFiscalQuarter()
+    requestor: "teacher1@keswickchristian.org",
+    approver: "lmortimer@keswickchristian.org",
+    organization: "Upper School",
+    form: "FIELD_TRIP",
+    amount: 1250.0,
+    description:
+      "Museum of Science & Industry Field Trip - Grade 10 Biology (45 students, includes admission and bus)",
+    fiscalQuarter: getCurrentFiscalQuarter(),
   };
 
   return generateSingleInvoicePDF(transaction, {
-    invoiceId: 'FLD-US-DEMO',
-    formType: 'FIELD_TRIP'
+    invoiceId: "FLD-US-DEMO",
+    formType: "FIELD_TRIP",
   });
 }
 
@@ -2048,21 +2407,22 @@ function generateDemoFieldTripInvoice() {
  */
 function generateDemoCurriculumInvoice() {
   const transaction = {
-    transactionId: 'CUR-DEMO-001',
+    transactionId: "CUR-DEMO-001",
     orderId: null,
     date: new Date(),
-    requestor: 'mathhead@keswickchristian.org',
-    approver: 'lmortimer@keswickchristian.org',
-    organization: 'Math',
-    form: 'CURRICULUM',
-    amount: 875.00,
-    description: 'Saxon Math Curriculum Update - Grade 7 Teacher Editions and Student Workbooks',
-    fiscalQuarter: getCurrentFiscalQuarter()
+    requestor: "mathhead@keswickchristian.org",
+    approver: "lmortimer@keswickchristian.org",
+    organization: "Math",
+    form: "CURRICULUM",
+    amount: 875.0,
+    description:
+      "Saxon Math Curriculum Update - Grade 7 Teacher Editions and Student Workbooks",
+    fiscalQuarter: getCurrentFiscalQuarter(),
   };
 
   return generateSingleInvoicePDF(transaction, {
-    invoiceId: 'CUR-MATH-DEMO',
-    formType: 'CURRICULUM'
+    invoiceId: "CUR-MATH-DEMO",
+    formType: "CURRICULUM",
   });
 }
 
@@ -2071,21 +2431,21 @@ function generateDemoCurriculumInvoice() {
  */
 function generateDemoAdminInvoice() {
   const transaction = {
-    transactionId: 'ADM-DEMO-001',
+    transactionId: "ADM-DEMO-001",
     orderId: null,
     date: new Date(),
-    requestor: 'mtrotter@keswickchristian.org',
-    approver: 'cfo@keswickchristian.org',
-    organization: 'Administration',
-    form: 'ADMIN',
-    amount: 2500.00,
-    description: 'Annual Software License Renewal - Student Information System',
-    fiscalQuarter: getCurrentFiscalQuarter()
+    requestor: "mtrotter@keswickchristian.org",
+    approver: "cfo@keswickchristian.org",
+    organization: "Admin",
+    form: "ADMIN",
+    amount: 2500.0,
+    description: "Annual Software License Renewal - Student Information System",
+    fiscalQuarter: getCurrentFiscalQuarter(),
   };
 
   return generateSingleInvoicePDF(transaction, {
-    invoiceId: 'ADM-MJT-DEMO',
-    formType: 'ADMIN'
+    invoiceId: "ADM-MJT-DEMO",
+    formType: "ADMIN",
   });
 }
 
@@ -2093,69 +2453,71 @@ function generateDemoAdminInvoice() {
  * Check existing test data in queues
  */
 function checkQueueTestData() {
-  console.log('📊 Checking for existing test data in queues...');
+  console.log("📊 Checking for existing test data in queues...");
   const report = {
     automatedQueue: { amazon: 0, warehouse: 0 },
     manualQueue: { fieldTrip: 0, curriculum: 0, admin: 0 },
-    transactionLedger: { total: 0, unprocessed: 0 }
+    transactionLedger: { total: 0, unprocessed: 0 },
   };
 
   try {
     // Check Automated Hub
     const automatedHub = SpreadsheetApp.openById(CONFIG.AUTOMATED_HUB_ID);
-    const autoQueue = automatedHub.getSheetByName('AutomatedQueue');
+    const autoQueue = automatedHub.getSheetByName("AutomatedQueue");
     if (autoQueue) {
       const autoData = autoQueue.getDataRange().getValues();
       for (let i = 1; i < autoData.length; i++) {
-        const type = (autoData[i][2] || '').toString().toUpperCase();
-        if (type.includes('AMAZON')) report.automatedQueue.amazon++;
-        if (type.includes('WAREHOUSE')) report.automatedQueue.warehouse++;
+        const type = (autoData[i][2] || "").toString().toUpperCase();
+        if (type.includes("AMAZON")) report.automatedQueue.amazon++;
+        if (type.includes("WAREHOUSE")) report.automatedQueue.warehouse++;
       }
     }
 
     // Check Manual Hub
     const manualHub = SpreadsheetApp.openById(CONFIG.MANUAL_HUB_ID);
-    const manualQueue = manualHub.getSheetByName('ManualQueue');
+    const manualQueue = manualHub.getSheetByName("ManualQueue");
     if (manualQueue) {
       const manualData = manualQueue.getDataRange().getValues();
       for (let i = 1; i < manualData.length; i++) {
-        const type = (manualData[i][2] || '').toString().toUpperCase();
-        if (type.includes('FIELD')) report.manualQueue.fieldTrip++;
-        if (type.includes('CURRICULUM')) report.manualQueue.curriculum++;
-        if (type.includes('ADMIN')) report.manualQueue.admin++;
+        const type = (manualData[i][2] || "").toString().toUpperCase();
+        if (type.includes("FIELD")) report.manualQueue.fieldTrip++;
+        if (type.includes("CURRICULUM")) report.manualQueue.curriculum++;
+        if (type.includes("ADMIN")) report.manualQueue.admin++;
       }
     }
 
     // Check Transaction Ledger
     const budgetHub = SpreadsheetApp.openById(CONFIG.BUDGET_HUB_ID);
-    const ledger = budgetHub.getSheetByName('TransactionLedger');
+    const ledger = budgetHub.getSheetByName("TransactionLedger");
     if (ledger) {
       const ledgerData = ledger.getDataRange().getValues();
       report.transactionLedger.total = ledgerData.length - 1;
       for (let i = 1; i < ledgerData.length; i++) {
-        if (!ledgerData[i][10]) { // InvoiceGenerated column empty
+        if (!ledgerData[i][10]) {
+          // InvoiceGenerated column empty
           report.transactionLedger.unprocessed++;
         }
       }
     }
 
-    console.log('Queue Status Report:');
-    console.log('====================');
-    console.log('Automated Queue:');
+    console.log("Queue Status Report:");
+    console.log("====================");
+    console.log("Automated Queue:");
     console.log(`  - Amazon: ${report.automatedQueue.amazon} items`);
     console.log(`  - Warehouse: ${report.automatedQueue.warehouse} items`);
-    console.log('Manual Queue:');
+    console.log("Manual Queue:");
     console.log(`  - Field Trip: ${report.manualQueue.fieldTrip} items`);
     console.log(`  - Curriculum: ${report.manualQueue.curriculum} items`);
     console.log(`  - Admin: ${report.manualQueue.admin} items`);
-    console.log('Transaction Ledger:');
+    console.log("Transaction Ledger:");
     console.log(`  - Total: ${report.transactionLedger.total} transactions`);
-    console.log(`  - Unprocessed: ${report.transactionLedger.unprocessed} transactions`);
+    console.log(
+      `  - Unprocessed: ${report.transactionLedger.unprocessed} transactions`,
+    );
 
     return report;
-
   } catch (error) {
-    console.error('Error checking queues:', error);
+    console.error("Error checking queues:", error);
     return { error: error.toString() };
   }
 }

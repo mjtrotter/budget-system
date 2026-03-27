@@ -20,7 +20,7 @@ const TEST_CONFIG = {
   TEST_BUDGETS: {
     'Science': { allocated: 5000, spent: 1000, encumbered: 500 },
     'Mathematics': { allocated: 3000, spent: 500, encumbered: 200 },
-    'Administration': { allocated: 10000, spent: 2000, encumbered: 1000 }
+    'Admin': { allocated: 10000, spent: 2000, encumbered: 1000 }
   },
   
   // Test IDs for cleanup
@@ -104,7 +104,7 @@ const MainTests = {
       const testCases = [
         { division: 'Upper School', formType: 'AMAZON' },
         { division: 'Lower School', formType: 'WAREHOUSE' },
-        { division: 'Administration', formType: 'CURRICULUM' }
+        { division: 'Admin', formType: 'CURRICULUM' }
       ];
       
       testCases.forEach(test => {

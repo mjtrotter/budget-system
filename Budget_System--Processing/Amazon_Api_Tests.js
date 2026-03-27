@@ -379,7 +379,7 @@ function testLedgerAppend() {
     items: [{
       orderId: 'AMZ-AD-TEST-01',
       requestor: 'invoicing@keswickchristian.org',
-      department: 'Administration',
+      department: 'Admin',
       description: 'Test Item for Ledger Alignment',
       price: 15.99
     }]

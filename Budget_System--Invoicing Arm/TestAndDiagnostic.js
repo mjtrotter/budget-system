@@ -323,7 +323,7 @@ function debugDivisionBudget() {
     // Test different division names
     console.log('\n🧪 Testing Division Lookups:');
     console.log('================================');
-    const testDivisions = ['Administration', 'Admin', 'AD', 'Upper School', 'US', 'Lower School', 'LS'];
+    const testDivisions = ['Admin', 'Admin', 'AD', 'Upper School', 'US', 'Lower School', 'LS'];
     
     testDivisions.forEach(division => {
       const result = getDivisionBudgetInfo(division);
@@ -469,7 +469,7 @@ function testTemplateProcessingFixed() {
 function testDivisionBudgetInfo() {
   console.log('🧪 Testing fixed getDivisionBudgetInfo...\n');
   
-  const divisions = ['Upper School', 'Lower School', 'Administration', 'Keswick Kids'];
+  const divisions = ['Upper School', 'Lower School', 'Admin', 'Keswick Kids'];
   
   divisions.forEach(division => {
     console.log(`Testing ${division}:`);

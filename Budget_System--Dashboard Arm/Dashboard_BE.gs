@@ -126,7 +126,7 @@ const CONFIG = {
     'MS': { name: 'Middle School', grades: ['6', '7', '8'] },
     'LS': { name: 'Lower School', grades: ['K', '1', '2', '3', '4', '5'] },
     'KK': { name: 'Keswick Kids', grades: ['Infants', 'PK2', 'PK3', 'PK4'] },
-    'AD': { name: 'Administration', grades: [] }
+    'AD': { name: 'Admin', grades: [] }
   },
 
   // Cache Settings
@@ -1922,7 +1922,7 @@ class KeswickDashboardService {
         },
         {
           division: 'AD',
-          name: 'Administration',
+          name: 'Admin',
           allocated: 450000,
           spent: adSpent,
           encumbered: 28500,

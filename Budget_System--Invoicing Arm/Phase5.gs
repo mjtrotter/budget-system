@@ -1562,7 +1562,7 @@ function testAmazonSingleProcessing() {
       transactions: [testTransaction],
       lineItems: testTransaction.lineItems,
       formType: testTransaction.formType, // AMAZON
-      division: 'Administration' // Like in the error
+      division: 'Admin' // Like in the error
     };
     
     console.log(`📦 Single group: ${JSON.stringify(singleGroup, null, 2)}`);
@@ -1947,7 +1947,7 @@ function getDivisionCode(division) {
   const codes = {
     'Upper School': 'US',
     'Lower School': 'LS', 
-    'Administration': 'AD',
+    'Admin': 'AD',
     'Admin': 'AD',
     'Keswick Kids': 'KK'
   };
@@ -1981,7 +1981,7 @@ function getFormCode(formType) {
  * @return {string} Division name
  */
 function getDivisionFromTransaction(transaction) {
-  return transaction.division || transaction.organization || 'Administration';
+  return transaction.division || transaction.organization || 'Admin';
 }
 
 /**
@@ -2322,7 +2322,7 @@ function testFixedInvoiceGeneration() {
       processedOn: new Date(),
       requestor: 'test@keswick.org',
       approver: 'admin@keswick.org',
-      organization: 'Administration',
+      organization: 'Admin',
       formType: 'AMAZON', // This was causing the reference error
       amount: 239.98,
       description: '2x airpods',
@@ -2353,7 +2353,7 @@ function testFixedInvoiceGeneration() {
       transactions: [enriched],
       lineItems: enriched.lineItems || [],
       formType: enriched.formType, // Explicit formType to prevent reference error
-      division: 'Administration',
+      division: 'Admin',
       totalAmount: enriched.amount || 0
     };
     

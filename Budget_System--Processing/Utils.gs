@@ -251,7 +251,7 @@ function generateOrderIdWithSuffix(prefix) {
  * @return {string} The division name.
  */
 function getDivisionFromDepartment(department) {
-  if (!department) return 'Administration';
+  if (!department) return 'Admin';
   
   const dept = department.toString().toLowerCase();
   

@@ -1552,7 +1552,7 @@
                                     <option value="US">Upper School</option>
                                     <option value="LS">Lower School</option>
                                     <option value="KK">Keswick Kids</option>
-                                    <option value="AD">Administration</option>
+                                    <option value="AD">Admin</option>
                                 </select>
                             </div>
                             <div class="filter-group">
@@ -1871,7 +1871,7 @@
                                         <option value="US">Upper School</option>
                                         <option value="LS">Lower School</option>
                                         <option value="KK">Keswick Kids</option>
-                                        <option value="AD">Administration</option>
+                                        <option value="AD">Admin</option>
                                     </select>
                                 </div>
                                 <div class="form-group">
@@ -2923,7 +2923,7 @@
                     { code: 'US', name: 'Upper School' },
                     { code: 'LS', name: 'Lower School' },
                     { code: 'KK', name: 'Keswick Kids' },
-                    { code: 'AD', name: 'Administration' }
+                    { code: 'AD', name: 'Admin' }
                 ];
                 populateDivisionDropdown();
                 return;
@@ -2968,7 +2968,7 @@
                     'US': ['Math', 'Science', 'English', 'History', 'Fine Arts', 'Athletics'],
                     'LS': ['Elementary', 'Art', 'Music', 'PE', 'Library'],
                     'KK': ['Keswick Kids', 'Early Childhood'],
-                    'AD': ['Administration', 'Finance', 'HR', 'Facilities']
+                    'AD': ['Admin', 'Finance', 'HR', 'Facilities']
                 };
                 availableDepartments = (mockDepts[divisionCode] || []).map(d => ({ code: d, name: d }));
                 populateDepartmentDropdown();
@@ -5300,7 +5300,7 @@
                     },
                     {
                         division: 'AD',
-                        name: 'Administration',
+                        name: 'Admin',
                         allocated: 400000,
                         spent: 168000,
                         encumbered: 32000,
@@ -5362,7 +5362,7 @@
             const vendors = ['Amazon', 'Staples', 'Apple', 'Best Buy', 'Office Depot'];
             const statuses = ['Approved', 'Pending', 'Processing'];
             const divisions = ['US', 'LS', 'KK', 'AD'];
-            const departments = ['Math', 'Science', 'English', 'Elementary', 'Administration'];
+            const departments = ['Math', 'Science', 'English', 'Elementary', 'Admin'];
             
             return Array.from({ length: count }, (_, i) => ({
                 transactionId: `TRX-2024-${(1000 + i).toString().padStart(4, '0')}`,

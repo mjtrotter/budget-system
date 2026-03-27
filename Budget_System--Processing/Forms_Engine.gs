@@ -14,15 +14,30 @@ const COLUMN_MAP = {
   // No total column — total is calculated from item prices
   AMAZON: {
     EMAIL: 1,
-    ITEM1_DESC: 2, ITEM1_URL: 3, ITEM1_QTY: 4, ITEM1_PRICE: 5,
+    ITEM1_DESC: 2,
+    ITEM1_URL: 3,
+    ITEM1_QTY: 4,
+    ITEM1_PRICE: 5,
     // col 6 = "Add another item?" (branching)
-    ITEM2_DESC: 7, ITEM2_URL: 8, ITEM2_QTY: 9, ITEM2_PRICE: 10,
+    ITEM2_DESC: 7,
+    ITEM2_URL: 8,
+    ITEM2_QTY: 9,
+    ITEM2_PRICE: 10,
     // col 11 = "Add another item?" (branching)
-    ITEM3_DESC: 12, ITEM3_URL: 13, ITEM3_QTY: 14, ITEM3_PRICE: 15,
+    ITEM3_DESC: 12,
+    ITEM3_URL: 13,
+    ITEM3_QTY: 14,
+    ITEM3_PRICE: 15,
     // col 16 = "Add another item?" (branching)
-    ITEM4_DESC: 17, ITEM4_URL: 18, ITEM4_QTY: 19, ITEM4_PRICE: 20,
+    ITEM4_DESC: 17,
+    ITEM4_URL: 18,
+    ITEM4_QTY: 19,
+    ITEM4_PRICE: 20,
     // col 21 = "Add another item?" (branching)
-    ITEM5_DESC: 22, ITEM5_URL: 23, ITEM5_QTY: 24, ITEM5_PRICE: 25
+    ITEM5_DESC: 22,
+    ITEM5_URL: 23,
+    ITEM5_QTY: 24,
+    ITEM5_PRICE: 25,
     // No TOTAL column — removed from form. Handler calculates from items.
   },
   // Warehouse: Catalog ID + Quantity per item
@@ -30,15 +45,20 @@ const COLUMN_MAP = {
   // Branching "Add another?" at cols 4, 7, 10, 13
   WAREHOUSE: {
     EMAIL: 1,
-    ITEM1_ID: 2, ITEM1_QTY: 3,
+    ITEM1_ID: 2,
+    ITEM1_QTY: 3,
     // col 4 = "Add another item?" (branching)
-    ITEM2_ID: 5, ITEM2_QTY: 6,
+    ITEM2_ID: 5,
+    ITEM2_QTY: 6,
     // col 7 = "Add another item?" (branching)
-    ITEM3_ID: 8, ITEM3_QTY: 9,
+    ITEM3_ID: 8,
+    ITEM3_QTY: 9,
     // col 10 = "Add another item?" (branching)
-    ITEM4_ID: 11, ITEM4_QTY: 12,
+    ITEM4_ID: 11,
+    ITEM4_QTY: 12,
     // col 13 = "Add another item?" (branching)
-    ITEM5_ID: 14, ITEM5_QTY: 15
+    ITEM5_ID: 14,
+    ITEM5_QTY: 15,
   },
   // Field Trip: Unchanged
   FIELD_TRIP: {
@@ -48,7 +68,7 @@ const COLUMN_MAP = {
     NUM_STUDENTS: 4,
     TRANSPORTATION: 5,
     TOTAL_COST: 6,
-    PDF_UPLOAD: 7
+    PDF_UPLOAD: 7,
   },
   // Curriculum: Restructured with branching (manual entry vs PDF upload)
   CURRICULUM: {
@@ -63,7 +83,7 @@ const COLUMN_MAP = {
     LINK: 9,
     PURPOSE: 10,
     PDF_UPLOAD: 11,
-    PURPOSE_PDF: 12
+    PURPOSE_PDF: 12,
   },
   // Admin: Added Category and Notes columns
   ADMIN: {
@@ -72,19 +92,44 @@ const COLUMN_MAP = {
     AMOUNT: 3,
     CATEGORY: 4,
     PDF_UPLOAD: 5,
-    NOTES: 6
-  }
+    NOTES: 6,
+  },
 };
 
 // Helper to build item mappings arrays from COLUMN_MAP
 function getAmazonItemMappings() {
   const m = COLUMN_MAP.AMAZON;
   return [
-    { descCol: m.ITEM1_DESC, urlCol: m.ITEM1_URL, qtyCol: m.ITEM1_QTY, priceCol: m.ITEM1_PRICE },
-    { descCol: m.ITEM2_DESC, urlCol: m.ITEM2_URL, qtyCol: m.ITEM2_QTY, priceCol: m.ITEM2_PRICE },
-    { descCol: m.ITEM3_DESC, urlCol: m.ITEM3_URL, qtyCol: m.ITEM3_QTY, priceCol: m.ITEM3_PRICE },
-    { descCol: m.ITEM4_DESC, urlCol: m.ITEM4_URL, qtyCol: m.ITEM4_QTY, priceCol: m.ITEM4_PRICE },
-    { descCol: m.ITEM5_DESC, urlCol: m.ITEM5_URL, qtyCol: m.ITEM5_QTY, priceCol: m.ITEM5_PRICE }
+    {
+      descCol: m.ITEM1_DESC,
+      urlCol: m.ITEM1_URL,
+      qtyCol: m.ITEM1_QTY,
+      priceCol: m.ITEM1_PRICE,
+    },
+    {
+      descCol: m.ITEM2_DESC,
+      urlCol: m.ITEM2_URL,
+      qtyCol: m.ITEM2_QTY,
+      priceCol: m.ITEM2_PRICE,
+    },
+    {
+      descCol: m.ITEM3_DESC,
+      urlCol: m.ITEM3_URL,
+      qtyCol: m.ITEM3_QTY,
+      priceCol: m.ITEM3_PRICE,
+    },
+    {
+      descCol: m.ITEM4_DESC,
+      urlCol: m.ITEM4_URL,
+      qtyCol: m.ITEM4_QTY,
+      priceCol: m.ITEM4_PRICE,
+    },
+    {
+      descCol: m.ITEM5_DESC,
+      urlCol: m.ITEM5_URL,
+      qtyCol: m.ITEM5_QTY,
+      priceCol: m.ITEM5_PRICE,
+    },
   ];
 }
 
@@ -95,7 +140,7 @@ function getWarehouseItemMappings() {
     { idCol: m.ITEM2_ID, qtyCol: m.ITEM2_QTY },
     { idCol: m.ITEM3_ID, qtyCol: m.ITEM3_QTY },
     { idCol: m.ITEM4_ID, qtyCol: m.ITEM4_QTY },
-    { idCol: m.ITEM5_ID, qtyCol: m.ITEM5_QTY }
+    { idCol: m.ITEM5_ID, qtyCol: m.ITEM5_QTY },
   ];
 }
 
@@ -116,9 +161,18 @@ function getOrCreateQueueSheet(hub, sheetName) {
   if (!queueSheet) {
     console.warn(`⚠️ ${sheetName} not found, creating...`);
     const queueHeaders = [
-      'TransactionID', 'Email', 'Type', 'Department', 'Division',
-      'Amount', 'Description', 'Status', 'SubmittedOn', 'ApprovedOn',
-      'Approver', 'ResponseID'
+      "TransactionID",
+      "Email",
+      "Type",
+      "Department",
+      "Division",
+      "Amount",
+      "Description",
+      "Status",
+      "SubmittedOn",
+      "ApprovedOn",
+      "Approver",
+      "ResponseID",
     ];
 
     queueSheet = hub.insertSheet(sheetName);
@@ -127,9 +181,11 @@ function getOrCreateQueueSheet(hub, sheetName) {
 
     // Format header
     const headerRange = queueSheet.getRange(1, 1, 1, queueHeaders.length);
-    headerRange.setBackground(sheetName === 'AutomatedQueue' ? '#1565C0' : '#2E7D32');
-    headerRange.setFontColor('#FFFFFF');
-    headerRange.setFontWeight('bold');
+    headerRange.setBackground(
+      sheetName === "AutomatedQueue" ? "#1565C0" : "#2E7D32",
+    );
+    headerRange.setFontColor("#FFFFFF");
+    headerRange.setFontWeight("bold");
 
     console.log(`✅ ${sheetName} created`);
   }
@@ -148,16 +204,17 @@ function safelyWriteTransactionId(sheet, rowIndex, transactionId) {
     if (lastCol > 0) {
       headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
     }
-    
-    let txCol = headers.indexOf('TransactionID') + 1;
-    if (txCol === 0) { // Not found, create it at the end
+
+    let txCol = headers.indexOf("TransactionID") + 1;
+    if (txCol === 0) {
+      // Not found, create it at the end
       txCol = lastCol + 1;
-      sheet.getRange(1, txCol).setValue('TransactionID');
+      sheet.getRange(1, txCol).setValue("TransactionID");
     }
-    
+
     sheet.getRange(rowIndex, txCol).setValue(transactionId);
   } catch (error) {
-    console.error('Error safely writing transaction ID to form sheet:', error);
+    console.error("Error safely writing transaction ID to form sheet:", error);
   }
 }
 
@@ -166,13 +223,15 @@ function safelyWriteTransactionId(sheet, rowIndex, transactionId) {
 // ============================================================================
 
 function processAmazonFormSubmission(e) {
-  console.log('🚀 === AMAZON FORM PROCESSING START ===');
+  console.log("🚀 === AMAZON FORM PROCESSING START ===");
   let step = 0;
 
   const lock = LockService.getScriptLock();
-  try { lock.waitLock(30000); } catch(lockErr) {
-    console.error('❌ Lock timeout:', lockErr);
-    throw new Error('System busy (Lock timeout)');
+  try {
+    lock.waitLock(30000);
+  } catch (lockErr) {
+    console.error("❌ Lock timeout:", lockErr);
+    throw new Error("System busy (Lock timeout)");
   }
 
   try {
@@ -194,19 +253,21 @@ function processAmazonFormSubmission(e) {
 
     step = 4;
     console.log(`📍 Step ${step}: Getting Amazon sheet`);
-    const amazonSheet = autoHub.getSheetByName('Amazon');
+    const amazonSheet = autoHub.getSheetByName("Amazon");
     if (!amazonSheet) {
-      throw new Error('Amazon sheet not found in Automated Hub');
+      throw new Error("Amazon sheet not found in Automated Hub");
     }
     console.log(`   Amazon sheet found`);
 
     step = 5;
     console.log(`📍 Step ${step}: Reading Amazon data`);
     const data = amazonSheet.getDataRange().getValues();
-    validateFormColumns('AMAZON', data[0]);
+    validateFormColumns("AMAZON", data[0]);
     const lastRowIndex = data.length - 1;
     const row = data[lastRowIndex];
-    console.log(`   Total rows: ${data.length}, Reading row: ${lastRowIndex + 1}`);
+    console.log(
+      `   Total rows: ${data.length}, Reading row: ${lastRowIndex + 1}`,
+    );
 
     step = 6;
     console.log(`📍 Step ${step}: Extracting email`);
@@ -215,13 +276,15 @@ function processAmazonFormSubmission(e) {
 
     step = 7;
     console.log(`📍 Step ${step}: Validating email`);
-    if (!email || !email.includes('@')) {
+    if (!email || !email.includes("@")) {
       throw new Error(`Invalid email address: "${email}"`);
     }
     console.log(`   Email valid`);
 
     step = 8;
-    console.log(`📍 Step ${step}: Extracting items (total calculated from items)`);
+    console.log(
+      `📍 Step ${step}: Extracting items (total calculated from items)`,
+    );
 
     step = 9;
     console.log(`📍 Step ${step}: Extracting Amazon items`);
@@ -232,7 +295,8 @@ function processAmazonFormSubmission(e) {
       const description = row[mapping.descCol];
       const url = row[mapping.urlCol];
       const quantity = parseInt(row[mapping.qtyCol]) || 0;
-      const unitPrice = parseFloat(String(row[mapping.priceCol]).replace(/[$,]/g, '')) || 0;
+      const unitPrice =
+        parseFloat(String(row[mapping.priceCol]).replace(/[$,]/g, "")) || 0;
 
       if (description && url && quantity > 0 && unitPrice > 0) {
         amazonItems.push({
@@ -240,9 +304,11 @@ function processAmazonFormSubmission(e) {
           url: url,
           quantity: quantity,
           unitPrice: unitPrice,
-          totalPrice: quantity * unitPrice
+          totalPrice: quantity * unitPrice,
         });
-        console.log(`   Item ${index + 1}: "${description}" x${quantity} @ $${unitPrice}`);
+        console.log(
+          `   Item ${index + 1}: "${description}" x${quantity} @ $${unitPrice}`,
+        );
       }
     });
     console.log(`   Total items found: ${amazonItems.length}`);
@@ -250,37 +316,49 @@ function processAmazonFormSubmission(e) {
     step = 10;
     console.log(`📍 Step ${step}: Validating items`);
     if (amazonItems.length === 0) {
-      throw new Error('No valid Amazon items found');
+      throw new Error("No valid Amazon items found");
     }
 
     // Total is always calculated from parsed items (no Total column on form)
-    const totalAmount_FIXED = amazonItems.reduce((sum, item) => sum + item.totalPrice, 0);
+    const totalAmount_FIXED = amazonItems.reduce(
+      (sum, item) => sum + item.totalPrice,
+      0,
+    );
     console.log(`📊 Final Amazon total: $${totalAmount_FIXED}`);
 
     step = 11;
     console.log(`📍 Step ${step}: Looking up user budget for "${email}"`);
     const userBudget = getUserBudgetInfo(email);
-    console.log(`   User budget result: ${userBudget ? 'FOUND' : 'NULL'}`);
+    console.log(`   User budget result: ${userBudget ? "FOUND" : "NULL"}`);
     if (userBudget) {
-      console.log(`   Department: ${userBudget.department}, Allocated: $${userBudget.allocated}, Available: $${userBudget.available}`);
+      console.log(
+        `   Department: ${userBudget.department}, Allocated: $${userBudget.allocated}, Available: $${userBudget.available}`,
+      );
     }
 
     if (!userBudget) {
       console.error(`❌ User not found: ${email}`);
-      sendErrorNotification(email, 'UNKNOWN', 'AMAZON', 'User not found in directory');
+      sendErrorNotification(
+        email,
+        "UNKNOWN",
+        "AMAZON",
+        "User not found in directory",
+      );
       throw new Error(`User ${email} not found in directory`);
     }
 
     step = 12;
     console.log(`📍 Step ${step}: Generating transaction ID`);
     const division = getDivisionFromDepartment(userBudget.department);
-    const transactionId = generateSequentialTransactionId('AMAZON', division);
+    const transactionId = generateSequentialTransactionId("AMAZON", division);
     console.log(`   Transaction ID: ${transactionId}`);
 
     // Validate Amazon URLs and ASIN extraction
     console.log(`📍 Step 12b: Validating Amazon URLs/ASINs`);
     if (!validateAmazonOrder(transactionId, amazonItems, email)) {
-      console.log('❌ Amazon order failed ASIN validation — requestor notified');
+      console.log(
+        "❌ Amazon order failed ASIN validation — requestor notified",
+      );
       return;
     }
 
@@ -291,7 +369,7 @@ function processAmazonFormSubmission(e) {
 
     step = 14;
     console.log(`📍 Step ${step}: Getting AutomatedQueue sheet`);
-    const queueSheet = getOrCreateQueueSheet(autoHub, 'AutomatedQueue');
+    const queueSheet = getOrCreateQueueSheet(autoHub, "AutomatedQueue");
     console.log(`   Queue sheet: ${queueSheet.getName()}`);
 
     step = 15;
@@ -304,16 +382,16 @@ function processAmazonFormSubmission(e) {
     const queueData = [
       transactionId,
       email,
-      'AMAZON',
+      "AMAZON",
       userBudget.department,
       getDivisionFromDepartment(userBudget.department),
       totalAmount_FIXED,
       description,
-      'PENDING',
+      "PENDING",
       timestamp,
-      '',
-      '',
-      responseId
+      "",
+      "",
+      responseId,
     ];
     console.log(`   Queue data: ${JSON.stringify(queueData.slice(0, 4))}...`);
     queueSheet.appendRow(queueData);
@@ -321,55 +399,74 @@ function processAmazonFormSubmission(e) {
 
     step = 17;
     console.log(`📍 Step ${step}: Updating encumbrance`);
-    updateUserEncumbranceRealTime(email, totalAmount_FIXED, 'add');
+    updateUserEncumbranceRealTime(email, totalAmount_FIXED, "add");
 
     step = 18;
     console.log(`📍 Step ${step}: Calculating approval logic`);
-    const budgetAvailable = userBudget.allocated - userBudget.spent - userBudget.encumbered;
+    const budgetAvailable =
+      userBudget.allocated - userBudget.spent - userBudget.encumbered;
     const withinBudget = totalAmount_FIXED <= budgetAvailable;
     const belowAutoApproval = totalAmount_FIXED < CONFIG.AUTO_APPROVAL_LIMIT;
-    console.log(`   Available: $${budgetAvailable}, Within: ${withinBudget}, Below limit: ${belowAutoApproval}`);
+    console.log(
+      `   Available: $${budgetAvailable}, Within: ${withinBudget}, Below limit: ${belowAutoApproval}`,
+    );
 
     step = 19;
     console.log(`📍 Step ${step}: Checking velocity`);
     const velocityCheck = checkDailySpendingVelocity(email, totalAmount_FIXED);
-    console.log(`   Velocity: allowed=${velocityCheck.allowed}, daily=$${velocityCheck.dailyTotal}`);
+    console.log(
+      `   Velocity: allowed=${velocityCheck.allowed}, daily=$${velocityCheck.dailyTotal}`,
+    );
 
     step = 20;
     if (belowAutoApproval && withinBudget && velocityCheck.allowed) {
       console.log(`📍 Step ${step}: AUTO-APPROVING`);
-      const actualApprover = getApproverForRequest({ amount: totalAmount_FIXED }, userBudget);
-      updateQueueStatus(transactionId, 'APPROVED', actualApprover, true);
+      const actualApprover = getApproverForRequest(
+        { amount: totalAmount_FIXED },
+        userBudget,
+      );
+      updateQueueStatus(transactionId, "APPROVED", actualApprover, true);
       sendApprovalNotification(email, {
         transactionId: transactionId,
         amount: totalAmount_FIXED,
-        type: 'Amazon Order',
+        type: "Amazon Order",
         description: description,
-        approver: actualApprover
+        approver: actualApprover,
       });
-      logSystemEvent('AMAZON_AUTO_APPROVED', email, totalAmount_FIXED, { transactionId, actualApprover });
+      logSystemEvent("AMAZON_AUTO_APPROVED", email, totalAmount_FIXED, {
+        transactionId,
+        actualApprover,
+      });
       console.log(`   ✅ Auto-approved by ${actualApprover}`);
-      
+
       // Dispatch instantly to the Amazon Sandbox/Live API
       if (CONFIG.AMAZON_B2B && CONFIG.AMAZON_B2B.ENABLED) {
         new AmazonWorkflowEngine().dispatchAmazonOrder(transactionId);
       }
     } else {
       console.log(`📍 Step ${step}: REQUESTING APPROVAL`);
-      const approver = getApproverForRequest({ amount: totalAmount_FIXED }, userBudget);
+      const approver = getApproverForRequest(
+        { amount: totalAmount_FIXED },
+        userBudget,
+      );
       console.log(`   Approver: ${approver}`);
 
       if (belowAutoApproval && !velocityCheck.allowed) {
-        logSystemEvent('AUTO_APPROVAL_DENIED_VELOCITY', email, totalAmount_FIXED, {
-          transactionId,
-          dailyTotal: velocityCheck.dailyTotal,
-          limit: velocityCheck.limit
-        });
+        logSystemEvent(
+          "AUTO_APPROVAL_DENIED_VELOCITY",
+          email,
+          totalAmount_FIXED,
+          {
+            transactionId,
+            dailyTotal: velocityCheck.dailyTotal,
+            limit: velocityCheck.limit,
+          },
+        );
       }
 
       sendEnhancedApprovalEmail(approver, {
         transactionId,
-        type: 'Amazon Order',
+        type: "Amazon Order",
         amount: totalAmount_FIXED,
         requestor: email,
         description,
@@ -377,26 +474,33 @@ function processAmazonFormSubmission(e) {
         budgetContext: {
           available: budgetAvailable,
           withinBudget,
-          utilization: (userBudget.spent / userBudget.allocated * 100).toFixed(1)
-        }
+          utilization: (
+            (userBudget.spent / userBudget.allocated) *
+            100
+          ).toFixed(1),
+        },
       });
-      logSystemEvent('AMAZON_APPROVAL_REQUESTED', email, totalAmount_FIXED, { transactionId, approver });
+      logSystemEvent("AMAZON_APPROVAL_REQUESTED", email, totalAmount_FIXED, {
+        transactionId,
+        approver,
+      });
       console.log(`   ✅ Approval email sent to ${approver}`);
     }
 
-    console.log('🎉 === AMAZON FORM PROCESSING COMPLETE ===');
-
+    console.log("🎉 === AMAZON FORM PROCESSING COMPLETE ===");
   } catch (error) {
     console.error(`❌ AMAZON ERROR at Step ${step}:`, error.message);
-    console.error('   Stack:', error.stack);
+    console.error("   Stack:", error.stack);
     try {
-      handleCriticalError(e.response?.getId() || 'UNKNOWN', 'AMAZON', error, { step: step });
+      handleCriticalError(e.response?.getId() || "UNKNOWN", "AMAZON", error, {
+        step: step,
+      });
     } catch (logError) {
-      console.error('❌ handleCriticalError also failed:', logError.message);
+      console.error("❌ handleCriticalError also failed:", logError.message);
     }
   } finally {
     lock.releaseLock();
-    console.log('🔓 Lock released');
+    console.log("🔓 Lock released");
   }
 }
 
@@ -414,9 +518,9 @@ function processAmazonFormSubmission(e) {
  */
 function lookupWarehouseCatalogItem(stockNumber) {
   const autoHub = SpreadsheetApp.openById(CONFIG.AUTOMATED_HUB_ID);
-  const catalog = autoHub.getSheetByName('WarehouseCatalog');
+  const catalog = autoHub.getSheetByName("WarehouseCatalog");
   if (!catalog) {
-    console.warn('⚠️ WarehouseCatalog sheet not found in Automated Hub');
+    console.warn("⚠️ WarehouseCatalog sheet not found in Automated Hub");
     return null;
   }
 
@@ -426,10 +530,10 @@ function lookupWarehouseCatalogItem(stockNumber) {
   for (let i = 1; i < data.length; i++) {
     if (String(data[i][0]).trim().toUpperCase() === normalizedId) {
       return {
-        description: String(data[i][1] || ''),
-        unitPrice: parseFloat(String(data[i][2]).replace(/[$,]/g, '')) || 0,
-        uom: String(data[i][3] || ''),
-        category: String(data[i][4] || '')
+        description: String(data[i][1] || ""),
+        unitPrice: parseFloat(String(data[i][2]).replace(/[$,]/g, "")) || 0,
+        uom: String(data[i][3] || ""),
+        category: String(data[i][4] || ""),
       };
     }
   }
@@ -440,25 +544,29 @@ function lookupWarehouseCatalogItem(stockNumber) {
 
 function processWarehouseFormSubmission(e) {
   const lock = LockService.getScriptLock();
-  try { lock.waitLock(30000); } catch(e) { throw new Error('System busy (Lock timeout)'); }
+  try {
+    lock.waitLock(30000);
+  } catch (e) {
+    throw new Error("System busy (Lock timeout)");
+  }
 
-  console.log('🏪 === WAREHOUSE FORM PROCESSING START ===');
-  
+  console.log("🏪 === WAREHOUSE FORM PROCESSING START ===");
+
   try {
     const response = e.response;
     const responseId = response.getId();
     const timestamp = new Date();
-    
+
     Utilities.sleep(5000); // Wait for sheet update
 
     // Read from the Warehouse tab in the Automated Hub (matches COLUMN_MAP)
     const autoHub = SpreadsheetApp.openById(CONFIG.AUTOMATED_HUB_ID);
-    const warehouseSheet = autoHub.getSheetByName('Warehouse');
+    const warehouseSheet = autoHub.getSheetByName("Warehouse");
     if (!warehouseSheet) {
-      throw new Error('Warehouse sheet not found in Automated Hub');
+      throw new Error("Warehouse sheet not found in Automated Hub");
     }
     const data = warehouseSheet.getDataRange().getValues();
-    validateFormColumns('WAREHOUSE', data[0]);
+    validateFormColumns("WAREHOUSE", data[0]);
 
     // Find the actual submission row by matching timestamp
     let submissionRow = null;
@@ -466,9 +574,10 @@ function processWarehouseFormSubmission(e) {
 
     for (let i = data.length - 1; i >= 1; i--) {
       const row = data[i];
-      if (row[0] && row[1] && row[1].toString().includes('@')) {
+      if (row[0] && row[1] && row[1].toString().includes("@")) {
         const rowTimestamp = new Date(row[0]);
-        if (Math.abs(rowTimestamp - timestamp) < 120000) { // 2 minutes
+        if (Math.abs(rowTimestamp - timestamp) < 120000) {
+          // 2 minutes
           submissionRow = row;
           submissionRowIndex = i;
           break;
@@ -477,13 +586,13 @@ function processWarehouseFormSubmission(e) {
     }
 
     if (!submissionRow) {
-      throw new Error('Could not find warehouse form submission data');
+      throw new Error("Could not find warehouse form submission data");
     }
 
     // Process the found submission row
     const email = submissionRow[COLUMN_MAP.WAREHOUSE.EMAIL].toString().trim();
 
-    if (!email || !email.includes('@')) {
+    if (!email || !email.includes("@")) {
       throw new Error(`Invalid email: ${email}`);
     }
 
@@ -494,7 +603,7 @@ function processWarehouseFormSubmission(e) {
     const invalidItems = [];
 
     itemMappings.forEach((mapping, index) => {
-      const itemId = String(submissionRow[mapping.idCol] || '').trim();
+      const itemId = String(submissionRow[mapping.idCol] || "").trim();
       const quantity = parseInt(submissionRow[mapping.qtyCol]) || 0;
 
       if (itemId && quantity > 0) {
@@ -502,7 +611,9 @@ function processWarehouseFormSubmission(e) {
         try {
           catalogItem = lookupWarehouseCatalogItem(itemId);
         } catch (lookupErr) {
-          console.warn(`⚠️ Catalog lookup failed for ${itemId}: ${lookupErr.message}`);
+          console.warn(
+            `⚠️ Catalog lookup failed for ${itemId}: ${lookupErr.message}`,
+          );
         }
 
         if (!catalogItem) {
@@ -514,84 +625,106 @@ function processWarehouseFormSubmission(e) {
             description: catalogItem.description || `Warehouse Item ${itemId}`,
             quantity: quantity,
             unitPrice: catalogItem.unitPrice || 0,
-            totalPrice: (catalogItem.unitPrice || 0) * quantity
+            totalPrice: (catalogItem.unitPrice || 0) * quantity,
           });
-          console.log(`   Item ${index + 1}: ID="${itemId}" x${quantity} @ $${catalogItem.unitPrice || 0}`);
+          console.log(
+            `   Item ${index + 1}: ID="${itemId}" x${quantity} @ $${catalogItem.unitPrice || 0}`,
+          );
         }
       }
     });
 
     // If any catalog IDs were invalid, notify the requestor and stop processing
     if (invalidItems.length > 0) {
-      console.error(`❌ Invalid catalog IDs: ${invalidItems.join(', ')}`);
+      console.error(`❌ Invalid catalog IDs: ${invalidItems.join(", ")}`);
       sendSubmissionErrorEmail(email, {
-        formType: 'Warehouse Request',
-        errorMessage: `The following Catalog ID(s) were not found: ${invalidItems.join(', ')}. Please verify the correct Stock Numbers from the warehouse catalog and resubmit your request.`,
-        items: invalidItems
+        formType: "Warehouse Request",
+        errorMessage: `The following Catalog ID(s) were not found: ${invalidItems.join(", ")}. Please verify the correct Stock Numbers from the warehouse catalog and resubmit your request.`,
+        items: invalidItems,
       });
       return;
     }
 
     // Calculate total from looked-up prices
-    let totalCost = warehouseItems.reduce((sum, item) => sum + item.totalPrice, 0);
-    console.log(`📊 Warehouse total: $${totalCost} (${warehouseItems.length} items)`);
+    let totalCost = warehouseItems.reduce(
+      (sum, item) => sum + item.totalPrice,
+      0,
+    );
+    console.log(
+      `📊 Warehouse total: $${totalCost} (${warehouseItems.length} items)`,
+    );
 
     if (warehouseItems.length === 0) {
-      throw new Error('No valid warehouse items found in submission');
+      throw new Error("No valid warehouse items found in submission");
     }
-    
+
     const userBudget = getUserBudgetInfo(email);
     if (!userBudget) {
       throw new Error(`User ${email} not found in directory`);
     }
-    
+
     const division = getDivisionFromDepartment(userBudget.department);
-    const transactionId = generateSequentialTransactionId('WAREHOUSE', division);
+    const transactionId = generateSequentialTransactionId(
+      "WAREHOUSE",
+      division,
+    );
 
-    safelyWriteTransactionId(warehouseSheet, submissionRowIndex + 1, transactionId);
+    safelyWriteTransactionId(
+      warehouseSheet,
+      submissionRowIndex + 1,
+      transactionId,
+    );
 
-    const queueSheet = getOrCreateQueueSheet(autoHub, 'AutomatedQueue');
-    const description = warehouseItems.map(item =>
-      item.quantity > 1 ? `${item.quantity}x ${item.description}` : item.description
-    ).join(', ');
-    
+    const queueSheet = getOrCreateQueueSheet(autoHub, "AutomatedQueue");
+    const description = warehouseItems
+      .map((item) =>
+        item.quantity > 1
+          ? `${item.quantity}x ${item.description}`
+          : item.description,
+      )
+      .join(", ");
+
     queueSheet.appendRow([
       transactionId,
       email,
-      'WAREHOUSE',
+      "WAREHOUSE",
       userBudget.department,
       getDivisionFromDepartment(userBudget.department),
       totalCost,
       description,
-      'PENDING',
+      "PENDING",
       timestamp,
-      '',
-      '',
-      responseId
+      "",
+      "",
+      responseId,
     ]);
-    
-    updateUserEncumbranceRealTime(email, totalCost, 'add');
-    
+
+    updateUserEncumbranceRealTime(email, totalCost, "add");
+
     // Approval Logic
-    const budgetAvailable = userBudget.allocated - userBudget.spent - userBudget.encumbered;
+    const budgetAvailable =
+      userBudget.allocated - userBudget.spent - userBudget.encumbered;
     const withinBudget = totalCost <= budgetAvailable;
     const belowAutoApproval = totalCost < CONFIG.AUTO_APPROVAL_LIMIT;
-    
+
     if (belowAutoApproval && withinBudget) {
-      const actualApprover = getApproverForRequest({ amount: totalCost }, userBudget);
-      updateQueueStatus(transactionId, 'APPROVED', actualApprover, true);
+      const actualApprover = getApproverForRequest(
+        { amount: totalCost },
+        userBudget,
+      );
+      updateQueueStatus(transactionId, "APPROVED", actualApprover, true);
       sendApprovalNotification(email, {
         transactionId: transactionId,
         amount: totalCost,
-        type: 'Warehouse Request',
+        type: "Warehouse Request",
         description: description,
-        approver: actualApprover
+        approver: actualApprover,
       });
     } else {
       const approver = getApproverForRequest({ amount: totalCost }, userBudget);
       sendEnhancedApprovalEmail(approver, {
         transactionId,
-        type: 'Warehouse Request',
+        type: "Warehouse Request",
         amount: totalCost,
         requestor: email,
         description,
@@ -599,16 +732,17 @@ function processWarehouseFormSubmission(e) {
         budgetContext: {
           available: budgetAvailable,
           withinBudget,
-          utilization: (userBudget.spent / userBudget.allocated * 100).toFixed(1)
-        }
+          utilization: (
+            (userBudget.spent / userBudget.allocated) *
+            100
+          ).toFixed(1),
+        },
       });
     }
-    
-    updateAllUserEncumbrances();
-    console.log('🏪 === WAREHOUSE PROCESSING COMPLETE ===');
-    
+
+    console.log("🏪 === WAREHOUSE PROCESSING COMPLETE ===");
   } catch (error) {
-    console.error('❌ WAREHOUSE ERROR:', error);
+    console.error("❌ WAREHOUSE ERROR:", error);
     handleProcessingError(e, error);
   } finally {
     lock.releaseLock();
@@ -621,19 +755,23 @@ function processWarehouseFormSubmission(e) {
 
 function processFieldTripFormSubmission(e) {
   const lock = LockService.getScriptLock();
-  try { lock.waitLock(30000); } catch(e) { throw new Error('System busy (Lock timeout)'); }
+  try {
+    lock.waitLock(30000);
+  } catch (e) {
+    throw new Error("System busy (Lock timeout)");
+  }
 
   try {
     const response = e.response;
     const responseId = response.getId();
     const timestamp = new Date();
-    
+
     Utilities.sleep(3000);
-    
+
     const manualHub = SpreadsheetApp.openById(CONFIG.MANUAL_HUB_ID);
-    const formSheet = manualHub.getSheetByName('Field Trip');
+    const formSheet = manualHub.getSheetByName("Field Trip");
     const data = formSheet.getDataRange().getValues();
-    validateFormColumns('FIELD_TRIP', data[0]);
+    validateFormColumns("FIELD_TRIP", data[0]);
     const lastRowIndex = data.length - 1;
     const row = data[lastRowIndex];
 
@@ -643,66 +781,96 @@ function processFieldTripFormSubmission(e) {
     const tripDate = row[ft.TRIP_DATE];
     const numStudents = parseInt(row[ft.NUM_STUDENTS]) || 0;
     const transportation = row[ft.TRANSPORTATION];
-    const totalCost = parseFloat(String(row[ft.TOTAL_COST]).replace(/[$,]/g, '')) || 0;
+    const totalCost =
+      parseFloat(String(row[ft.TOTAL_COST]).replace(/[$,]/g, "")) || 0;
     const pdfUpload = row[ft.PDF_UPLOAD];
-    
-    if (!email || !email.includes('@')) throw new Error(`Invalid email: "${email}"`);
-    
+
+    if (!email || !email.includes("@"))
+      throw new Error(`Invalid email: "${email}"`);
+
     const userBudget = getUserBudgetInfo(email);
     if (!userBudget) throw new Error(`User ${email} not found in directory`);
-    
+
     const division = getDivisionFromDepartment(userBudget.department);
     const orgBudget = getOrganizationBudgetInfo(division);
-    if (!orgBudget) throw new Error(`Division budget ${division} not found for Field Trip`);
-    
-    const transactionId = generateSequentialTransactionId('FIELD_TRIP', division);
-    
+    if (!orgBudget)
+      throw new Error(`Division budget ${division} not found for Field Trip`);
+
+    const transactionId = generateSequentialTransactionId(
+      "FIELD_TRIP",
+      division,
+    );
+
     safelyWriteTransactionId(formSheet, lastRowIndex + 1, transactionId);
-    
+
     // Format the date so it doesn't dump the GMT time block into the description
     let cleanDate = tripDate;
-    if (Object.prototype.toString.call(tripDate) === '[object Date]' && !isNaN(tripDate)) {
-      cleanDate = Utilities.formatDate(tripDate, Session.getScriptTimeZone(), "EEE MMM d, yyyy");
+    if (
+      Object.prototype.toString.call(tripDate) === "[object Date]" &&
+      !isNaN(tripDate)
+    ) {
+      cleanDate = Utilities.formatDate(
+        tripDate,
+        Session.getScriptTimeZone(),
+        "EEE MMM d, yyyy",
+      );
     }
-    
-    const queueSheet = getOrCreateQueueSheet(manualHub, 'ManualQueue');
+
+    const queueSheet = getOrCreateQueueSheet(manualHub, "ManualQueue");
     const description = `Field trip to ${destination} on ${cleanDate} - ${numStudents} students via ${transportation}`;
-    
+
     queueSheet.appendRow([
-      transactionId, email, 'FIELD_TRIP', userBudget.department,
-      division, totalCost,
-      description, 'PENDING', timestamp, '', '', responseId
+      transactionId,
+      email,
+      "FIELD_TRIP",
+      userBudget.department,
+      division,
+      totalCost,
+      description,
+      "PENDING",
+      timestamp,
+      "",
+      "",
+      responseId,
     ]);
-    
+
     // ENFORCE DIVISION BUDGET SCOPING
     updateOrganizationEncumbranceRealTime(division);
-    const budgetAvailable = orgBudget.allocated - orgBudget.spent - orgBudget.encumbered;
+    const budgetAvailable =
+      orgBudget.allocated - orgBudget.spent - orgBudget.encumbered;
     const approver = getApproverForRequest({ amount: totalCost }, orgBudget);
-    
+
     const pdfLink = pdfUpload ? extractPdfLink(pdfUpload) : null;
-    
+
     sendEnhancedApprovalEmail(approver, {
-      transactionId, type: 'Field Trip Request', amount: totalCost, requestor: email,
+      transactionId,
+      type: "Field Trip Request",
+      amount: totalCost,
+      requestor: email,
       description: description,
-      items: [{
-        description: `Field trip to ${destination}`,
-        quantity: parseInt(numStudents) || 1,
-        unitPrice: (parseInt(numStudents) > 0) ? totalCost / parseInt(numStudents) : totalCost,
-        totalPrice: totalCost
-      }],
+      items: [
+        {
+          description: `Field trip to ${destination}`,
+          quantity: parseInt(numStudents) || 1,
+          unitPrice:
+            parseInt(numStudents) > 0
+              ? totalCost / parseInt(numStudents)
+              : totalCost,
+          totalPrice: totalCost,
+        },
+      ],
       budgetContext: {
         allocated: orgBudget.allocated,
         spent: orgBudget.spent,
         encumbered: orgBudget.encumbered,
         available: budgetAvailable,
         withinBudget: totalCost <= budgetAvailable,
-        utilization: (orgBudget.spent / orgBudget.allocated * 100).toFixed(1)
+        utilization: ((orgBudget.spent / orgBudget.allocated) * 100).toFixed(1),
       },
-      pdfLink: pdfLink
+      pdfLink: pdfLink,
     });
-    
-    logSystemEvent('FIELD_TRIP_SUBMITTED', email, totalCost, { transactionId });
-    
+
+    logSystemEvent("FIELD_TRIP_SUBMITTED", email, totalCost, { transactionId });
   } catch (error) {
     handleProcessingError(e, error);
   } finally {
@@ -716,19 +884,23 @@ function processFieldTripFormSubmission(e) {
 
 function processCurriculumFormSubmission(e) {
   const lock = LockService.getScriptLock();
-  try { lock.waitLock(30000); } catch(e) { throw new Error('System busy (Lock timeout)'); }
+  try {
+    lock.waitLock(30000);
+  } catch (e) {
+    throw new Error("System busy (Lock timeout)");
+  }
 
   try {
     const response = e.response;
     const responseId = response.getId();
     const timestamp = new Date();
-    
+
     Utilities.sleep(3000);
-    
+
     const manualHub = SpreadsheetApp.openById(CONFIG.MANUAL_HUB_ID);
-    const formSheet = manualHub.getSheetByName('Curriculum');
+    const formSheet = manualHub.getSheetByName("Curriculum");
     const data = formSheet.getDataRange().getValues();
-    validateFormColumns('CURRICULUM', data[0]);
+    validateFormColumns("CURRICULUM", data[0]);
     const lastRowIndex = data.length - 1;
     const row = data[lastRowIndex];
 
@@ -737,159 +909,229 @@ function processCurriculumFormSubmission(e) {
     const curriculumType = row[cur.TYPE];
     const resourceName = row[cur.RESOURCE_NAME];
     const quantity = parseInt(row[cur.QUANTITY]) || 0;
-    const unitPrice = parseFloat(String(row[cur.UNIT_PRICE]).replace(/[$,]/g, '')) || 0;
+    const unitPrice =
+      parseFloat(String(row[cur.UNIT_PRICE]).replace(/[$,]/g, "")) || 0;
     const totalCost = quantity * unitPrice;
     const pdfUpload = row[cur.PDF_UPLOAD];
-    const itemLink = row[cur.LINK] ? String(row[cur.LINK]).trim() : '';
+    const itemLink = row[cur.LINK] ? String(row[cur.LINK]).trim() : "";
 
     console.log(`📊 Curriculum: ${quantity} x $${unitPrice} = $${totalCost}`);
 
-    if (!email || !email.includes('@')) throw new Error(`Invalid email: "${email}"`);
+    if (!email || !email.includes("@"))
+      throw new Error(`Invalid email: "${email}"`);
 
     const userBudget = getUserBudgetInfo(email);
     if (!userBudget) throw new Error(`User ${email} not found in directory`);
 
     const orgBudget = getOrganizationBudgetInfo(userBudget.department);
-    if (!orgBudget) throw new Error(`Department budget ${userBudget.department} not found for Curriculum`);
+    if (!orgBudget)
+      throw new Error(
+        `Department budget ${userBudget.department} not found for Curriculum`,
+      );
 
     const division = getDivisionFromDepartment(userBudget.department);
 
     // ========================================================================
     // NEW: AMAZON AUTO-ROUTING DETECTION
     // ========================================================================
-    const isAmazonLink = itemLink.toLowerCase().includes('amazon.com') || itemLink.toLowerCase().includes('amzn.to');
+    const isAmazonLink =
+      itemLink.toLowerCase().includes("amazon.com") ||
+      itemLink.toLowerCase().includes("amzn.to");
     let asin = null;
     if (isAmazonLink) {
       try {
         const testEngine = new AmazonWorkflowEngine();
         asin = testEngine.extractASIN(itemLink);
       } catch (e) {
-        console.warn('Amazon form parsing failed, proceeding natively', e);
+        console.warn("Amazon form parsing failed, proceeding natively", e);
       }
     }
 
     if (asin) {
-      console.log(`🔄 Curriculum Amazon Routing Detected: ASIN ${asin} found for ${resourceName}`);
-      
-      const transactionId = generateSequentialTransactionId('CURRICULUM_AMAZON', division);
-      
+      console.log(
+        `🔄 Curriculum Amazon Routing Detected: ASIN ${asin} found for ${resourceName}`,
+      );
+
+      const transactionId = generateSequentialTransactionId(
+        "CURRICULUM_AMAZON",
+        division,
+      );
+
       safelyWriteTransactionId(formSheet, lastRowIndex + 1, transactionId);
 
       // Bridge to Amazon Pipeline
       const autoHub = SpreadsheetApp.openById(CONFIG.AUTOMATED_HUB_ID);
-      const amazonFormData = autoHub.getSheetByName('Amazon_Form_Data');
-      
-      const amazonHeaders = amazonFormData.getRange(1, 1, 1, amazonFormData.getLastColumn()).getValues()[0];
-      const newAmazonRow = new Array(amazonHeaders.length).fill('');
+      const amazonFormData = autoHub.getSheetByName("Amazon_Form_Data");
+
+      const amazonHeaders = amazonFormData
+        .getRange(1, 1, 1, amazonFormData.getLastColumn())
+        .getValues()[0];
+      const newAmazonRow = new Array(amazonHeaders.length).fill("");
       newAmazonRow[0] = timestamp;
       newAmazonRow[1] = email;
       newAmazonRow[2] = resourceName;
       newAmazonRow[3] = itemLink;
       newAmazonRow[4] = quantity > 0 ? quantity : 1;
       newAmazonRow[5] = unitPrice;
-      
-      const txColIdx = amazonHeaders.indexOf('TransactionID');
+
+      const txColIdx = amazonHeaders.indexOf("TransactionID");
       if (txColIdx !== -1) {
         newAmazonRow[txColIdx] = transactionId;
       } else {
         newAmazonRow[newAmazonRow.length - 1] = transactionId;
       }
       amazonFormData.appendRow(newAmazonRow);
-      
-      const queueSheet = getOrCreateQueueSheet(autoHub, 'AutomatedQueue');
+
+      const queueSheet = getOrCreateQueueSheet(autoHub, "AutomatedQueue");
       const description = `[Curriculum Auto-Routed] ${resourceName} (Qty: ${quantity})`;
-      
+
       queueSheet.appendRow([
-        transactionId, email, 'AMAZON', userBudget.department,
-        division, totalCost,
-        description, 'PENDING', timestamp, '', '', responseId
+        transactionId,
+        email,
+        "AMAZON",
+        userBudget.department,
+        division,
+        totalCost,
+        description,
+        "PENDING",
+        timestamp,
+        "",
+        "",
+        responseId,
       ]);
-      
+
       // ENFORCE DEPARTMENT BUDGET SCOPING
       updateOrganizationEncumbranceRealTime(userBudget.department);
 
       const isSub100 = totalCost <= 100;
-      const budgetAvailable = orgBudget.allocated - orgBudget.spent - orgBudget.encumbered;
+      const budgetAvailable =
+        orgBudget.allocated - orgBudget.spent - orgBudget.encumbered;
       const withinBudget = totalCost <= budgetAvailable;
       const velocityCheck = checkOrderVelocity(email, totalCost); // Velocity is still per-user by school rule
 
       if (isSub100 && withinBudget && velocityCheck.allowed) {
         console.log(`📍 Curriculum-Amazon: AUTO-APPROVING`);
-        const actualApprover = getApproverForRequest({ amount: totalCost }, orgBudget);
-        updateQueueStatus(transactionId, 'APPROVED', actualApprover, true);
-        logSystemEvent('AMAZON_AUTO_APPROVAL', email, totalCost, { transactionId, approver: actualApprover });
+        const actualApprover = getApproverForRequest(
+          { amount: totalCost },
+          orgBudget,
+        );
+        updateQueueStatus(transactionId, "APPROVED", actualApprover, true);
+        logSystemEvent("AMAZON_AUTO_APPROVAL", email, totalCost, {
+          transactionId,
+          approver: actualApprover,
+        });
         sendApprovalConfirmation(email, transactionId, totalCost, description);
-        
+
         if (CONFIG.AMAZON_B2B && CONFIG.AMAZON_B2B.ENABLED) {
           new AmazonWorkflowEngine().dispatchAmazonOrder(transactionId);
         }
       } else {
         console.log(`📍 Curriculum-Amazon: REQUESTING APPROVAL`);
-        const approver = getApproverForRequest({ amount: totalCost }, orgBudget);
-        updateQueueStatus(transactionId, 'PENDING_APPROVAL', approver, true);
+        const approver = getApproverForRequest(
+          { amount: totalCost },
+          orgBudget,
+        );
+        updateQueueStatus(transactionId, "PENDING_APPROVAL", approver, true);
         sendEnhancedApprovalEmail(approver, {
-          transactionId, type: 'Curriculum (Amazon Auto-Routed)', amount: totalCost, requestor: email, 
+          transactionId,
+          type: "Curriculum (Amazon Auto-Routed)",
+          amount: totalCost,
+          requestor: email,
           description: description,
-          items: [{ description: resourceName, quantity: quantity || 1, unitPrice: unitPrice, totalPrice: totalCost }],
+          items: [
+            {
+              description: resourceName,
+              quantity: quantity || 1,
+              unitPrice: unitPrice,
+              totalPrice: totalCost,
+            },
+          ],
           budgetContext: {
             allocated: orgBudget.allocated,
             spent: orgBudget.spent,
             encumbered: orgBudget.encumbered,
             available: budgetAvailable,
             withinBudget: totalCost <= budgetAvailable,
-            utilization: (orgBudget.spent / orgBudget.allocated * 100).toFixed(1)
-          }
+            utilization: (
+              (orgBudget.spent / orgBudget.allocated) *
+              100
+            ).toFixed(1),
+          },
         });
-        logSystemEvent('AMAZON_APPROVAL_REQUESTED', email, totalCost, { transactionId, approver });
+        logSystemEvent("AMAZON_APPROVAL_REQUESTED", email, totalCost, {
+          transactionId,
+          approver,
+        });
       }
-      
-      return; 
+
+      return;
     }
     // ========================================================================
     // END NEW AMAZON ROUTING
     // ========================================================================
 
-    const transactionId = generateSequentialTransactionId('CURRICULUM', division);
+    const transactionId = generateSequentialTransactionId(
+      "CURRICULUM",
+      division,
+    );
 
     safelyWriteTransactionId(formSheet, lastRowIndex + 1, transactionId);
 
-    const queueSheet = getOrCreateQueueSheet(manualHub, 'ManualQueue');
+    const queueSheet = getOrCreateQueueSheet(manualHub, "ManualQueue");
     const description = `${curriculumType} - ${resourceName} (Qty: ${quantity})`;
 
     queueSheet.appendRow([
-      transactionId, email, 'CURRICULUM', userBudget.department,
-      division, totalCost,
-      description, 'PENDING', timestamp, '', '', responseId
+      transactionId,
+      email,
+      "CURRICULUM",
+      userBudget.department,
+      division,
+      totalCost,
+      description,
+      "PENDING",
+      timestamp,
+      "",
+      "",
+      responseId,
     ]);
 
     // ENFORCE DEPARTMENT BUDGET SCOPING
     updateOrganizationEncumbranceRealTime(userBudget.department);
-    const budgetAvailable = orgBudget.allocated - orgBudget.spent - orgBudget.encumbered;
+    const budgetAvailable =
+      orgBudget.allocated - orgBudget.spent - orgBudget.encumbered;
     const approver = getApproverForRequest({ amount: totalCost }, orgBudget);
 
     const pdfLink = pdfUpload ? extractPdfLink(pdfUpload) : null;
 
     sendEnhancedApprovalEmail(approver, {
-      transactionId, type: 'Curriculum Request', amount: totalCost, requestor: email,
+      transactionId,
+      type: "Curriculum Request",
+      amount: totalCost,
+      requestor: email,
       description: description,
-      items: [{
-        description: resourceName,
-        quantity: quantity || 1,
-        unitPrice: unitPrice,
-        totalPrice: totalCost
-      }],
+      items: [
+        {
+          description: resourceName,
+          quantity: quantity || 1,
+          unitPrice: unitPrice,
+          totalPrice: totalCost,
+        },
+      ],
       budgetContext: {
         allocated: orgBudget.allocated,
         spent: orgBudget.spent,
         encumbered: orgBudget.encumbered,
-        available: budgetAvailable, withinBudget: totalCost <= budgetAvailable,
-        utilization: (orgBudget.spent / orgBudget.allocated * 100).toFixed(1)
+        available: budgetAvailable,
+        withinBudget: totalCost <= budgetAvailable,
+        utilization: ((orgBudget.spent / orgBudget.allocated) * 100).toFixed(1),
       },
-      pdfLink: pdfLink
+      pdfLink: pdfLink,
     });
 
-    logSystemEvent('CURRICULUM_APPROVAL_REQUESTED', email, totalCost, { transactionId, approver });
-    
+    logSystemEvent("CURRICULUM_APPROVAL_REQUESTED", email, totalCost, {
+      transactionId,
+      approver,
+    });
   } catch (error) {
     handleProcessingError(e, error);
   } finally {
@@ -903,70 +1145,96 @@ function processCurriculumFormSubmission(e) {
 
 function processAdminFormSubmission(e) {
   const lock = LockService.getScriptLock();
-  try { lock.waitLock(30000); } catch(e) { throw new Error('System busy (Lock timeout)'); }
+  try {
+    lock.waitLock(30000);
+  } catch (e) {
+    throw new Error("System busy (Lock timeout)");
+  }
 
   try {
     const response = e.response;
     const responseId = response.getId();
     const timestamp = new Date();
-    
+
     Utilities.sleep(3000);
-    
+
     const manualHub = SpreadsheetApp.openById(CONFIG.MANUAL_HUB_ID);
-    const formSheet = manualHub.getSheetByName('Admin');
+    const formSheet = manualHub.getSheetByName("Admin");
     const data = formSheet.getDataRange().getValues();
-    validateFormColumns('ADMIN', data[0]);
+    validateFormColumns("ADMIN", data[0]);
     const lastRowIndex = data.length - 1;
     const row = data[lastRowIndex];
 
     const adm = COLUMN_MAP.ADMIN;
     const email = row[adm.EMAIL];
     const description = row[adm.DESCRIPTION];
-    const amount = parseFloat(String(row[adm.AMOUNT]).replace(/[$,]/g, '')) || 0;
+    const amount =
+      parseFloat(String(row[adm.AMOUNT]).replace(/[$,]/g, "")) || 0;
     const pdfUpload = row[adm.PDF_UPLOAD];
-    
-    if (!email || !email.includes('@')) throw new Error(`Invalid email: "${email}"`);
-    
+
+    if (!email || !email.includes("@"))
+      throw new Error(`Invalid email: "${email}"`);
+
     const userBudget = getUserBudgetInfo(email);
     if (!userBudget) throw new Error(`User ${email} not found in directory`);
-    
+
     const division = getDivisionFromDepartment(userBudget.department);
-    const transactionId = generateSequentialTransactionId('ADMIN', division);
-    
+    const transactionId = generateSequentialTransactionId("ADMIN", division);
+
     safelyWriteTransactionId(formSheet, lastRowIndex + 1, transactionId);
-    
-    const queueSheet = getOrCreateQueueSheet(manualHub, 'ManualQueue');
+
+    const queueSheet = getOrCreateQueueSheet(manualHub, "ManualQueue");
 
     queueSheet.appendRow([
-      transactionId, email, 'ADMIN', userBudget.department,
-      getDivisionFromDepartment(userBudget.department), amount,
-      description, 'PENDING', timestamp, '', '', responseId
+      transactionId,
+      email,
+      "ADMIN",
+      userBudget.department,
+      getDivisionFromDepartment(userBudget.department),
+      amount,
+      description,
+      "PENDING",
+      timestamp,
+      "",
+      "",
+      responseId,
     ]);
-    
-    updateUserEncumbranceRealTime(email, amount, 'add');
-    const budgetAvailable = userBudget.allocated - userBudget.spent - userBudget.encumbered;
+
+    updateUserEncumbranceRealTime(email, amount, "add");
+    const budgetAvailable =
+      userBudget.allocated - userBudget.spent - userBudget.encumbered;
     const approver = getApproverForRequest({ amount: amount }, userBudget);
-    
+
     const pdfLink = pdfUpload ? extractPdfLink(pdfUpload) : null;
-    
+
     sendEnhancedApprovalEmail(approver, {
-      transactionId, type: 'Admin Purchase', amount: amount, requestor: email,
+      transactionId,
+      type: "Admin Purchase",
+      amount: amount,
+      requestor: email,
       description: description,
-      items: [{
-        description: description,
-        quantity: 1,
-        unitPrice: amount,
-        totalPrice: amount
-      }],
+      items: [
+        {
+          description: description,
+          quantity: 1,
+          unitPrice: amount,
+          totalPrice: amount,
+        },
+      ],
       budgetContext: {
-        available: budgetAvailable, withinBudget: amount <= budgetAvailable,
-        utilization: (userBudget.spent / userBudget.allocated * 100).toFixed(1)
+        available: budgetAvailable,
+        withinBudget: amount <= budgetAvailable,
+        utilization: ((userBudget.spent / userBudget.allocated) * 100).toFixed(
+          1,
+        ),
       },
-      pdfLink: pdfLink
+      pdfLink: pdfLink,
     });
-    
-    logSystemEvent('ADMIN_APPROVAL_REQUESTED', email, amount, { transactionId, approver });
-    
+
+    logSystemEvent("ADMIN_APPROVAL_REQUESTED", email, amount, {
+      transactionId,
+      approver,
+    });
   } catch (error) {
     handleProcessingError(e, error);
   } finally {
@@ -995,8 +1263,8 @@ function processApprovalDecision(token, decision) {
     // Step 1: Validate and retrieve token from storage
     const tokenValidation = validateAndRetrieveToken(token);
     if (!tokenValidation.valid) {
-      logSystemEvent('APPROVAL_TOKEN_REJECTED', 'UNKNOWN', 0, {
-        reason: tokenValidation.error
+      logSystemEvent("APPROVAL_TOKEN_REJECTED", "UNKNOWN", 0, {
+        reason: tokenValidation.error,
       });
       return { success: false, error: tokenValidation.error };
     }
@@ -1008,47 +1276,66 @@ function processApprovalDecision(token, decision) {
     // Step 2: Verify current user matches token approver (identity verification)
     const currentUser = Session.getActiveUser().getEmail();
     if (currentUser !== approverEmail) {
-      console.warn(`[SECURITY] Identity mismatch: Token approver ${approverEmail} != Current user ${currentUser}`);
-      logSystemEvent('APPROVAL_IDENTITY_MISMATCH', currentUser, 0, {
+      console.warn(
+        `[SECURITY] Identity mismatch: Token approver ${approverEmail} != Current user ${currentUser}`,
+      );
+      logSystemEvent("APPROVAL_IDENTITY_MISMATCH", currentUser, 0, {
         transactionId: transactionId,
-        tokenApprover: approverEmail
+        tokenApprover: approverEmail,
       });
       return {
         success: false,
-        error: 'Identity verification failed. You must be logged in as the designated approver.'
+        error:
+          "Identity verification failed. You must be logged in as the designated approver.",
       };
     }
 
     // Step 3: Retrieve transaction details
     request = findRequestInQueues(transactionId);
     if (!request) {
-      logSystemEvent('APPROVAL_REQUEST_NOT_FOUND', approverEmail, 0, {
-        transactionId: transactionId
+      logSystemEvent("APPROVAL_REQUEST_NOT_FOUND", approverEmail, 0, {
+        transactionId: transactionId,
       });
-      return { success: false, error: 'Request not found or already processed' };
+      return {
+        success: false,
+        error: "Request not found or already processed",
+      };
     }
 
-    if (request.status !== 'PENDING') {
-      logSystemEvent('APPROVAL_REQUEST_NOT_PENDING', approverEmail, request.amount, {
-        transactionId: transactionId,
-        currentStatus: request.status
-      });
-      return { success: false, error: `Request already ${request.status.toLowerCase()}` };
+    if (request.status !== "PENDING") {
+      logSystemEvent(
+        "APPROVAL_REQUEST_NOT_PENDING",
+        approverEmail,
+        request.amount,
+        {
+          transactionId: transactionId,
+          currentStatus: request.status,
+        },
+      );
+      return {
+        success: false,
+        error: `Request already ${request.status.toLowerCase()}`,
+      };
     }
 
     // Step 4: Validate budget if approving
-    if (decision === 'approve') {
+    if (decision === "approve") {
       const budgetCheck = validateBudgetBeforeApproval(request);
       if (!budgetCheck.valid) {
-        logSystemEvent('APPROVAL_BLOCKED_OVERBUDGET', approverEmail, request.amount, {
-          transactionId: transactionId,
-          available: budgetCheck.available,
-          encumbrance: budgetCheck.encumbrance
-        });
+        logSystemEvent(
+          "APPROVAL_BLOCKED_OVERBUDGET",
+          approverEmail,
+          request.amount,
+          {
+            transactionId: transactionId,
+            available: budgetCheck.available,
+            encumbrance: budgetCheck.encumbrance,
+          },
+        );
 
         return {
           success: false,
-          error: `Cannot approve: ${budgetCheck.message}. Current available budget: $${budgetCheck.available.toFixed(2)}`
+          error: `Cannot approve: ${budgetCheck.message}. Current available budget: $${budgetCheck.available.toFixed(2)}`,
         };
       }
     }
@@ -1056,32 +1343,58 @@ function processApprovalDecision(token, decision) {
     // Step 5: Final approver validation
     const validApprover = validateApprover(approverEmail, request);
     if (!validApprover) {
-      logSystemEvent('APPROVAL_UNAUTHORIZED_APPROVER', approverEmail, request.amount, {
-        transactionId: transactionId
-      });
-      return { success: false, error: 'You are not authorized to approve this request' };
+      logSystemEvent(
+        "APPROVAL_UNAUTHORIZED_APPROVER",
+        approverEmail,
+        request.amount,
+        {
+          transactionId: transactionId,
+        },
+      );
+      return {
+        success: false,
+        error: "You are not authorized to approve this request",
+      };
     }
 
     // Step 6: Process the decision
-    const newStatus = decision === 'approve' ? 'APPROVED' : 'REJECTED';
-    const updateSuccess = updateQueueStatus(transactionId, newStatus, approverEmail, request.isAutomated);
+    const newStatus = decision === "approve" ? "APPROVED" : "REJECTED";
+    const updateSuccess = updateQueueStatus(
+      transactionId,
+      newStatus,
+      approverEmail,
+      request.isAutomated,
+    );
 
     if (!updateSuccess) {
-      logSystemEvent('APPROVAL_STATUS_UPDATE_FAILED', approverEmail, request.amount, {
-        transactionId: transactionId
-      });
-      return { success: false, error: 'Failed to update queue status' };
+      logSystemEvent(
+        "APPROVAL_STATUS_UPDATE_FAILED",
+        approverEmail,
+        request.amount,
+        {
+          transactionId: transactionId,
+        },
+      );
+      return { success: false, error: "Failed to update queue status" };
     }
 
     // Step 7: Mark token as used (prevent replay attacks)
     markTokenAsUsed(token, currentUser);
 
-    if (newStatus === 'APPROVED') {
-      sendApprovalConfirmation(request.email, transactionId, request.amount, request.description);
-      updateUserBudgetEncumbrance(request.email, request.amount, 'add');
+    if (newStatus === "APPROVED") {
+      sendApprovalConfirmation(
+        request.email,
+        transactionId,
+        request.amount,
+        request.description,
+      );
+      updateUserBudgetEncumbrance(request.email, request.amount, "add");
 
       if (!request.isAutomated) {
-        const orderId = generateOrderID(request.division || request.department, request.type);
+        const orderId = generateOrderID(
+          request.division || request.department,
+          request.type,
+        );
         moveToTransactionLedger({
           transactionId: transactionId,
           orderId: orderId,
@@ -1090,82 +1403,105 @@ function processApprovalDecision(token, decision) {
           organization: request.department,
           form: request.type,
           amount: request.amount,
-          description: request.description
+          description: request.description,
         });
       } else {
-        console.log(`Automated item ${transactionId} approved - routing payloads`);
-        if (request.type === 'AMAZON' && CONFIG.AMAZON_B2B && CONFIG.AMAZON_B2B.ENABLED) {
-           console.log(`🔗 Webhooking Amazon order ${transactionId} to Amazon Native REST API...`);
-           new AmazonWorkflowEngine().dispatchAmazonOrder(transactionId);
+        console.log(
+          `Automated item ${transactionId} approved - routing payloads`,
+        );
+        if (
+          request.type === "AMAZON" &&
+          CONFIG.AMAZON_B2B &&
+          CONFIG.AMAZON_B2B.ENABLED
+        ) {
+          console.log(
+            `🔗 Webhooking Amazon order ${transactionId} to Amazon Native REST API...`,
+          );
+          new AmazonWorkflowEngine().dispatchAmazonOrder(transactionId);
         } else {
-           console.log(`Automated item ${transactionId} (${request.type}) awaiting batch processing`);
+          console.log(
+            `Automated item ${transactionId} (${request.type}) awaiting batch processing`,
+          );
         }
       }
-
     } else {
       sendRejectionNotification(request.email, {
         transactionId: transactionId,
         type: request.type,
         amount: request.amount,
         description: request.description,
-        approver: approverEmail
+        approver: approverEmail,
       });
 
       if (request.wasOverBudget) {
         releaseBudgetHold(request.email, request.amount);
       }
 
-      if (request.isAutomated && decision === 'reject') {
+      if (request.isAutomated && decision === "reject") {
         // Offer to resubmit with different pricing or alternatives
         sendResubmissionNotification(
           request.email,
           request.type,
-          { transactionId: transactionId, description: request.description, amount: request.amount },
-          'Your request was rejected. You may resubmit with updated information.'
+          {
+            transactionId: transactionId,
+            description: request.description,
+            amount: request.amount,
+          },
+          "Your request was rejected. You may resubmit with updated information.",
         );
       }
     }
 
-    console.log(`[SECURITY] Approval processed successfully - TxnID: ${transactionId} | Approver: ${approverEmail} | Decision: ${newStatus}`);
+    console.log(
+      `[SECURITY] Approval processed successfully - TxnID: ${transactionId} | Approver: ${approverEmail} | Decision: ${newStatus}`,
+    );
     logSystemEvent(`REQUEST_${newStatus}`, approverEmail, request.amount, {
       transactionId: transactionId,
       requestor: request.email,
       timestamp: new Date(),
-      tokenId: token.substring(0, 8)
+      tokenId: token.substring(0, 8),
     });
 
     return { success: true, status: newStatus };
-
   } catch (error) {
-    console.error('[SECURITY ERROR] Unexpected error in approval processing:', error);
-    logSystemEvent('APPROVAL_ERROR', approverEmail || 'UNKNOWN', 0, {
+    console.error(
+      "[SECURITY ERROR] Unexpected error in approval processing:",
+      error,
+    );
+    logSystemEvent("APPROVAL_ERROR", approverEmail || "UNKNOWN", 0, {
       error: error.toString(),
-      stack: error.stack
+      stack: error.stack,
     });
-    return { success: false, error: 'An error occurred while processing your approval. Please try again.' };
+    return {
+      success: false,
+      error:
+        "An error occurred while processing your approval. Please try again.",
+    };
   }
 }
 
 function updateQueueStatus(transactionId, status, approver, isAutomated) {
   const hubId = isAutomated ? CONFIG.AUTOMATED_HUB_ID : CONFIG.MANUAL_HUB_ID;
   const hub = SpreadsheetApp.openById(hubId);
-  const queue = hub.getSheetByName(isAutomated ? 'AutomatedQueue' : 'ManualQueue');
+  const queue = hub.getSheetByName(
+    isAutomated ? "AutomatedQueue" : "ManualQueue",
+  );
   const data = queue.getDataRange().getValues();
-  
+
   for (let i = 1; i < data.length; i++) {
     if (data[i][0] === transactionId) {
       const oldStatus = data[i][7];
       const requestor = data[i][1];
       const amount = parseFloat(data[i][5]) || 0;
-      
-      queue.getRange(i + 1, 8).setValue(status);           // Status
-      queue.getRange(i + 1, 10).setValue(new Date());      // ApprovedOn
-      queue.getRange(i + 1, 11).setValue(approver);        // Approver
-      
+
+      queue.getRange(i + 1, 8).setValue(status); // Status
+      queue.getRange(i + 1, 10).setValue(new Date()); // ApprovedOn
+      queue.getRange(i + 1, 11).setValue(approver); // Approver
+
       if (oldStatus !== status) {
         // If status changed to REJECTED or VOID, remove encumbrance
-        if (status === 'REJECTED' || status === 'VOID') {
-          updateUserEncumbranceRealTime(requestor, amount, 'remove');
+        if (status === "REJECTED" || status === "VOID") {
+          updateUserEncumbranceRealTime(requestor, amount, "remove");
         }
         // If status changed to ORDERED from PENDING/APPROVED, encumbrance is handled (removed + spent added)
         // But spent is only added when Invoice is generated or PEX txn clears.
@@ -1173,7 +1509,7 @@ function updateQueueStatus(transactionId, status, approver, isAutomated) {
         // Actually, if ORDERED, it should stay encumbered until invoiced?
         // No, current logic removes encumbrance when ORDERED.
       }
-      
+
       return true;
     }
   }
@@ -1197,11 +1533,11 @@ function updateQueueStatus(transactionId, status, approver, isAutomated) {
  * @returns {Object} { valid: boolean, data: Object|null, error: string|null }
  */
 function validateAndRetrieveToken(token) {
-  if (!token || typeof token !== 'string' || token.trim() === '') {
+  if (!token || typeof token !== "string" || token.trim() === "") {
     return {
       valid: false,
       data: null,
-      error: 'No valid token provided'
+      error: "No valid token provided",
     };
   }
 
@@ -1215,7 +1551,7 @@ function validateAndRetrieveToken(token) {
       return {
         valid: false,
         data: null,
-        error: 'Token not found or has been deleted'
+        error: "Token not found or has been deleted",
       };
     }
 
@@ -1223,11 +1559,13 @@ function validateAndRetrieveToken(token) {
 
     // Check if token has already been used (replay attack prevention)
     if (tokenData.used === true) {
-      console.warn(`[SECURITY] Token replay attempt detected: ${token.substring(0, 8)}... | Used by: ${tokenData.usedBy} at ${tokenData.usedAt}`);
+      console.warn(
+        `[SECURITY] Token replay attempt detected: ${token.substring(0, 8)}... | Used by: ${tokenData.usedBy} at ${tokenData.usedAt}`,
+      );
       return {
         valid: false,
         data: null,
-        error: 'This approval link has already been used'
+        error: "This approval link has already been used",
       };
     }
 
@@ -1235,27 +1573,31 @@ function validateAndRetrieveToken(token) {
     const now = Date.now();
     if (now > tokenData.expiresAt) {
       const expiresDate = new Date(tokenData.expiresAt);
-      console.warn(`[SECURITY] Token expired: ${token.substring(0, 8)}... | Expired at: ${expiresDate}`);
+      console.warn(
+        `[SECURITY] Token expired: ${token.substring(0, 8)}... | Expired at: ${expiresDate}`,
+      );
       return {
         valid: false,
         data: null,
-        error: `Approval link has expired. It was only valid until ${expiresDate.toLocaleString()}`
+        error: `Approval link has expired. It was only valid until ${expiresDate.toLocaleString()}`,
       };
     }
 
-    console.log(`[SECURITY] Token validated successfully: ${token.substring(0, 8)}... | TxnID: ${tokenData.transactionId}`);
+    console.log(
+      `[SECURITY] Token validated successfully: ${token.substring(0, 8)}... | TxnID: ${tokenData.transactionId}`,
+    );
     return {
       valid: true,
       data: tokenData,
-      error: null
+      error: null,
     };
-
   } catch (error) {
-    console.error('[SECURITY ERROR] Token validation failed:', error);
+    console.error("[SECURITY ERROR] Token validation failed:", error);
     return {
       valid: false,
       data: null,
-      error: 'Token validation error - please try accessing the approval link again'
+      error:
+        "Token validation error - please try accessing the approval link again",
     };
   }
 }
@@ -1274,7 +1616,9 @@ function markTokenAsUsed(token, usedBy) {
     const tokenJson = scriptProperties.getProperty(tokenKey);
 
     if (!tokenJson) {
-      console.warn(`[SECURITY] Cannot mark token as used - token not found: ${token.substring(0, 8)}...`);
+      console.warn(
+        `[SECURITY] Cannot mark token as used - token not found: ${token.substring(0, 8)}...`,
+      );
       return;
     }
 
@@ -1284,10 +1628,11 @@ function markTokenAsUsed(token, usedBy) {
     tokenData.usedBy = usedBy;
 
     scriptProperties.setProperty(tokenKey, JSON.stringify(tokenData));
-    console.log(`[SECURITY] Token marked as used: ${token.substring(0, 8)}... | Used by: ${usedBy}`);
-
+    console.log(
+      `[SECURITY] Token marked as used: ${token.substring(0, 8)}... | Used by: ${usedBy}`,
+    );
   } catch (error) {
-    console.error('[SECURITY ERROR] Failed to mark token as used:', error);
+    console.error("[SECURITY ERROR] Failed to mark token as used:", error);
   }
 }
 
@@ -1307,7 +1652,7 @@ function cleanupExpiredTokens() {
 
   for (const [key, value] of Object.entries(allProperties)) {
     // Only process approval tokens
-    if (!key.startsWith('approval_token_')) continue;
+    if (!key.startsWith("approval_token_")) continue;
 
     try {
       const tokenData = JSON.parse(value);
@@ -1322,10 +1667,12 @@ function cleanupExpiredTokens() {
     }
   }
 
-  console.log(`[SECURITY] Token cleanup complete - Deleted: ${deleted}, Errors: ${errors}`);
-  logSystemEvent('APPROVAL_TOKEN_CLEANUP', 'SYSTEM', 0, {
+  console.log(
+    `[SECURITY] Token cleanup complete - Deleted: ${deleted}, Errors: ${errors}`,
+  );
+  logSystemEvent("APPROVAL_TOKEN_CLEANUP", "SYSTEM", 0, {
     deletedCount: deleted,
-    errorCount: errors
+    errorCount: errors,
   });
 
   return { deleted, errors };
@@ -1333,13 +1680,25 @@ function cleanupExpiredTokens() {
 
 function moveToTransactionLedger(transaction) {
   const budgetHub = SpreadsheetApp.openById(CONFIG.BUDGET_HUB_ID);
-  let ledger = budgetHub.getSheetByName('TransactionLedger');
-  
+  let ledger = budgetHub.getSheetByName("TransactionLedger");
+
   if (!ledger) {
-    ledger = budgetHub.insertSheet('TransactionLedger');
-    ledger.appendRow(['TransactionID', 'OrderID', 'ProcessedOn', 'Requestor', 'Approver', 'Organization', 'Form', 'Amount', 'Description', 'FiscalQuarter', 'InvoiceGenerated']);
+    ledger = budgetHub.insertSheet("TransactionLedger");
+    ledger.appendRow([
+      "TransactionID",
+      "OrderID",
+      "ProcessedOn",
+      "Requestor",
+      "Approver",
+      "Organization",
+      "Form",
+      "Amount",
+      "Description",
+      "FiscalQuarter",
+      "InvoiceGenerated",
+    ]);
   }
-  
+
   ledger.appendRow([
     transaction.transactionId,
     transaction.orderId,
@@ -1351,20 +1710,20 @@ function moveToTransactionLedger(transaction) {
     transaction.amount,
     transaction.description,
     getCurrentQuarter(),
-    ''
+    "",
   ]);
 }
 
 function createFormattedMultiItemDescription(items) {
-  if (!items || items.length === 0) return 'No items';
-  const descriptions = items.map(item => {
+  if (!items || items.length === 0) return "No items";
+  const descriptions = items.map((item) => {
     const qty = item.quantity || 1;
-    const desc = item.description || item.itemDescription || 'Unknown Item';
+    const desc = item.description || item.itemDescription || "Unknown Item";
     const cleanDesc = desc.trim().substring(0, 50);
     return qty > 1 ? `${qty}x ${cleanDesc}` : cleanDesc;
   });
-  const fullDesc = descriptions.join(', ');
-  return fullDesc.length > 200 ? fullDesc.substring(0, 197) + '...' : fullDesc;
+  const fullDesc = descriptions.join(", ");
+  return fullDesc.length > 200 ? fullDesc.substring(0, 197) + "..." : fullDesc;
 }
 
 // ============================================================================
@@ -1373,20 +1732,20 @@ function createFormattedMultiItemDescription(items) {
 
 function processWarehouseOrders() {
   try {
-    console.log('🏪 Processing warehouse orders');
-    
+    console.log("🏪 Processing warehouse orders");
+
     const autoHub = SpreadsheetApp.openById(CONFIG.AUTOMATED_HUB_ID);
-    const queueSheet = autoHub.getSheetByName('AutomatedQueue');
+    const queueSheet = autoHub.getSheetByName("AutomatedQueue");
     const queueData = queueSheet.getDataRange().getValues();
-    
+
     let processedCount = 0;
     const processedItems = [];
 
     for (let i = 1; i < queueData.length; i++) {
-      if (queueData[i][2] === 'WAREHOUSE' && queueData[i][7] === 'APPROVED') {
+      if (queueData[i][2] === "WAREHOUSE" && queueData[i][7] === "APPROVED") {
         const transactionId = queueData[i][0];
-        const division = queueData[i][4] || 'General';
-        const orderId = generateOrderID(division, 'WAREHOUSE');
+        const division = queueData[i][4] || "General";
+        const orderId = generateOrderID(division, "WAREHOUSE");
 
         // Move to transaction ledger
         moveToTransactionLedger({
@@ -1395,37 +1754,36 @@ function processWarehouseOrders() {
           requestor: queueData[i][1],
           approver: queueData[i][10],
           organization: queueData[i][3],
-          form: 'WAREHOUSE',
+          form: "WAREHOUSE",
           amount: queueData[i][5],
-          description: queueData[i][6]
+          description: queueData[i][6],
         });
-        
+
         // Update status to ORDERED
-        queueSheet.getRange(i + 1, 8).setValue('ORDERED');
+        queueSheet.getRange(i + 1, 8).setValue("ORDERED");
         queueSheet.getRange(i + 1, 10).setValue(new Date());
-        
+
         processedItems.push({
           transactionId,
           requestor: queueData[i][1],
           department: queueData[i][3],
           amount: queueData[i][5],
-          description: queueData[i][6]
+          description: queueData[i][6],
         });
-        
+
         processedCount++;
       }
     }
-    
+
     if (processedCount > 0) {
-      const lastOrderId = processedItems.length > 0 ? 'batch' : '';
+      const lastOrderId = processedItems.length > 0 ? "batch" : "";
       console.log(`✅ Processed ${processedCount} warehouse orders`);
       // Invoice generation will handle sending to business office
     }
 
     return { success: true, processedCount, processedItems };
-    
   } catch (error) {
-    console.error('❌ Warehouse processing error:', error);
+    console.error("❌ Warehouse processing error:", error);
     return { success: false, error: error.toString() };
   }
 }
@@ -1434,12 +1792,16 @@ function validateApprover(approverEmail, request) {
   // TEST MODE SUPER-ADMIN OVERRIDE
   if (isTestMode()) {
     const currentUser = Session.getActiveUser().getEmail();
-    if (currentUser === CONFIG.ADMIN_EMAIL || 
-        approverEmail === CONFIG.ADMIN_EMAIL ||
-        currentUser === 'invoicing@keswickchristian.org') {
-        // Log this explicit override
-        console.warn(`🔓 TEST MODE: Allowing approval for ${approverEmail} by ${currentUser}`);
-        return true;
+    if (
+      currentUser === CONFIG.ADMIN_EMAIL ||
+      approverEmail === CONFIG.ADMIN_EMAIL ||
+      currentUser === "invoicing@keswickchristian.org"
+    ) {
+      // Log this explicit override
+      console.warn(
+        `🔓 TEST MODE: Allowing approval for ${approverEmail} by ${currentUser}`,
+      );
+      return true;
     }
   }
 
@@ -1447,27 +1809,30 @@ function validateApprover(approverEmail, request) {
   if (approverEmail === CONFIG.BUSINESS_OFFICE_EMAIL) {
     return true;
   }
-  
+
   // Get user info
   const userBudget = getUserBudgetInfo(request.email);
   if (!userBudget) return false;
-  
+
   // Check if approver matches expected approver
   if (userBudget.approver === approverEmail) {
     return true;
   }
-  
+
   // Check division heads
   const divisionHeads = {
-    'Upper School': ['ushead@keswickchristian.org'],
-    'Lower School': ['lshead@keswickchristian.org'],
-    'Administration': ['mtrotter@keswickchristian.org']
+    "Upper School": ["ushead@keswickchristian.org"],
+    "Lower School": ["lshead@keswickchristian.org"],
+    Admin: ["mtrotter@keswickchristian.org"],
   };
-  
-  if (divisionHeads[request.division] && divisionHeads[request.division].includes(approverEmail)) {
+
+  if (
+    divisionHeads[request.division] &&
+    divisionHeads[request.division].includes(approverEmail)
+  ) {
     return true;
   }
-  
+
   return false;
 }
 
@@ -1475,9 +1840,9 @@ function findRequestInQueues(transactionId) {
   // Check automated queue
   try {
     const autoHub = SpreadsheetApp.openById(CONFIG.AUTOMATED_HUB_ID);
-    const autoQueue = autoHub.getSheetByName('AutomatedQueue');
+    const autoQueue = autoHub.getSheetByName("AutomatedQueue");
     const autoData = autoQueue.getDataRange().getValues();
-    
+
     for (let i = 1; i < autoData.length; i++) {
       if (autoData[i][0] === transactionId) {
         return {
@@ -1490,29 +1855,29 @@ function findRequestInQueues(transactionId) {
           amount: autoData[i][5],
           description: autoData[i][6],
           status: autoData[i][7],
-          formPrefix: autoData[i][2] === 'AMAZON' ? 'AMZ' : 'PCW',
-          row: i + 1
+          formPrefix: autoData[i][2] === "AMAZON" ? "AMZ" : "PCW",
+          row: i + 1,
         };
       }
     }
   } catch (error) {
-    console.error('Error checking automated queue:', error);
+    console.error("Error checking automated queue:", error);
   }
-  
+
   // Check manual queue
   try {
     const manualHub = SpreadsheetApp.openById(CONFIG.MANUAL_HUB_ID);
-    const manualQueue = manualHub.getSheetByName('ManualQueue');
+    const manualQueue = manualHub.getSheetByName("ManualQueue");
     const manualData = manualQueue.getDataRange().getValues();
-    
+
     for (let i = 1; i < manualData.length; i++) {
       if (manualData[i][0] === transactionId) {
         const typeMap = {
-          'FIELD_TRIP': 'FT',
-          'CURRICULUM': 'CI',
-          'ADMIN': 'ADMIN'
+          FIELD_TRIP: "FT",
+          CURRICULUM: "CI",
+          ADMIN: "ADMIN",
         };
-        
+
         return {
           isAutomated: false,
           transactionId: manualData[i][0],
@@ -1523,15 +1888,15 @@ function findRequestInQueues(transactionId) {
           amount: manualData[i][5],
           description: manualData[i][6],
           status: manualData[i][7],
-          formPrefix: typeMap[manualData[i][2]] || 'TXN',
-          row: i + 1
+          formPrefix: typeMap[manualData[i][2]] || "TXN",
+          row: i + 1,
         };
       }
     }
   } catch (error) {
-    console.error('Error checking manual queue:', error);
+    console.error("Error checking manual queue:", error);
   }
-  
+
   return null;
 }
 
@@ -1541,7 +1906,7 @@ function findRequestInQueues(transactionId) {
 
 function validateAmazonOrder(transactionId, items, requestorEmail) {
   const invalidItems = [];
-  
+
   items.forEach((item, index) => {
     // Check if URL is valid Amazon URL
     if (!isValidAmazonUrl(item.url)) {
@@ -1549,27 +1914,32 @@ function validateAmazonOrder(transactionId, items, requestorEmail) {
         itemNumber: index + 1,
         description: item.description,
         url: item.url,
-        issue: 'Invalid or non-Amazon URL'
+        issue: "Invalid or non-Amazon URL",
       });
     }
-    
+
     // Check if ASIN can be extracted
     const asin = extractASIN(item.url);
-    if (!asin && item.url.includes('amazon.com')) {
+    if (!asin && item.url.includes("amazon.com")) {
       invalidItems.push({
         itemNumber: index + 1,
         description: item.description,
         url: item.url,
-        issue: 'Cannot extract ASIN from Amazon URL'
+        issue: "Cannot extract ASIN from Amazon URL",
       });
     }
   });
-  
+
   if (invalidItems.length > 0) {
-    voidOrderAndNotifyRequestor(transactionId, requestorEmail, 'AMAZON', invalidItems);
+    voidOrderAndNotifyRequestor(
+      transactionId,
+      requestorEmail,
+      "AMAZON",
+      invalidItems,
+    );
     return false;
   }
-  
+
   return true;
 }
 
@@ -1582,37 +1952,49 @@ function validateWarehouseOrder(transactionId, warehouseItems, requestorEmail) {
 
 function isValidAmazonUrl(url) {
   if (!url) return false;
-  
+
   const urlStr = String(url).toLowerCase().trim();
-  
+
   // Must contain amazon.com
-  if (!urlStr.includes('amazon.com')) return false;
-  
+  if (!urlStr.includes("amazon.com")) return false;
+
   // Basic URL regex validation
   const urlPattern = /^https?:\/\/(?:www\.)?amazon\.com\/.+/i;
   return urlPattern.test(urlStr);
 }
 
-function voidOrderAndNotifyRequestor(transactionId, requestorEmail, orderType, invalidItems) {
+function voidOrderAndNotifyRequestor(
+  transactionId,
+  requestorEmail,
+  orderType,
+  invalidItems,
+) {
   try {
     // Update queue status to VOID
-    const isAutomated = ['AMAZON', 'WAREHOUSE'].includes(orderType);
-    updateQueueStatus(transactionId, 'VOID', 'SYSTEM_VALIDATION', isAutomated);
-    
+    const isAutomated = ["AMAZON", "WAREHOUSE"].includes(orderType);
+    updateQueueStatus(transactionId, "VOID", "SYSTEM_VALIDATION", isAutomated);
+
     // Send detailed notification to requestor
-    sendValidationErrorEmail(requestorEmail, transactionId, orderType, invalidItems);
-    
-    // Log the validation failure
-    logSystemEvent('ORDER_VALIDATION_FAILED', requestorEmail, 0, {
+    sendValidationErrorEmail(
+      requestorEmail,
       transactionId,
       orderType,
-      invalidItems
+      invalidItems,
+    );
+
+    // Log the validation failure
+    logSystemEvent("ORDER_VALIDATION_FAILED", requestorEmail, 0, {
+      transactionId,
+      orderType,
+      invalidItems,
     });
-    
   } catch (error) {
-    console.error('Error voiding order:', error);
+    console.error("Error voiding order:", error);
     // Fall back to business office notification
-    handleCriticalError(transactionId, orderType, error, { requestorEmail, invalidItems });
+    handleCriticalError(transactionId, orderType, error, {
+      requestorEmail,
+      invalidItems,
+    });
   }
 }
 
@@ -1642,31 +2024,32 @@ function generateApprovalUrl(transactionId, approverEmail, decision) {
       expiresAt: expiresAt,
       used: false,
       usedAt: null,
-      usedBy: null
+      usedBy: null,
     };
 
     const scriptProperties = PropertiesService.getScriptProperties();
     scriptProperties.setProperty(
       `approval_token_${token}`,
-      JSON.stringify(tokenData)
+      JSON.stringify(tokenData),
     );
 
     // Log token generation for audit trail
-    console.log(`[SECURITY] Approval token generated - Token: ${token.substring(0, 8)}... | TxnID: ${transactionId} | Approver: ${approverEmail} | Expires: ${new Date(expiresAt)}`);
-    logSystemEvent('APPROVAL_TOKEN_GENERATED', approverEmail, 0, {
+    console.log(
+      `[SECURITY] Approval token generated - Token: ${token.substring(0, 8)}... | TxnID: ${transactionId} | Approver: ${approverEmail} | Expires: ${new Date(expiresAt)}`,
+    );
+    logSystemEvent("APPROVAL_TOKEN_GENERATED", approverEmail, 0, {
       transactionId: transactionId,
       tokenId: token.substring(0, 8),
-      expiresAt: expiresAt
+      expiresAt: expiresAt,
     });
 
     // Return URL with only the token parameter
     return `${CONFIG.WEBAPP_URL}?token=${encodeURIComponent(token)}`;
-
   } catch (error) {
-    console.error('Error generating approval URL:', error);
-    logSystemEvent('APPROVAL_TOKEN_GENERATION_ERROR', approverEmail, 0, {
+    console.error("Error generating approval URL:", error);
+    logSystemEvent("APPROVAL_TOKEN_GENERATION_ERROR", approverEmail, 0, {
       transactionId: transactionId,
-      error: error.toString()
+      error: error.toString(),
     });
     throw new Error(`Failed to generate approval token: ${error.toString()}`);
   }
@@ -1690,35 +2073,35 @@ function validateFormColumns(formType, headerRow) {
   // Expected header keywords per column (partial match, case-insensitive)
   const EXPECTED_HEADERS = {
     AMAZON: {
-      [COLUMN_MAP.AMAZON.EMAIL]: 'email',
-      [COLUMN_MAP.AMAZON.ITEM1_DESC]: 'description',
-      [COLUMN_MAP.AMAZON.ITEM1_URL]: 'url',
-      [COLUMN_MAP.AMAZON.ITEM1_QTY]: 'quantity',
-      [COLUMN_MAP.AMAZON.ITEM1_PRICE]: 'price'
+      [COLUMN_MAP.AMAZON.EMAIL]: "email",
+      [COLUMN_MAP.AMAZON.ITEM1_DESC]: "description",
+      [COLUMN_MAP.AMAZON.ITEM1_URL]: "url",
+      [COLUMN_MAP.AMAZON.ITEM1_QTY]: "quantity",
+      [COLUMN_MAP.AMAZON.ITEM1_PRICE]: "price",
     },
     WAREHOUSE: {
-      [COLUMN_MAP.WAREHOUSE.EMAIL]: 'email',
-      [COLUMN_MAP.WAREHOUSE.ITEM1_ID]: 'catalog',
-      [COLUMN_MAP.WAREHOUSE.ITEM1_QTY]: 'quantity'
+      [COLUMN_MAP.WAREHOUSE.EMAIL]: "email",
+      [COLUMN_MAP.WAREHOUSE.ITEM1_ID]: "catalog",
+      [COLUMN_MAP.WAREHOUSE.ITEM1_QTY]: "quantity",
     },
     FIELD_TRIP: {
-      [COLUMN_MAP.FIELD_TRIP.EMAIL]: 'email',
-      [COLUMN_MAP.FIELD_TRIP.DESTINATION]: 'destination',
-      [COLUMN_MAP.FIELD_TRIP.TRIP_DATE]: 'date',
-      [COLUMN_MAP.FIELD_TRIP.TOTAL_COST]: 'cost'
+      [COLUMN_MAP.FIELD_TRIP.EMAIL]: "email",
+      [COLUMN_MAP.FIELD_TRIP.DESTINATION]: "destination",
+      [COLUMN_MAP.FIELD_TRIP.TRIP_DATE]: "date",
+      [COLUMN_MAP.FIELD_TRIP.TOTAL_COST]: "cost",
     },
     CURRICULUM: {
-      [COLUMN_MAP.CURRICULUM.EMAIL]: 'email',
-      [COLUMN_MAP.CURRICULUM.TYPE]: 'type',
-      [COLUMN_MAP.CURRICULUM.RESOURCE_NAME]: 'resource',
-      [COLUMN_MAP.CURRICULUM.QUANTITY]: 'quantity',
-      [COLUMN_MAP.CURRICULUM.UNIT_PRICE]: 'price'
+      [COLUMN_MAP.CURRICULUM.EMAIL]: "email",
+      [COLUMN_MAP.CURRICULUM.TYPE]: "type",
+      [COLUMN_MAP.CURRICULUM.RESOURCE_NAME]: "resource",
+      [COLUMN_MAP.CURRICULUM.QUANTITY]: "quantity",
+      [COLUMN_MAP.CURRICULUM.UNIT_PRICE]: "price",
     },
     ADMIN: {
-      [COLUMN_MAP.ADMIN.EMAIL]: 'email',
-      [COLUMN_MAP.ADMIN.DESCRIPTION]: 'description',
-      [COLUMN_MAP.ADMIN.AMOUNT]: 'amount'
-    }
+      [COLUMN_MAP.ADMIN.EMAIL]: "email",
+      [COLUMN_MAP.ADMIN.DESCRIPTION]: "description",
+      [COLUMN_MAP.ADMIN.AMOUNT]: "amount",
+    },
   };
 
   const expected = EXPECTED_HEADERS[formType];
@@ -1728,20 +2111,28 @@ function validateFormColumns(formType, headerRow) {
   for (const [colIdx, keyword] of Object.entries(expected)) {
     const idx = parseInt(colIdx);
     if (idx >= headerRow.length) {
-      console.warn(`⚠️ [COLUMN_DRIFT] ${formType}: Expected column ${idx} ("${keyword}") but sheet only has ${headerRow.length} columns`);
+      console.warn(
+        `⚠️ [COLUMN_DRIFT] ${formType}: Expected column ${idx} ("${keyword}") but sheet only has ${headerRow.length} columns`,
+      );
       mismatches++;
       continue;
     }
-    const actual = String(headerRow[idx] || '').toLowerCase();
+    const actual = String(headerRow[idx] || "").toLowerCase();
     if (!actual.includes(keyword.toLowerCase())) {
-      console.warn(`⚠️ [COLUMN_DRIFT] ${formType}: Column ${idx} expected "${keyword}" but found "${headerRow[idx]}"`);
+      console.warn(
+        `⚠️ [COLUMN_DRIFT] ${formType}: Column ${idx} expected "${keyword}" but found "${headerRow[idx]}"`,
+      );
       mismatches++;
     }
   }
 
   if (mismatches > 0) {
-    console.error(`🚨 [COLUMN_DRIFT] ${formType}: ${mismatches} column(s) may have shifted. Run dumpAllFormStructures() and update COLUMN_MAP.`);
+    console.error(
+      `🚨 [COLUMN_DRIFT] ${formType}: ${mismatches} column(s) may have shifted. Run dumpAllFormStructures() and update COLUMN_MAP.`,
+    );
   } else {
-    console.log(`✅ [COLUMN_CHECK] ${formType}: All checked columns match expected headers.`);
+    console.log(
+      `✅ [COLUMN_CHECK] ${formType}: All checked columns match expected headers.`,
+    );
   }
 }

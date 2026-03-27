@@ -489,7 +489,7 @@ td.amount { width: 75px; text-align: right; font-family: monospace; font-weight:
       <? } ?>
 
       <!-- Signatures -->
-      <div class="signatures">
+      <div class="signatures" <? if (data.isAdmin) { ?>style="justify-content: flex-end;"<? } ?>>
         <div class="signature-block">
           <div class="signature-label">Approved By</div>
           <div class="signature-line">
@@ -499,11 +499,12 @@ td.amount { width: 75px; text-align: right; font-family: monospace; font-weight:
               <span class="signature-text"><?= data.approverName || 'Approver' ?></span>
             <? } ?>
           </div>
-          <div class="sig-name"><?= data.approverName || 'Approver' ?></div>
-          <div class="sig-title"><?= data.approverTitle || 'Division Approver' ?></div>
+          <div class="sig-name"><?= data.approverName || (data.isAdmin ? 'Administrator' : 'Approver') ?></div>
+          <div class="sig-title"><?= data.approverTitle || (data.isAdmin ? 'Administrator' : 'Division Approver') ?></div>
           <div class="sig-date"><?= data.approvalDate || new Date().toLocaleDateString() ?></div>
         </div>
 
+        <? if (!data.isAdmin) { ?>
         <div class="signature-block">
           <div class="signature-label">Ordered By</div>
           <div class="signature-line">
@@ -519,6 +520,7 @@ td.amount { width: 75px; text-align: right; font-family: monospace; font-weight:
           <div class="sig-title"><?= data.boTitle || 'Business Office' ?></div>
           <div class="sig-date"><?= data.processedDate || new Date().toLocaleDateString() ?></div>
         </div>
+        <? } ?>
       </div>
     </div>
   </div>
