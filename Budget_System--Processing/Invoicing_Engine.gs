@@ -922,9 +922,7 @@ function generateBatchInvoiceHTML(transactions, metadata) {
   // calculate gap needed to push footer to y = (912-220)=692
   let gap = 692 - currentY;
   if (gap < 0) gap = 0;
-  gap = Math.max(0, gap - 40); // safety margin against overflow
-
-  const bonheurFont = getBonheurRoyaleBase64();
+  gap = Math.max(0, gap - 140); // extra safety margin against overflow from table/header paddings  const bonheurFont = getBonheurRoyaleBase64();
   const schoolNameBase64 = getSchoolNameBase64();
   const crestBase64 = getCrestBase64();
   const sealBase64 = getSealBase64();
@@ -1291,8 +1289,7 @@ function generateSingleInvoiceHTML(transaction, metadata) {
   // Gap needed to push footer to y = 692 (which is 912 total page height - 220 footer height)
   let gap = 692 - currentY;
   if (gap < 0) gap = 0;
-  gap = Math.max(0, gap - 40);
-
+  gap = Math.max(0, gap - 140);
   const bonheurFont = getBonheurRoyaleBase64();
 
   return `<!DOCTYPE html>

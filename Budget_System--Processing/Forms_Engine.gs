@@ -1412,13 +1412,22 @@ function processApprovalDecision(token, decision) {
         });
 
         console.log(
-          `🧾 Generating Single Invoice for approved request: ${transactionId}`,
+          `🧾 Queuing Single Invoice generation for approved request: ${transactionId}`,
         );
         try {
-          generateSingleInvoice(transactionId);
+          const cache = CacheService.getScriptCache();
+          const trigger = ScriptApp.newTrigger("runGenerateSingleInvoiceAsync")
+            .timeBased()
+            .after(100)
+            .create();
+          cache.put(
+            "async_invoice_" + trigger.getUniqueId(),
+            transactionId,
+            3600,
+          ); // 1 hour
         } catch (invoiceErr) {
           console.error(
-            `❌ Failed to generate single invoice for ${transactionId}: ${invoiceErr.message}`,
+            `❌ Failed to queue single invoice for ${transactionId}: ${invoiceErr.message}`,
           );
         }
       } else {
@@ -2137,5 +2146,36 @@ function validateFormColumns(formType, headerRow) {
     console.log(
       `✅ [COLUMN_CHECK] ${formType}: All checked columns match expected headers.`,
     );
+  }
+}
+
+/**
+ * Asynchronous trigger target to generate single invoice in the background.
+ * Unblocks the doGet HTTP response.
+ */
+function runGenerateSingleInvoiceAsync(e) {
+  if (!e || !e.triggerUid) return;
+  const triggerUid = e.triggerUid;
+  
+  const cache = CacheService.getScriptCache();
+  const transactionId = cache.get("async_invoice_" + triggerUid);
+  
+  // Clean up trigger instance immediately
+  ScriptApp.getProjectTriggers().forEach(t => {
+    if (t.getUniqueId() === triggerUid) {
+      ScriptApp.deleteTrigger(t);
+    }
+  });
+
+  if (!transactionId) {
+    console.warn(`No transaction ID found in cache for trigger ${triggerUid}`);
+    return;
+  }
+  
+  console.log(`🧾 Executing async Single Invoice generation for request: ${transactionId}`);
+  try {
+    generateSingleInvoice(transactionId);
+  } catch (err) {
+    console.error(`❌ Async invoice runner failed for ${transactionId}: ${err.message}`);
   }
 }
