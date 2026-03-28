@@ -734,13 +734,13 @@ function generateSingleInvoice(transactionId) {
 
   // For single invoices, we just use the transaction ID directly
   const invoiceId = transaction.transactionId;
+  const formType = transaction.form ? transaction.form.toUpperCase() : "GEN";
 
   // Generate the PDF
   const result = generateSingleInvoicePDF(transaction, {
     invoiceId: invoiceId,
     formType: formType,
   });
-
   if (result.success) {
     // Update ledger
     ledger.getRange(rowIndex, 11).setValue("YES");
