@@ -1696,6 +1696,7 @@ function moveToTransactionLedger(transaction) {
       "Description",
       "FiscalQuarter",
       "InvoiceGenerated",
+      "InvoiceURL",
     ]);
   }
 
@@ -1711,9 +1712,9 @@ function moveToTransactionLedger(transaction) {
     transaction.description,
     getCurrentQuarter(),
     "",
+    "",
   ]);
 }
-
 function createFormattedMultiItemDescription(items) {
   if (!items || items.length === 0) return "No items";
   const descriptions = items.map((item) => {

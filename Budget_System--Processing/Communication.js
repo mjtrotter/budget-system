@@ -604,57 +604,6 @@ function sendApprovalNotification(requestorEmail, transactionData) {
   }
 }
 
-/**
- * Sends approval confirmation email - CORRECTED VERSION
- */
-function sendApprovalConfirmation(email, transactionId, amount, description) {
-  const userBudget = getUserBudgetInfo(email);
-  const budgetRemaining = userBudget.allocated - userBudget.spent - userBudget.encumbered;
-  const budgetAfterRequest = budgetRemaining + amount; // Add back since it was encumbered
-
-  let budgetInfo = '';
-  // Only show budget info for non-admin requests
-  if (!transactionId.startsWith('ADMIN')) {
-    // Use the pre-calculated utilization rate from UserDirectory (stored as decimal, convert to percentage)
-    const utilizationPercent = (userBudget.utilizationRate * 100) || 0;
-    budgetInfo = `
-      <div style="background: #e8f5e9; padding: 15px; border-radius: 6px; margin-top: 20px;">
-        <h4 style="margin: 0 0 10px 0; color: #19573B;">Your Budget Status</h4>
-        <p style="margin: 5px 0;"><strong>Remaining Budget:</strong> $${budgetAfterRequest.toFixed(2)}</p>
-        <p style="margin: 5px 0;"><strong>Budget Utilization:</strong> ${utilizationPercent.toFixed(1)}%</p>
-      </div>
-    `;
-  }
-
-  sendSystemEmail({
-    to: email,
-    subject: `Budget Request Approved: ${transactionId}`,
-    htmlBody: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background: #4caf50; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
-          <h2 style="margin: 0;">Request Approved</h2>
-        </div>
-        <div style="background: white; padding: 30px; border: 1px solid #ddd; border-radius: 0 0 8px 8px;">
-          <h3>Your budget request has been approved!</h3>
-          <div style="background: #f5f5f5; padding: 15px; border-radius: 6px; margin: 20px 0;">
-            <p style="margin: 5px 0;"><strong>Transaction ID:</strong> ${transactionId}</p>
-            <p style="margin: 5px 0;"><strong>Amount:</strong> $${amount.toFixed(2)}</p>
-            <p style="margin: 5px 0;"><strong>Description:</strong> ${description}</p>
-          </div>
-          <p style="color: #666; line-height: 1.6;">
-            The Business Office will handle this purchase on your behalf.
-            Items will be received to the divisional offices upon receipt.
-          </p>
-          ${budgetInfo}
-          <p style="margin-top: 20px; font-size: 14px; color: #999;">
-            If you have questions about this purchase, please contact the Business Office.
-          </p>
-        </div>
-      </div>
-    `
-  });
-}
-
 // ============================================================================
 // REJECTION NOTIFICATION TO REQUESTOR
 // ============================================================================

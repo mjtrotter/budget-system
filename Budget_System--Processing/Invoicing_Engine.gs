@@ -134,9 +134,7 @@ function runWarehouseBatch() {
   const internalResult = runBatchInvoicing("WAREHOUSE_INTERNAL");
 
   // Generate external invoice (all combined)
-  const externalResult = generateWarehouseExternalInvoice();
-
-  // Send combined email to Business Office
+  const externalResult = generateWarehouseExternalInvoice(internalResult); // Send combined email to Business Office
   if (
     (internalResult &&
       internalResult.success &&
@@ -195,11 +193,8 @@ function runBatchInvoicing(formType) {
       description: 8,
       fiscalQuarter: 9,
       invoiceGenerated: 10,
-      invoiceId: 11,
-      invoiceUrl: 12,
-    };
-
-    // Filter for matching form type, not yet invoiced
+      invoiceUrl: 11,
+    }; // Filter for matching form type, not yet invoiced
     const formTypeMatch = formType.replace("_INTERNAL", "").toUpperCase();
     const pendingTransactions = [];
 
@@ -242,11 +237,8 @@ function runBatchInvoicing(formType) {
       byDivision[div].push(txn);
     });
 
-    // Get existing invoice IDs for today (to handle increments)
-    const existingIds = data
-      .slice(1)
-      .map((row) => row[cols.invoiceId])
-      .filter(Boolean);
+    // We no longer track invoice IDs in the ledger, so we just use an empty array for existingIds to start at -01
+    let existingBatchIds = [];
 
     const results = [];
 
@@ -254,8 +246,8 @@ function runBatchInvoicing(formType) {
     for (const [division, transactions] of Object.entries(byDivision)) {
       if (transactions.length === 0) continue;
 
-      const invoiceId = generateInvoiceId(formType, division, existingIds);
-      existingIds.push(invoiceId); // Add to list for increment tracking
+      const invoiceId = generateInvoiceId(formType, division, existingBatchIds);
+      existingBatchIds.push(invoiceId); // Add to list for increment tracking
 
       console.log(
         `Generating ${invoiceId} with ${transactions.length} transactions`,
@@ -270,10 +262,9 @@ function runBatchInvoicing(formType) {
 
       if (result.success) {
         // Update ledger rows and notify requestors
-        const notifiedEmails = new Set();
         transactions.forEach((txn) => {
           ledger.getRange(txn.row, cols.invoiceGenerated + 1).setValue("YES");
-          ledger.getRange(txn.row, cols.invoiceId + 1).setValue(invoiceId);
+          // No more invoiceId column in ledger
           ledger
             .getRange(txn.row, cols.invoiceUrl + 1)
             .setValue(result.fileUrl);
@@ -281,13 +272,13 @@ function runBatchInvoicing(formType) {
           // Just record it in the ledger; emailing the invoice is not needed.
           // (Link is already accessible in their dashboard/hub).
         });
-
         results.push({
           invoiceId: invoiceId,
           division: division,
           transactionCount: transactions.length,
           total: transactions.reduce((sum, t) => sum + t.amount, 0),
           fileUrl: result.fileUrl,
+          rawTransactions: transactions,
         });
       }
     }
@@ -309,38 +300,17 @@ function runBatchInvoicing(formType) {
 /**
  * Generates the combined external warehouse invoice
  */
-function generateWarehouseExternalInvoice() {
-  const budgetHub = SpreadsheetApp.openById(CONFIG.BUDGET_HUB_ID);
-  const ledger = budgetHub.getSheetByName("TransactionLedger");
-
-  if (!ledger) return { success: false, error: "No ledger" };
-
-  const data = ledger.getDataRange().getValues();
-
-  // Find warehouse transactions invoiced today (from internal batch)
-  const today = new Date();
-  const todayStr = Utilities.formatDate(today, "America/New_York", "MMdd");
+function generateWarehouseExternalInvoice(internalResult) {
+  if (!internalResult || !internalResult.success || !internalResult.invoices) {
+    return { success: false, error: "No successful internal batch provided" };
+  }
 
   const warehouseTransactions = [];
 
-  for (let i = 1; i < data.length; i++) {
-    const row = data[i];
-    const form = (row[6] || "").toString().toUpperCase();
-    const invoiceId = (row[11] || "").toString();
-
-    // Match warehouse transactions invoiced today
-    if (
-      form === "WAREHOUSE" &&
-      invoiceId.includes(`WHS-`) &&
-      invoiceId.includes(`-${todayStr}`)
-    ) {
-      warehouseTransactions.push({
-        transactionId: row[0],
-        requestor: row[3],
-        organization: row[5],
-        amount: parseFloat(row[7]) || 0,
-        description: row[8],
-      });
+  // Pull transactions directly from the internal result
+  for (const invoice of internalResult.invoices) {
+    if (invoice.rawTransactions && invoice.rawTransactions.length > 0) {
+      warehouseTransactions.push(...invoice.rawTransactions);
     }
   }
 
@@ -358,7 +328,6 @@ function generateWarehouseExternalInvoice() {
     "MMddyy",
   );
   const invoiceId = `PCW-${dateStrShort}`;
-
   const result = generateBatchInvoicePDF(warehouseTransactions, {
     invoiceId: invoiceId,
     formType: "WAREHOUSE",
@@ -763,31 +732,8 @@ function generateSingleInvoice(transactionId) {
     return { success: false, error: "Transaction not found" };
   }
 
-  // Determine invoice ID based on form type
-  const formType = transaction.form.toUpperCase();
-  let invoiceId;
-
-  const existingIds = data
-    .slice(1)
-    .map((row) => row[11])
-    .filter(Boolean);
-
-  switch (formType) {
-    case "FIELD_TRIP":
-      const ftDivision = getDivisionFromOrganization(transaction.organization);
-      invoiceId = generateInvoiceId("FIELD_TRIP", ftDivision, existingIds);
-      break;
-    case "CURRICULUM":
-      const deptCode = getDepartmentCode(transaction.organization);
-      invoiceId = generateInvoiceId("CURRICULUM", deptCode, existingIds);
-      break;
-    case "ADMIN":
-      const initials = getUserInitials(transaction.requestor);
-      invoiceId = generateInvoiceId("ADMIN", initials, existingIds);
-      break;
-    default:
-      invoiceId = generateInvoiceId(formType, "GEN", existingIds);
-  }
+  // For single invoices, we just use the transaction ID directly
+  const invoiceId = transaction.transactionId;
 
   // Generate the PDF
   const result = generateSingleInvoicePDF(transaction, {
@@ -798,13 +744,11 @@ function generateSingleInvoice(transactionId) {
   if (result.success) {
     // Update ledger
     ledger.getRange(rowIndex, 11).setValue("YES");
-    ledger.getRange(rowIndex, 12).setValue(invoiceId);
-    ledger.getRange(rowIndex, 13).setValue(result.fileUrl);
+    ledger.getRange(rowIndex, 12).setValue(result.fileUrl);
 
     // Notify requestor that their invoice is ready
     // (Link is already accessible in their dashboard/hub, emailing is not needed).
   }
-
   return result;
 }
 
@@ -860,31 +804,44 @@ function generateBatchInvoicePDF(transactions, metadata) {
 function generateBatchInvoiceHTML(transactions, metadata) {
   const now = new Date();
   const dateStr = Utilities.formatDate(now, "America/New_York", "MMMM d, yyyy");
+  const pcwDateStr = Utilities.formatDate(now, "America/New_York", "MMddyy");
 
-  // Calculate total and count line items
   let totalAmount = 0;
   let totalLineItems = 0;
 
-  // Get division full name
   const divisionName = getDivisionFullName(metadata.division);
 
-  // Get signatures
-  const approverSig = metadata.isExternal
+  const isWarehouse = metadata.formType === "WAREHOUSE";
+  const isExternalWarehouse = metadata.isExternal && isWarehouse;
+  const isInternalWarehouse = !metadata.isExternal && isWarehouse;
+
+  const primaryRequestorEmail = transactions[0]
+    ? transactions[0].requestor
+    : "";
+  const primaryRequestorName =
+    getDisplayNameFromEmail(primaryRequestorEmail) || primaryRequestorEmail;
+
+  let orderNumber;
+  if (isExternalWarehouse) {
+    orderNumber = `PCW-${pcwDateStr}`;
+  } else if (transactions.length > 0 && !isWarehouse) {
+    orderNumber = transactions[0].transactionId;
+  } else {
+    orderNumber = metadata.invoiceId;
+  }
+
+  const approverSig = isExternalWarehouse
     ? null
     : getApproverSignatureForDivision(metadata.division);
   const boSig = getBusinessOfficeSignature(metadata.formType);
 
-  // Pre-process: Group transactions by ID so items with same txnId are grouped together
   const groupedTransactions = [];
   let currentGroup = null;
 
   transactions.forEach((txn) => {
     if (!currentGroup || currentGroup.transactionId !== txn.transactionId) {
-      // Look up requestor display name from email
       const requestorName =
         getDisplayNameFromEmail(txn.requestor) || txn.requestor;
-
-      // Start new group
       currentGroup = {
         transactionId: txn.transactionId,
         requestor: requestorName,
@@ -892,7 +849,6 @@ function generateBatchInvoiceHTML(transactions, metadata) {
       };
       groupedTransactions.push(currentGroup);
     }
-    // Add item to current group (use txn.items if present, otherwise create single item)
     const txnItems = txn.items || [
       {
         description: txn.description,
@@ -904,7 +860,6 @@ function generateBatchInvoiceHTML(transactions, metadata) {
     txnItems.forEach((item) => currentGroup.items.push(item));
   });
 
-  // Build line items HTML with proper grouping (matching preview structure exactly)
   let itemsHtml = "";
 
   groupedTransactions.forEach((group) => {
@@ -917,7 +872,6 @@ function generateBatchInvoiceHTML(transactions, metadata) {
       totalAmount += lineTotal;
       totalLineItems++;
 
-      // Determine row class for visual grouping (single items get both first and last)
       let rowClass;
       if (items.length === 1) {
         rowClass = "txn-group-first txn-group-last";
@@ -929,11 +883,10 @@ function generateBatchInvoiceHTML(transactions, metadata) {
         rowClass = "txn-group-middle";
       }
 
-      // ALL rows have txn-id and requestor data - CSS hides non-first rows
       itemsHtml += `
         <tr class="${rowClass}">
-          <td class="txn-id">${group.transactionId || ""}</td>
-          ${metadata.isExternal && metadata.formType === "WAREHOUSE" ? "" : `<td class="requestor">${group.requestor || ""}</td>`}
+          ${isWarehouse ? `<td class="txn-id">${group.transactionId || ""}</td>` : ""}
+          ${isInternalWarehouse ? `<td class="requestor">${group.requestor || ""}</td>` : ""}
           <td class="description">${item.description || ""}</td>
           <td class="qty">${qty}</td>
           <td class="unit-price">$${unitPrice.toFixed(2)}</td>
@@ -943,15 +896,35 @@ function generateBatchInvoiceHTML(transactions, metadata) {
     });
   });
 
-  // If no items structure, use simple amount total
   if (totalAmount === 0) {
     totalAmount = transactions.reduce((sum, t) => sum + t.amount, 0);
   }
 
-  // Get embedded font data for PDF generation
-  const bonheurFont = getBonheurRoyaleBase64();
+  // --- Calculate Spacer to force Footer to the bottom ---
+  let currentY = 240 + 35; // header + thead approx
+  groupedTransactions.forEach((group) => {
+    group.items.forEach((item) => {
+      let textLength = (item.description || "").length;
+      let rowH = textLength > 50 ? 55 : 35; // wrap estimation
+      if (currentY + rowH > 912) {
+        currentY = 35 + rowH; // new page with thead
+      } else {
+        currentY += rowH;
+      }
+    });
+  });
 
-  // Get brand assets for centered-crest header design
+  // check if footer fits on the current page
+  if (currentY + 220 > 912) {
+    currentY = 35; // pushed to next page
+  }
+
+  // calculate gap needed to push footer to y = (912-220)=692
+  let gap = 692 - currentY;
+  if (gap < 0) gap = 0;
+  gap = Math.max(0, gap - 40); // safety margin against overflow
+
+  const bonheurFont = getBonheurRoyaleBase64();
   const schoolNameBase64 = getSchoolNameBase64();
   const crestBase64 = getCrestBase64();
   const sealBase64 = getSealBase64();
@@ -993,7 +966,6 @@ function generateBatchInvoiceHTML(transactions, metadata) {
     }
     .watermark img { width: 400px; }
 
-    /* FINAL DESIGN: Three-column header with centered crest */
     .header { margin-bottom: 18px; padding-bottom: 12px; position: relative; z-index: 1; }
 
     .header-top {
@@ -1004,15 +976,12 @@ function generateBatchInvoiceHTML(transactions, metadata) {
       margin-bottom: 18px;
     }
 
-    /* Left: School name image */
     .school-name-img { display: flex; justify-content: flex-start; align-items: center; }
     .school-name-img img { height: 81px; width: auto; }
 
-    /* Center: Shield/crest - CENTERED focal point */
     .shield-crest { display: flex; justify-content: center; align-items: center; flex-shrink: 0; }
     .shield-crest img { height: 102px; width: auto; }
 
-    /* Right: PURCHASE ORDER text */
     .invoice-title { display: flex; justify-content: flex-end; align-items: center; text-align: right; }
     .invoice-title-text { display: flex; flex-direction: column; align-items: flex-end; }
     .invoice-title-text .main-word {
@@ -1032,7 +1001,6 @@ function generateBatchInvoiceHTML(transactions, metadata) {
       letter-spacing: 0.8px;
     }
 
-    /* Bottom row: Address left, PO details right */
     .header-bottom {
       display: flex;
       justify-content: space-between;
@@ -1048,6 +1016,8 @@ function generateBatchInvoiceHTML(transactions, metadata) {
     .invoice-details .label { color: #666; display: inline; font-weight: 400; }
     .invoice-details .value { color: #000; font-weight: 700; display: inline; margin-left: 8px; }
 
+    /* table spacing */
+    .table-wrapper { display: block; margin-bottom: 40px; }
     table { width: 100%; border-collapse: collapse; margin-bottom: 15px; position: relative; z-index: 1; }
     thead { display: table-header-group; }
     thead th {
@@ -1069,12 +1039,11 @@ function generateBatchInvoiceHTML(transactions, metadata) {
 
     td.txn-id { width: 85px; font-family: Consolas, monospace; font-size: 8pt; color: var(--logo-green); font-weight: 500; }
     td.requestor { width: 120px; }
-    td.description { }
+    td.description { text-align: left; }
     td.qty { width: 40px; text-align: center; }
     td.unit-price { width: 70px; text-align: right; font-family: monospace; }
     td.amount { width: 75px; text-align: right; font-family: monospace; font-weight: 500; }
 
-    /* Transaction group styling */
     .txn-group-first td { border-top: 1px solid #ddd; padding-top: 10px; }
     .txn-group-first:not(.txn-group-last) td { border-bottom: none; }
     .txn-group-middle td { border-bottom: none; padding-top: 4px; padding-bottom: 4px; }
@@ -1082,7 +1051,7 @@ function generateBatchInvoiceHTML(transactions, metadata) {
     .txn-group-last td { padding-bottom: 10px; }
     .txn-group-last:not(.txn-group-first) td.txn-id, .txn-group-last:not(.txn-group-first) td.requestor { color: transparent; }
 
-    .footer-section { margin-top: 20px; position: relative; z-index: 1; }
+    .footer-section { margin-top: 30px; position: relative; z-index: 1; page-break-inside: avoid; }
     .totals { display: flex; justify-content: flex-end; margin-bottom: 35px; }
     .totals-box { width: 200px; border-top: 2px solid var(--logo-green); padding-top: 8px; }
     .totals-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 10pt; }
@@ -1101,10 +1070,9 @@ function generateBatchInvoiceHTML(transactions, metadata) {
   </style>
 </head>
 <body>
-  ${sealBase64 ? `<div class="watermark"><img src="data:image/png;base64,${sealBase64}" /></div>` : ""}
+  ${sealBase64 ? `<div class="watermark"><img src="data:image/jpeg;base64,${sealBase64}" /></div>` : ""}
 
   <div class="header">
-    <!-- FINAL DESIGN: Three-column balanced layout: school name | crest | purchase order -->
     <div class="header-top">
       <div class="school-name-img">
         ${schoolNameBase64 ? `<img src="data:image/png;base64,${schoolNameBase64}" alt="Keswick Christian School" />` : ""}
@@ -1114,8 +1082,8 @@ function generateBatchInvoiceHTML(transactions, metadata) {
       </div>
       <div class="invoice-title">
         <div class="invoice-title-text">
-          <div class="main-word">${metadata.isExternal ? "EXTERNAL" : "Purchase"}</div>
-          ${metadata.isExternal ? "" : '<div class="sub-word">Order</div>'}
+          <div class="main-word">${isExternalWarehouse ? "EXTERNAL" : "Purchase"}</div>
+          ${isExternalWarehouse ? "" : '<div class="sub-word">Order</div>'}
         </div>
       </div>
     </div>
@@ -1127,28 +1095,34 @@ function generateBatchInvoiceHTML(transactions, metadata) {
         (727) 522-2111
       </div>
       <div class="invoice-details">
-        <div class="detail-row"><span class="label">Order No:</span> <span class="value">${metadata.invoiceId}</span></div>
+        <div class="detail-row"><span class="label">Order No:</span> <span class="value">${orderNumber}</span></div>
         <div class="detail-row"><span class="label">Date:</span> <span class="value">${dateStr}</span></div>
-        <div class="detail-row"><span class="label">Division:</span> <span class="value">${metadata.isExternal ? "All Divisions" : divisionName}</span></div>
+        <div class="detail-row"><span class="label">Division:</span> <span class="value">${isExternalWarehouse ? "All Divisions" : divisionName}</span></div>
+        ${!isInternalWarehouse && !isExternalWarehouse ? `<div class="detail-row"><span class="label">Requestor:</span> <span class="value">${primaryRequestorName}</span></div>` : ""}
       </div>
     </div>
   </div>
 
-  <table>
-    <thead>
-      <tr>
-        <th>Transaction</th>
-        ${metadata.isExternal && metadata.formType === "WAREHOUSE" ? "" : "<th>Requestor</th>"}
-        <th>Description</th>
-        <th class="center">Qty</th>
-        <th class="right">Unit Price</th>
-        <th class="right">Total</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${itemsHtml}
-    </tbody>
-  </table>
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          ${isWarehouse ? `<th>Transaction</th>` : ""}
+          ${isInternalWarehouse ? "<th>Requestor</th>" : ""}
+          <th>Description</th>
+          <th class="center">Qty</th>
+          <th class="right">Unit Price</th>
+          <th class="right">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${itemsHtml}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- dynamically calculated spacer to push the footer to the bottom of the page -->
+  <div style="height: ${gap}px;"></div>
 
   <div class="footer-section">
     <div class="totals">
@@ -1166,7 +1140,7 @@ function generateBatchInvoiceHTML(transactions, metadata) {
 
     <div class="signatures">
       ${
-        metadata.isExternal
+        isExternalWarehouse
           ? `
         <div class="signature-block">
           <div class="signature-label">Ordered By</div>
@@ -1205,15 +1179,6 @@ function generateBatchInvoiceHTML(transactions, metadata) {
 </body>
 </html>`;
 }
-
-// ============================================================================
-// PDF GENERATION - SINGLE TEMPLATE
-// ============================================================================
-
-/**
- * Generates a single invoice PDF (Field Trip/Curriculum/Admin)
- * Now includes PDF concatenation for uploaded receipts
- */
 function generateSingleInvoicePDF(transaction, metadata) {
   try {
     const html = generateSingleInvoiceHTML(transaction, metadata);
@@ -1288,8 +1253,10 @@ function generateSingleInvoiceHTML(transaction, metadata) {
   const now = new Date();
   const dateStr = Utilities.formatDate(now, "America/New_York", "MMMM d, yyyy");
 
-  const logoBase64 = getLogoBase64();
+  const schoolNameBase64 = getSchoolNameBase64();
+  const crestBase64 = getCrestBase64();
   const sealBase64 = getSealBase64();
+  const logoBase64 = getLogoBase64();
 
   // Get requestor info
   const requestorInfo = getUserBudgetInfo(transaction.requestor) || {};
@@ -1297,30 +1264,36 @@ function generateSingleInvoiceHTML(transaction, metadata) {
     `${requestorInfo.firstName || ""} ${requestorInfo.lastName || ""}`.trim() ||
     transaction.requestor;
 
-  // Get division
   const division = getDivisionFromOrganization(transaction.organization);
   const divisionName = getDivisionFullName(division);
 
-  // Get signatures based on form type
   let approverSig, boSig;
+  const isAdmin = metadata.formType === "ADMIN";
 
-  if (metadata.formType === "ADMIN") {
-    // Admin: Self + CFO
+  if (isAdmin) {
     approverSig = getApproverSignatureInfo(transaction.requestor);
     boSig = getBusinessOfficeSignature("ADMIN");
   } else if (metadata.formType === "FIELD_TRIP") {
-    // Field Trip: Division Principal + CFO
     approverSig = getApproverSignatureForDivision(division);
     boSig = getBusinessOfficeSignature("FIELD_TRIP");
   } else {
-    // Curriculum: Division Principal + BO
     approverSig = getApproverSignatureForDivision(division);
     boSig = getBusinessOfficeSignature("CURRICULUM");
   }
 
-  // Get embedded font data for PDF generation
+  // --- Calculate Spacer to force Footer to the bottom ---
+  // Header is approx 240px + thead 35px = 275px
+  // 1 item row = 35-50px.
+  let textLength = (transaction.description || "").length;
+  let rowH = textLength > 50 ? 55 : 35;
+  let currentY = 275 + rowH;
+
+  // Gap needed to push footer to y = 692 (which is 912 total page height - 220 footer height)
+  let gap = 692 - currentY;
+  if (gap < 0) gap = 0;
+  gap = Math.max(0, gap - 40);
+
   const bonheurFont = getBonheurRoyaleBase64();
-  const playfairFont = getPlayfairDisplayBase64();
 
   return `<!DOCTYPE html>
 <html>
@@ -1333,316 +1306,195 @@ function generateSingleInvoiceHTML(transaction, metadata) {
       font-weight: 400;
       src: url(data:font/truetype;base64,${bonheurFont}) format('truetype');
     }
-    @font-face {
-      font-family: 'Playfair Display';
-      font-style: normal;
-      font-weight: 700;
-      src: url(data:font/truetype;base64,${playfairFont}) format('truetype');
+    :root {
+      --logo-green: #13381f;
     }
-    @page { size: letter; margin: 0.5in; }
+
+    @page {
+      size: letter;
+      margin: 0.75in;
+      counter-increment: page;
+      @bottom-left {
+        content: "Page " counter(page) " of " counter(pages);
+        font-family: 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
+        font-size: 7pt;
+        color: var(--logo-green);
+        font-weight: 600;
+        border-top: 1px solid var(--logo-green);
+        padding-top: 8px;
+      }
+      @bottom-center {
+        content: "Keswick Christian School Purchase Order System";
+        font-family: 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
+        font-size: 7pt;
+        color: var(--logo-green);
+        border-top: 1px solid var(--logo-green);
+        padding-top: 8px;
+      }
+      @bottom-right {
+        content: "";
+        border-top: 1px solid var(--logo-green);
+        padding-top: 8px;
+      }
+    }
+
     * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif; font-size: 9pt; line-height: 1.4; color: #333; background: #ffffff; }
 
-    body {
-      font-family: 'Segoe UI', -apple-system, Arial, sans-serif;
-      font-size: 10pt;
-      line-height: 1.5;
-      color: #333;
-      padding: 20px;
-    }
-
-    .watermark {
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      opacity: 0.04;
-      z-index: 0;
-    }
+    .page-container { width: 100%; margin: 0 auto; background: white; position: relative; }
+    .watermark { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.04; z-index: 0; pointer-events: none; }
     .watermark img { width: 400px; }
 
-    .header {
-      padding-bottom: 15px;
-      border-bottom: 2px solid #19573B;
-      margin-bottom: 20px;
-    }
-    .header-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-end;
-    }
-    .header-row.top {
-      align-items: center;
-      min-height: 70px;
-    }
-    .logo { height: 70px; }
-    .header-right-top h1 {
-      font-family: 'Playfair Display', Georgia, serif;
-      font-size: 36pt;
-      font-weight: 700;
-      color: #19573B;
-      letter-spacing: 2px;
-      margin: 0;
-      text-align: right;
-      line-height: 70px;
-    }
-    .header-row.bottom {
-      margin-top: 8px;
-      align-items: flex-start;
-    }
-    .school-info { font-size: 9pt; color: #555; line-height: 1.5; }
-    .invoice-meta { text-align: right; line-height: 1.5; }
-    .invoice-id { font-family: 'Playfair Display', Georgia, serif; font-size: 12pt; color: #19573B; font-weight: 700; letter-spacing: 0.5px; }
-    .invoice-date { font-size: 9pt; color: #555; margin-top: 2px; }
+    .header { margin-bottom: 18px; padding-bottom: 12px; position: relative; z-index: 1; }
+    .header-top { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; column-gap: 40px; margin-bottom: 18px; }
+    .school-name-img { display: flex; justify-content: flex-start; align-items: center; }
+    .school-name-img img { height: 81px; width: auto; }
+    .shield-crest { display: flex; justify-content: center; align-items: center; flex-shrink: 0; }
+    .shield-crest img { height: 102px; width: auto; }
+    .invoice-title { display: flex; justify-content: flex-end; align-items: center; text-align: right; }
+    .invoice-title-text { display: flex; flex-direction: column; align-items: flex-end; }
+    .main-word, .sub-word { font-family: 'Lucida Bright', 'Lucida Serif', Georgia, serif; font-size: 32pt; font-weight: 600; color: #13381f; line-height: 1.1; letter-spacing: 0.8px; }
+    
+    .header-bottom { display: flex; justify-content: space-between; align-items: flex-start; gap: 40px; margin-top: 15px; }
+    .school-info { font-size: 10pt; color: #333; line-height: 1.7; font-weight: 500; flex: 1; max-width: 45%; }
+    .invoice-details { text-align: right; font-size: 10pt; color: #333; line-height: 1.7; flex: 1; max-width: 45%; }
+    .detail-row { margin-bottom: 3px; }
+    .label { color: #666; display: inline; font-weight: 400; min-width: 80px; text-align: right; }
+    .value { color: #000; font-weight: 700; display: inline; margin-left: 8px; }
 
-    .info-section {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 25px;
-      gap: 30px;
-    }
+    /* REMOVED min-height: 400px entirely to fix 1-item invoice split across pages */
+    .table-wrapper { display: block; margin-bottom: 40px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 15px; position: relative; z-index: 1; }
+    thead { display: table-header-group; }
+    thead th { background: #f5f5f5; border-top: 2px solid var(--logo-green); border-bottom: 2px solid var(--logo-green); padding: 10px 8px; text-align: left; font-size: 8pt; font-weight: 600; text-transform: uppercase; color: #333; }
+    thead th.right { text-align: right; }
+    thead th.center { text-align: center; }
+    tbody tr { page-break-inside: avoid; }
+    tbody td { padding: 8px; border-bottom: 1px solid #eee; vertical-align: top; font-size: 9pt; }
 
-    .info-block { flex: 1; }
+    td.description { text-align: left; }
+    td.qty { width: 40px; text-align: center; }
+    td.unit-price { width: 70px; text-align: right; font-family: monospace; }
+    td.amount { width: 75px; text-align: right; font-family: monospace; font-weight: 500; }
 
-    .info-block h3 {
-      font-size: 9pt;
-      font-weight: 600;
-      color: #19573B;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 10px;
-      padding-bottom: 5px;
-      border-bottom: 1px solid #ddd;
-    }
+    .footer-section { margin-top: 30px; position: relative; z-index: 1; page-break-inside: avoid; }
+    .totals { display: flex; justify-content: flex-end; margin-bottom: 35px; }
+    .totals-box { width: 200px; border-top: 2px solid var(--logo-green); padding-top: 8px; }
+    .totals-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 10pt; }
+    .totals-row.grand { font-size: 14pt; font-weight: 700; }
+    .totals-row.grand .value { color: var(--logo-green); }
 
-    .info-row {
-      display: flex;
-      justify-content: space-between;
-      padding: 4px 0;
-      font-size: 9pt;
-    }
-
-    .info-label { color: #666; }
-    .info-value { font-weight: 500; }
-    .info-value.highlight { color: #19573B; font-family: monospace; }
-
-    .items-section { margin-bottom: 25px; }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-
-    thead th {
-      background: #f5f5f5;
-      border-bottom: 2px solid #19573B;
-      padding: 10px;
-      text-align: left;
-      font-size: 8pt;
-      font-weight: 600;
-      text-transform: uppercase;
-    }
-
-    thead th.amount { text-align: right; }
-
-    tbody td {
-      padding: 12px 10px;
-      border-bottom: 1px solid #eee;
-      vertical-align: top;
-    }
-
-    td.amount { text-align: right; font-family: monospace; }
-
-    .item-desc { font-weight: 500; }
-    .item-details { font-size: 8pt; color: #888; margin-top: 3px; }
-
-    .totals-section {
-      display: flex;
-      justify-content: flex-end;
-      margin-bottom: 40px;
-    }
-
-    .totals-box { width: 200px; }
-
-    .totals-row {
-      display: flex;
-      justify-content: space-between;
-      padding: 8px 0;
-      border-top: 2px solid #19573B;
-      font-size: 14pt;
-      font-weight: 700;
-    }
-
-    .totals-row .value { color: #19573B; }
-
-    .signatures {
-      display: flex;
-      justify-content: space-between;
-      padding-top: 30px;
-      border-top: 1px solid #ddd;
-      page-break-inside: avoid;
-    }
-
-    .signature-block {
-      text-align: center;
-      width: 200px;
-    }
-
-    .signature-line {
-      height: 45px;
-      border-bottom: 1px solid #333;
-      display: flex;
-      align-items: flex-end;
-      justify-content: center;
-      margin-bottom: 5px;
-    }
-
-    .signature-line img { max-height: 45px; max-width: 180px; }
-    .signature-line .signature { font-family: 'Bonheur Royale', 'Brush Script MT', cursive; font-size: 28pt; color: #000; }
-
-    .signature-label { font-size: 8pt; color: #666; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
-    .sig-name { font-weight: 600; font-size: 9pt; margin-top: 5px; }
+    .signatures { display: flex; justify-content: space-between; padding-top: 25px; border-top: 2px solid var(--logo-green); }
+    .signature-block { text-align: center; width: 220px; }
+    .signature-label { font-size: 8pt; color: var(--logo-green); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; font-weight: 600; }
+    .signature-line { height: 55px; border-bottom: 2px solid var(--logo-green); display: flex; align-items: flex-end; justify-content: center; margin-bottom: 5px; }
+    .signature-line .signature-text { font-family: 'Bonheur Royale', cursive; font-size: 28pt; color: #000; line-height: 1; }
+    .signature-line img { max-width: 160px; max-height: 48px; object-fit: contain; }
+    .sig-name { font-weight: 600; font-size: 9pt; }
     .sig-title { font-size: 8pt; color: #666; }
-    .sig-date { font-size: 8pt; color: #888; margin-top: 3px; }
-
-    .doc-footer {
-      margin-top: 30px;
-      padding-top: 10px;
-      border-top: 1px solid #eee;
-      text-align: center;
-      font-size: 7pt;
-      color: #999;
-    }
+    .sig-date { font-size: 8pt; color: #999; margin-top: 3px; }
   </style>
 </head>
 <body>
-  ${sealBase64 ? `<div class="watermark"><img src="data:image/jpeg;base64,${sealBase64}" /></div>` : ""}
+  <div class="page-container">
+    ${sealBase64 ? `<div class="watermark"><img src="data:image/jpeg;base64,${sealBase64}" /></div>` : ""}
 
-  <div class="header">
-    <div class="header-row top">
-      ${logoBase64 ? `<img class="logo" src="data:image/png;base64,${logoBase64}" alt="KCS" />` : ""}
-      <div class="header-right-top"><h1>INVOICE</h1></div>
-    </div>
-    <div class="header-row bottom">
-      <div class="school-info">
-        10100 54th Avenue North<br>
-        St. Petersburg, FL 33708<br>
-        (727) 522-2111
+    <div class="header">
+      <div class="header-top">
+        <div class="school-name-img">
+          ${schoolNameBase64 ? `<img src="data:image/png;base64,${schoolNameBase64}" alt="Keswick Christian School" />` : logoBase64 ? `<img src="data:image/png;base64,${logoBase64}" alt="Keswick Christian School" />` : `<div style="font-family: 'Lucida Bright', Georgia, serif; font-size: 18pt; font-weight: 600; color: var(--logo-green);">Keswick Christian School</div>`}
+        </div>
+        <div class="shield-crest">
+          ${crestBase64 ? `<img src="data:image/png;base64,${crestBase64}" alt="KCS Crest" />` : sealBase64 ? `<img src="data:image/jpeg;base64,${sealBase64}" alt="KCS Seal" />` : ""}
+        </div>
+        <div class="invoice-title">
+          <div class="invoice-title-text">
+            <div class="main-word">Purchase</div>
+            <div class="sub-word">Order</div>
+          </div>
+        </div>
       </div>
-      <div class="invoice-meta">
-        <div class="invoice-id">${metadata.invoiceId}</div>
-        <div class="invoice-date">${dateStr}</div>
-      </div>
-    </div>
-  </div>
 
-  <div class="info-section">
-    <div class="info-block">
-      <h3>Transaction Details</h3>
-      <div class="info-row">
-        <span class="info-label">Transaction ID</span>
-        <span class="info-value highlight">${transaction.transactionId}</span>
-      </div>
-      ${
-        transaction.orderId
-          ? `
-      <div class="info-row">
-        <span class="info-label">Order ID</span>
-        <span class="info-value highlight">${transaction.orderId}</span>
-      </div>`
-          : ""
-      }
-      <div class="info-row">
-        <span class="info-label">Form Type</span>
-        <span class="info-value">${metadata.formType.replace("_", " ")}</span>
-      </div>
-      <div class="info-row">
-        <span class="info-label">Fiscal Period</span>
-        <span class="info-value">${transaction.fiscalQuarter || getCurrentFiscalQuarter()}</span>
+      <div class="header-bottom">
+        <div class="school-info">
+          10101 54th Avenue North<br>
+          St. Petersburg, FL 33708<br>
+          businessoffice@keswickchristian.org<br>
+          (727) 522-2111
+        </div>
+        <div class="invoice-details">
+          <div class="detail-row"><span class="label">Order No:</span> <span class="value">${transaction.transactionId}</span></div>
+          <div class="detail-row"><span class="label">Date:</span> <span class="value">${dateStr}</span></div>
+          <div class="detail-row"><span class="label">Division:</span> <span class="value">${divisionName || division}</span></div>
+          ${!isAdmin ? `<div class="detail-row"><span class="label">Requestor:</span> <span class="value">${requestorName}</span></div>` : ""}
+        </div>
       </div>
     </div>
 
-    <div class="info-block">
-      <h3>Requestor Information</h3>
-      <div class="info-row">
-        <span class="info-label">Requested By</span>
-        <span class="info-value">${requestorName}</span>
-      </div>
-      <div class="info-row">
-        <span class="info-label">Department</span>
-        <span class="info-value">${requestorInfo.department || transaction.organization || "N/A"}</span>
-      </div>
-      <div class="info-row">
-        <span class="info-label">Division</span>
-        <span class="info-value">${divisionName}</span>
-      </div>
-      <div class="info-row">
-        <span class="info-label">Date Submitted</span>
-        <span class="info-value">${transaction.date ? Utilities.formatDate(new Date(transaction.date), "America/New_York", "MMM d, yyyy") : dateStr}</span>
-      </div>
-    </div>
-  </div>
-
-  <div class="items-section">
-    <table>
-      <thead>
-        <tr>
-          <th style="width:40px;">#</th>
-          <th>Description</th>
-          <th style="width:60px;">Qty</th>
-          <th style="width:90px;" class="amount">Amount</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>1</td>
-          <td>
-            <div class="item-desc">${transaction.description || "Purchase"}</div>
-          </td>
-          <td>1</td>
-          <td class="amount">$${transaction.amount.toFixed(2)}</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-
-  <div class="totals-section">
-    <div class="totals-box">
-      <div class="totals-row">
-        <span>TOTAL</span>
-        <span class="value">$${transaction.amount.toFixed(2)}</span>
-      </div>
-    </div>
-  </div>
-
-  <div class="signatures">
-    <div class="signature-block">
-      <div class="signature-label">Approved By</div>
-      <div class="signature-line">
-        ${approverSig && approverSig.base64 ? `<img src="data:image/png;base64,${approverSig.base64}" />` : `<span class="signature">${approverSig ? approverSig.name : "Approver"}</span>`}
-      </div>
-      <div class="sig-name">${approverSig ? approverSig.name : "Approver"}</div>
-      <div class="sig-title">${approverSig ? approverSig.title : ""}</div>
-      <div class="sig-date">${dateStr}</div>
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>Description</th>
+            <th class="center">Qty</th>
+            <th class="right">Unit Price</th>
+            <th class="right">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="description">${transaction.description || "Purchase"}</td>
+            <td class="qty">1</td>
+            <td class="unit-price">$${transaction.amount.toFixed(2)}</td>
+            <td class="amount">$${transaction.amount.toFixed(2)}</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
 
-    <div class="signature-block">
-      <div class="signature-label">Ordered By</div>
-      <div class="signature-line">
-        ${boSig && boSig.base64 ? `<img src="data:image/png;base64,${boSig.base64}" />` : `<span class="signature">${boSig ? boSig.name : "Business Office"}</span>`}
-      </div>
-      <div class="sig-name">${boSig ? boSig.name : "Business Office"}</div>
-      <div class="sig-title">${boSig ? boSig.title : ""}</div>
-      <div class="sig-date">${dateStr}</div>
-    </div>
-  </div>
+    <!-- dynamically calculated spacer to push the footer to the bottom of the page -->
+    <div style="height: ${gap}px;"></div>
 
-  <div class="doc-footer">
-    Keswick Christian School | Budget Management System | Generated ${new Date().toISOString()}
+    <div class="footer-section">
+      <div class="totals">
+        <div class="totals-box">
+          <div class="totals-row">
+            <span>Line items</span>
+            <span class="value">1</span>
+          </div>
+          <div class="totals-row grand">
+            <span>TOTAL</span>
+            <span class="value">$${transaction.amount.toFixed(2)}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="signatures">
+        <div class="signature-block">
+          <div class="signature-label">Approved By</div>
+          <div class="signature-line">
+            ${approverSig && approverSig.base64 ? `<img src="data:image/png;base64,${approverSig.base64}" />` : `<span class="signature-text">${approverSig ? approverSig.name : "Approver"}</span>`}
+          </div>
+          <div class="sig-name">${approverSig ? approverSig.name : isAdmin ? "Administrator" : "Division Approver"}</div>
+          <div class="sig-title">${approverSig ? approverSig.title : ""}</div>
+          <div class="sig-date">${dateStr}</div>
+        </div>
+
+        <div class="signature-block">
+          <div class="signature-label">Ordered By</div>
+          <div class="signature-line">
+            ${boSig && boSig.base64 ? `<img src="data:image/png;base64,${boSig.base64}" />` : `<span class="signature-text">${boSig ? boSig.name : "Business Office"}</span>`}
+          </div>
+          <div class="sig-name">${boSig ? boSig.name : "Business Office"}</div>
+          <div class="sig-title">${boSig ? boSig.title : ""}</div>
+          <div class="sig-date">${dateStr}</div>
+        </div>
+      </div>
+    </div>
   </div>
 </body>
 </html>`;
 }
-
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
