@@ -426,20 +426,18 @@ function processAmazonFormSubmission(e) {
         userBudget,
       );
       updateQueueStatus(transactionId, "APPROVED", actualApprover, true);
+      logSystemEvent("AMAZON_AUTO_APPROVAL", email, totalCost, {
+        transactionId,
+        approver: actualApprover,
+      });
       sendApprovalNotification(email, {
         transactionId: transactionId,
-        amount: totalAmount_FIXED,
-        type: "Amazon Order",
+        amount: totalCost,
+        type: "Curriculum (Amazon)",
         description: description,
         approver: actualApprover,
       });
-      logSystemEvent("AMAZON_AUTO_APPROVED", email, totalAmount_FIXED, {
-        transactionId,
-        actualApprover,
-      });
-      console.log(`   ✅ Auto-approved by ${actualApprover}`);
 
-      // Dispatch instantly to the Amazon Sandbox/Live API
       if (CONFIG.AMAZON_B2B && CONFIG.AMAZON_B2B.ENABLED) {
         new AmazonWorkflowEngine().dispatchAmazonOrder(transactionId);
       }
@@ -1020,7 +1018,13 @@ function processCurriculumFormSubmission(e) {
           transactionId,
           approver: actualApprover,
         });
-        sendApprovalConfirmation(email, transactionId, totalCost, description);
+        sendApprovalNotification(email, {
+          transactionId: transactionId,
+          amount: totalCost,
+          type: "Curriculum (Amazon)",
+          description: description,
+          approver: actualApprover,
+        });
 
         if (CONFIG.AMAZON_B2B && CONFIG.AMAZON_B2B.ENABLED) {
           new AmazonWorkflowEngine().dispatchAmazonOrder(transactionId);
@@ -1382,12 +1386,13 @@ function processApprovalDecision(token, decision) {
     markTokenAsUsed(token, currentUser);
 
     if (newStatus === "APPROVED") {
-      sendApprovalConfirmation(
-        request.email,
-        transactionId,
-        request.amount,
-        request.description,
-      );
+      sendApprovalNotification(request.email, {
+        transactionId: transactionId,
+        amount: request.amount,
+        type: request.type,
+        description: request.description,
+        approver: approverEmail,
+      });
       updateUserBudgetEncumbrance(request.email, request.amount, "add");
 
       if (!request.isAutomated) {
@@ -1405,24 +1410,21 @@ function processApprovalDecision(token, decision) {
           amount: request.amount,
           description: request.description,
         });
+
+        console.log(
+          `🧾 Generating Single Invoice for approved request: ${transactionId}`,
+        );
+        try {
+          generateSingleInvoice(transactionId);
+        } catch (invoiceErr) {
+          console.error(
+            `❌ Failed to generate single invoice for ${transactionId}: ${invoiceErr.message}`,
+          );
+        }
       } else {
         console.log(
           `Automated item ${transactionId} approved - routing payloads`,
         );
-        if (
-          request.type === "AMAZON" &&
-          CONFIG.AMAZON_B2B &&
-          CONFIG.AMAZON_B2B.ENABLED
-        ) {
-          console.log(
-            `🔗 Webhooking Amazon order ${transactionId} to Amazon Native REST API...`,
-          );
-          new AmazonWorkflowEngine().dispatchAmazonOrder(transactionId);
-        } else {
-          console.log(
-            `Automated item ${transactionId} (${request.type}) awaiting batch processing`,
-          );
-        }
       }
     } else {
       sendRejectionNotification(request.email, {
