@@ -112,29 +112,39 @@ function createFreshHubs() {
     "LastModified",
   ]);
   userDir.setFrozenRows(1);
-  // Migrate existing user data
+  console.log("   ✅ UserDirectory");
+
+  // Try to migrate data. Use setFormula on columns.
   try {
     const oldBudgetHub = SpreadsheetApp.openById(OLD_BUDGET_HUB);
     const oldUserDir = oldBudgetHub.getSheetByName("UserDirectory");
     if (oldUserDir && oldUserDir.getLastRow() > 1) {
-      const userData = oldUserDir
-        .getRange(2, 1, oldUserDir.getLastRow() - 1, oldUserDir.getLastColumn())
-        .getValues();
-      if (userData.length > 0) {
-        userDir
-          .getRange(2, 1, userData.length, userData[0].length)
-          .setValues(userData);
-        console.log(`   ✅ UserDirectory (migrated ${userData.length} users)`);
+      const dataRange = oldUserDir.getRange(
+        2,
+        1,
+        oldUserDir.getLastRow() - 1,
+        oldUserDir.getLastColumn(),
+      );
+      const data = dataRange.getValues();
+      if (data.length > 0) {
+        userDir.getRange(2, 1, data.length, data[0].length).setValues(data);
+        console.log(`   ✅ UserDirectory (migrated ${data.length} users)`);
       }
-    } else {
-      console.log("   ✅ UserDirectory (empty - no data to migrate)");
     }
   } catch (e) {
-    console.warn(
-      `   ⚠️ UserDirectory created but migration failed: ${e.message}`,
-    );
-    console.log("   You may need to manually populate the UserDirectory.");
+    console.log(`   ⚠️ Could not migrate users: ${e.message}`);
   }
+
+  // Set formulas down to row 1000
+  userDir
+    .getRange("I2:I1000")
+    .setFormula(
+      '=IF(A2<>"", SUMIFS(TransactionLedger!H:H, TransactionLedger!D:D, A2), "")',
+    );
+  userDir.getRange("K2:K1000").setFormula('=IF(A2<>"", H2-I2-J2, "")');
+  userDir
+    .getRange("L2:L1000")
+    .setFormula('=IF(A2<>"", IFERROR((I2+J2)/H2, 0), "")');
 
   // OrganizationBudgets
   const orgBudgets = budgetHub.insertSheet("OrganizationBudgets");

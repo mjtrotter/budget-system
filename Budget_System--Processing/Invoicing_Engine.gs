@@ -706,12 +706,30 @@ function generateSingleInvoice(transactionId) {
 
   const data = ledger.getDataRange().getValues();
   let transaction = null;
-  let rowIndex = -1;
+  const rowsToUpdate = [];
+  const transactionsForBatch = [];
+  let formType = "GEN";
 
-  // Find the transaction
+  // Find all rows matching the transaction
   for (let i = 1; i < data.length; i++) {
     if (data[i][0] === transactionId) {
-      transaction = {
+      if (!transaction) {
+        transaction = {
+          transactionId: data[i][0],
+          orderId: data[i][1],
+          date: data[i][2],
+          requestor: data[i][3],
+          approver: data[i][4],
+          organization: data[i][5],
+          form: data[i][6],
+          amount: parseFloat(data[i][7]) || 0,
+          description: data[i][8],
+          fiscalQuarter: data[i][9],
+        };
+        formType = transaction.form ? transaction.form.toUpperCase() : "GEN";
+      }
+
+      transactionsForBatch.push({
         transactionId: data[i][0],
         orderId: data[i][1],
         date: data[i][2],
@@ -722,9 +740,8 @@ function generateSingleInvoice(transactionId) {
         amount: parseFloat(data[i][7]) || 0,
         description: data[i][8],
         fiscalQuarter: data[i][9],
-      };
-      rowIndex = i + 1;
-      break;
+      });
+      rowsToUpdate.push(i + 1);
     }
   }
 
@@ -732,19 +749,33 @@ function generateSingleInvoice(transactionId) {
     return { success: false, error: "Transaction not found" };
   }
 
-  // For single invoices, we just use the transaction ID directly
-  const invoiceId = transaction.transactionId;
-  const formType = transaction.form ? transaction.form.toUpperCase() : "GEN";
-
   // Generate the PDF
-  const result = generateSingleInvoicePDF(transaction, {
-    invoiceId: invoiceId,
-    formType: formType,
-  });
+  const invoiceId = transaction.transactionId;
+  let result;
+
+  // Amazon form items break into multiple rows in the ledger. Use the batch invoice style
+  // PDF generator to bundle all items under the single order ID.
+  if (formType === "AMAZON") {
+    result = generateBatchInvoicePDF(transactionsForBatch, {
+      invoiceId: invoiceId,
+      formType: formType,
+      division: getDivisionFromOrganization(transaction.organization),
+      isExternal: false,
+    });
+  } else {
+    // Normal single invoices (Field Trip, Admin, Curriculum) use single template
+    result = generateSingleInvoicePDF(transaction, {
+      invoiceId: invoiceId,
+      formType: formType,
+    });
+  }
+
   if (result.success) {
-    // Update ledger
-    ledger.getRange(rowIndex, 11).setValue("YES");
-    ledger.getRange(rowIndex, 12).setValue(result.fileUrl);
+    // Update ledger for all matching rows
+    rowsToUpdate.forEach((rowIndex) => {
+      ledger.getRange(rowIndex, 11).setValue("YES");
+      ledger.getRange(rowIndex, 12).setValue(result.fileUrl);
+    });
 
     // Notify requestor that their invoice is ready
     // (Link is already accessible in their dashboard/hub, emailing is not needed).
@@ -922,7 +953,9 @@ function generateBatchInvoiceHTML(transactions, metadata) {
   // calculate gap needed to push footer to y = (912-220)=692
   let gap = 692 - currentY;
   if (gap < 0) gap = 0;
-  gap = Math.max(0, gap - 140); // extra safety margin against overflow from table/header paddings  const bonheurFont = getBonheurRoyaleBase64();
+  gap = Math.max(0, gap - 240); // extra safety margin against overflow from table/header paddings
+
+  const bonheurFont = getBonheurRoyaleBase64();
   const schoolNameBase64 = getSchoolNameBase64();
   const crestBase64 = getCrestBase64();
   const sealBase64 = getSealBase64();
@@ -1056,7 +1089,7 @@ function generateBatchInvoiceHTML(transactions, metadata) {
     .totals-row.grand { font-size: 14pt; font-weight: 700; }
     .totals-row.grand .value { color: var(--logo-green); }
 
-    .signatures { display: flex; justify-content: space-between; padding-top: 25px; border-top: 2px solid var(--logo-green); }
+    .signatures { display: flex; justify-content: space-between; padding-top: 25px; border-top: 2px solid var(--logo-green); page-break-inside: avoid; }
     .signature-block { text-align: center; width: 220px; }
     .signature-label { font-size: 8pt; color: var(--logo-green); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; font-weight: 600; }
     .signature-line { height: 55px; border-bottom: 2px solid var(--logo-green); display: flex; align-items: flex-end; justify-content: center; margin-bottom: 5px; }
@@ -1289,7 +1322,7 @@ function generateSingleInvoiceHTML(transaction, metadata) {
   // Gap needed to push footer to y = 692 (which is 912 total page height - 220 footer height)
   let gap = 692 - currentY;
   if (gap < 0) gap = 0;
-  gap = Math.max(0, gap - 140);
+  gap = Math.max(0, gap - 240);
   const bonheurFont = getBonheurRoyaleBase64();
 
   return `<!DOCTYPE html>
@@ -1381,7 +1414,7 @@ function generateSingleInvoiceHTML(transaction, metadata) {
     .totals-row.grand { font-size: 14pt; font-weight: 700; }
     .totals-row.grand .value { color: var(--logo-green); }
 
-    .signatures { display: flex; justify-content: space-between; padding-top: 25px; border-top: 2px solid var(--logo-green); }
+    .signatures { display: flex; justify-content: space-between; padding-top: 25px; border-top: 2px solid var(--logo-green); page-break-inside: avoid; }
     .signature-block { text-align: center; width: 220px; }
     .signature-label { font-size: 8pt; color: var(--logo-green); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; font-weight: 600; }
     .signature-line { height: 55px; border-bottom: 2px solid var(--logo-green); display: flex; align-items: flex-end; justify-content: center; margin-bottom: 5px; }
@@ -1777,14 +1810,20 @@ function setupBatchInvoiceTriggers() {
     }
   });
 
-  // Warehouse batch - Wednesday 6 AM
+  // Warehouse batch - Wednesday and Friday 6 AM
   ScriptApp.newTrigger("runWarehouseBatch")
     .timeBased()
     .onWeekDay(ScriptApp.WeekDay.WEDNESDAY)
     .atHour(6)
     .create();
 
-  console.log("✅ Batch invoice triggers created: Warehouse (Wed 6AM)");
+  ScriptApp.newTrigger("runWarehouseBatch")
+    .timeBased()
+    .onWeekDay(ScriptApp.WeekDay.FRIDAY)
+    .atHour(6)
+    .create();
+
+  console.log("✅ Batch invoice triggers created: Warehouse (Wed, Fri 6AM)");
 }
 
 // ============================================================================

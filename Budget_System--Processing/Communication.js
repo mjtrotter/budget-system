@@ -337,11 +337,12 @@ function sendApprovalNotification(requestorEmail, transactionData) {
       }
     }
 
-    // Calculate updated budget figures
-    const newSpent = renderBudget.spent + transactionData.amount;
-    const newEncumbered = Math.max(0, renderBudget.encumbered - transactionData.amount);
+    // Calculate updated budget figures. Wait, at "Approved" status it's just encumbered.
+    // It doesn't move to spent until it's Ordered/Invoiced.
+    const newSpent = renderBudget.spent;
+    const newEncumbered = renderBudget.encumbered; // Because they already hit the encumbrance line before approval is resolved
     const newAvailable = renderBudget.allocated - newSpent - newEncumbered;
-    const newUtilization = renderBudget.allocated > 0 ? (newSpent / renderBudget.allocated * 100) : 0;
+    const newUtilization = renderBudget.allocated > 0 ? ((newSpent + newEncumbered) / renderBudget.allocated * 100) : 0;
 
     const subject = `Purchase Order Approved - ${transactionData.transactionId}`;
 
@@ -565,11 +566,11 @@ function sendApprovalNotification(requestorEmail, transactionData) {
               <span class="detail-value">$${renderBudget.allocated.toFixed(2)}</span>
             </div>
             <div class="detail-row">
-              <span class="detail-label">Total Spent (including this order):</span>
+              <span class="detail-label">Total Spent (settled):</span>
               <span class="detail-value">$${newSpent.toFixed(2)}</span>
             </div>
             <div class="detail-row">
-              <span class="detail-label">Pending Orders:</span>
+              <span class="detail-label">Pending Orders (including this):</span>
               <span class="detail-value">$${newEncumbered.toFixed(2)}</span>
             </div>
             <div class="detail-row">

@@ -426,20 +426,25 @@ function processAmazonFormSubmission(e) {
         userBudget,
       );
       updateQueueStatus(transactionId, "APPROVED", actualApprover, true);
-      logSystemEvent("AMAZON_AUTO_APPROVAL", email, totalCost, {
+      logSystemEvent("AMAZON_AUTO_APPROVAL", email, totalAmount_FIXED, {
         transactionId,
         approver: actualApprover,
       });
       sendApprovalNotification(email, {
         transactionId: transactionId,
-        amount: totalCost,
-        type: "Curriculum (Amazon)",
+        amount: totalAmount_FIXED,
+        type: "Amazon Order",
         description: description,
         approver: actualApprover,
       });
 
       if (CONFIG.AMAZON_B2B && CONFIG.AMAZON_B2B.ENABLED) {
-        new AmazonWorkflowEngine().dispatchAmazonOrder(transactionId);
+        new AmazonWorkflowEngine().dispatchAmazonOrder(transactionId, {
+          email: email,
+          department: userBudget.department,
+          amount: totalAmount_FIXED,
+          description: description,
+        });
       }
     } else {
       console.log(`📍 Step ${step}: REQUESTING APPROVAL`);
@@ -959,7 +964,7 @@ function processCurriculumFormSubmission(e) {
 
       // Bridge to Amazon Pipeline
       const autoHub = SpreadsheetApp.openById(CONFIG.AUTOMATED_HUB_ID);
-      const amazonFormData = autoHub.getSheetByName("Amazon_Form_Data");
+      const amazonFormData = autoHub.getSheetByName("Amazon");
 
       const amazonHeaders = amazonFormData
         .getRange(1, 1, 1, amazonFormData.getLastColumn())
@@ -1027,7 +1032,12 @@ function processCurriculumFormSubmission(e) {
         });
 
         if (CONFIG.AMAZON_B2B && CONFIG.AMAZON_B2B.ENABLED) {
-          new AmazonWorkflowEngine().dispatchAmazonOrder(transactionId);
+          new AmazonWorkflowEngine().dispatchAmazonOrder(transactionId, {
+            email: email,
+            department: userBudget.department,
+            amount: totalCost,
+            description: description,
+          });
         }
       } else {
         console.log(`📍 Curriculum-Amazon: REQUESTING APPROVAL`);
@@ -1082,7 +1092,7 @@ function processCurriculumFormSubmission(e) {
     safelyWriteTransactionId(formSheet, lastRowIndex + 1, transactionId);
 
     const queueSheet = getOrCreateQueueSheet(manualHub, "ManualQueue");
-    const description = `${curriculumType} - ${resourceName} (Qty: ${quantity})`;
+    const description = `${curriculumType} - ${resourceName}`;
 
     queueSheet.appendRow([
       transactionId,
@@ -1434,6 +1444,26 @@ function processApprovalDecision(token, decision) {
         console.log(
           `Automated item ${transactionId} approved - routing payloads`,
         );
+        if (
+          request.type === "AMAZON" &&
+          typeof AmazonWorkflowEngine !== "undefined"
+        ) {
+          console.log(
+            `🚀 Routing manually approved Amazon order to Dispatch Engine: ${transactionId}`,
+          );
+          try {
+            new AmazonWorkflowEngine().dispatchAmazonOrder(transactionId, {
+              email: request.email,
+              department: request.department,
+              amount: request.amount,
+              description: request.description,
+            });
+          } catch (amzErr) {
+            console.error(
+              `❌ Failed to dispatch Amazon order ${transactionId}: ${amzErr.message}`,
+            );
+          }
+        }
       }
     } else {
       sendRejectionNotification(request.email, {
@@ -1731,7 +1761,7 @@ function createFormattedMultiItemDescription(items) {
   const descriptions = items.map((item) => {
     const qty = item.quantity || 1;
     const desc = item.description || item.itemDescription || "Unknown Item";
-    const cleanDesc = desc.trim().substring(0, 50);
+    const cleanDesc = String(desc).trim().substring(0, 50);
     return qty > 1 ? `${qty}x ${cleanDesc}` : cleanDesc;
   });
   const fullDesc = descriptions.join(", ");
@@ -2156,12 +2186,12 @@ function validateFormColumns(formType, headerRow) {
 function runGenerateSingleInvoiceAsync(e) {
   if (!e || !e.triggerUid) return;
   const triggerUid = e.triggerUid;
-  
+
   const cache = CacheService.getScriptCache();
   const transactionId = cache.get("async_invoice_" + triggerUid);
-  
+
   // Clean up trigger instance immediately
-  ScriptApp.getProjectTriggers().forEach(t => {
+  ScriptApp.getProjectTriggers().forEach((t) => {
     if (t.getUniqueId() === triggerUid) {
       ScriptApp.deleteTrigger(t);
     }
@@ -2171,11 +2201,15 @@ function runGenerateSingleInvoiceAsync(e) {
     console.warn(`No transaction ID found in cache for trigger ${triggerUid}`);
     return;
   }
-  
-  console.log(`🧾 Executing async Single Invoice generation for request: ${transactionId}`);
+
+  console.log(
+    `🧾 Executing async Single Invoice generation for request: ${transactionId}`,
+  );
   try {
     generateSingleInvoice(transactionId);
   } catch (err) {
-    console.error(`❌ Async invoice runner failed for ${transactionId}: ${err.message}`);
+    console.error(
+      `❌ Async invoice runner failed for ${transactionId}: ${err.message}`,
+    );
   }
 }

@@ -338,15 +338,39 @@ function buildOrderPayload(cartItems, transactionId, requesterName) {
 function placeAmazonOrder(cartItems, transactionId, requesterName) {
   const payload = buildOrderPayload(cartItems, transactionId, requesterName);
 
-  const response = UrlFetchApp.fetch(CONFIG.AMAZON_B2B.ORDER_API_URL, {
-    method: 'POST',
-    headers: buildAmzHeaders(true),  // include x-amz-user-email for order routing
-    payload: JSON.stringify(payload),
-    muteHttpExceptions: true
-  });
-
-  const code = response.getResponseCode();
-  const body = response.getContentText();
+  let response, code, body;
+  try {
+    const headers = buildAmzHeaders(true); // Might throw Auth error
+    response = UrlFetchApp.fetch(CONFIG.AMAZON_B2B.ORDER_API_URL, {
+      method: 'POST',
+      headers: headers,
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true
+    });
+    code = response.getResponseCode();
+    body = response.getContentText();
+  } catch (error) {
+    if (CONFIG.AMAZON_B2B.TRIAL_MODE_ENABLED) {
+      console.warn(`⚠️ [TRIAL MODE] API fetch failed: ${error.message}. Simulating success for transaction ${transactionId}.`);
+      logAmazonApiResult({
+        requestType: 'ORDER', asin: cartItems.map(i => i.asin).join(','),
+        status: 'SIMULATED', rejectionReason: `[Fetch/Auth Error Bypass]`
+      });
+      return {
+        success: true,
+        amazonOrderId: `SIM-ERR-${transactionId}`,
+        acceptedItems: cartItems.map((item, index) => ({
+          externalId: `line-${index + 1}`,
+          orderId: `SIM-ERR-${transactionId}`,
+          unitPrice: item.expectedUnitPrice || item.price || 0
+        })),
+        rejectedItems: [],
+        error: null
+      };
+    } else {
+      throw error; // Let dispatch catch it in production
+    }
+  }
 
   rateLimitPause();
 
@@ -372,6 +396,27 @@ function placeAmazonOrder(cartItems, transactionId, requesterName) {
   }
 
   if (code !== 200 && code !== 201) {
+    if (CONFIG.AMAZON_B2B.TRIAL_MODE_ENABLED) {
+      console.warn(`⚠️ [TRIAL MODE] Amazon API returned ${code}. Simulating success for transaction ${transactionId}.`);
+      
+      logAmazonApiResult({
+        requestType: 'ORDER', asin: cartItems.map(i => i.asin).join(','),
+        status: 'SIMULATED', rejectionReason: `[${code} Bypass]`
+      });
+      
+      return {
+        success: true,
+        amazonOrderId: `SIM-TRIAL-${transactionId}`,
+        acceptedItems: cartItems.map((item, index) => ({
+          externalId: `line-${index + 1}`,
+          orderId: `SIM-TRIAL-${transactionId}`,
+          unitPrice: item.expectedUnitPrice || item.price || 0
+        })),
+        rejectedItems: [],
+        error: null
+      };
+    }
+
     logAmazonApiResult({
       requestType: 'ORDER', asin: cartItems.map(i => i.asin).join(','),
       status: 'ERROR', rejectionReason: `[${code}] ${body}`
@@ -505,7 +550,7 @@ function sendAmazonSummaryEmail(subject, summaryItems) {
       });
     }
 
-    MailApp.sendEmail({
+    sendSystemEmail({
       to: recipientEmail,
       subject: `[KCS Budget] ${subject}`,
       body: body
@@ -534,7 +579,7 @@ function sendPriceBounceBackEmail(requestorEmail, items, transactionId) {
     body += `If you believe this is an error, please contact the Business Office.\n`;
 
     const to = CONFIG.TEST_MODE ? CONFIG.TEST_EMAIL_RECIPIENT : requestorEmail;
-    MailApp.sendEmail({
+    sendSystemEmail({
       to: to,
       subject: `[Action Required] Price Change on Amazon Request ${transactionId}`,
       body: body
@@ -559,16 +604,21 @@ class AmazonWorkflowEngine {
    * Flow: parse items → calculate max price ceiling → place order → handle result.
    * The Ordering API's ExpectedUnitPrice handles price gating natively.
    */
-  dispatchAmazonOrder(transactionId) {
+  dispatchAmazonOrder(transactionId, fallbackData = null) {
     const requestId = generateRequestId();
     const summaryItems = [];
+
+    // CRITICAL: Force all pending writes (from Forms_Engine appendRow calls) 
+    // to actually commit to Google's backend before we try to read from the sheet!
+    SpreadsheetApp.flush();
 
     try {
       console.log(`🚀 [${requestId}] Dispatching Amazon Order for: ${transactionId}`);
 
       const autoHub = SpreadsheetApp.openById(CONFIG.AUTOMATED_HUB_ID);
       const queueSheet = autoHub.getSheetByName('AutomatedQueue');
-      const amazonSheet = autoHub.getSheetByName('Amazon_Form_Data');
+      const amazonSheet = autoHub.getSheetByName('Amazon');
+      
       const queueData = queueSheet.getDataRange().getValues();
       const amazonData = amazonSheet.getDataRange().getValues();
       const cleanTxnId = String(transactionId).trim();
@@ -586,7 +636,7 @@ class AmazonWorkflowEngine {
         return txnIdColIndex !== -1 ? String(row[txnIdColIndex]).trim() === cleanTxnId :
           row.some(cell => String(cell).trim() === cleanTxnId);
       });
-      if (!amazonRow) throw new Error(`Transaction ${cleanTxnId} not in Amazon_Form_Data`);
+      if (!amazonRow) throw new Error(`Transaction ${cleanTxnId} not in Amazon sheet`);
 
       // 3. Parse items & extract ASINs
       const parsedItems = this.parseAmazonFormItems(amazonRow);
@@ -671,10 +721,68 @@ class AmazonWorkflowEngine {
         }
         summaryItems.forEach(s => { s.rejectionReason = orderResult.error; });
         sendAmazonSummaryEmail(`Order Failed — ${cleanTxnId}`, summaryItems);
+        
+        // --- 🚨 CRITICAL FALLBACK INJECTION ---
+        // If we failed above, check if Trial Mode / fallback dictates we force it anyway.
+        if (CONFIG.AMAZON_B2B.TRIAL_MODE_ENABLED && typeof fallbackData !== 'undefined' && fallbackData) {
+          console.warn(`[TRIAL MODE] Amazon Order returned fail/error, but forcing ledger push for: ${cleanTxnId}`);
+          this.updateQueueItemStatus(cleanTxnId, 'ORDERED'); // Override the ERROR/REJECT
+          this.logTransactionsToBudgetHub({
+            success: true, 
+            orderId: `SIM-FORCE-${cleanTxnId}`,
+            items: [{
+              index: 0,
+              itemNumber: 1,
+              description: fallbackData.description || "TRIAL MODE API ERROR FALLBACK",
+              url: '',
+              quantity: 1,
+              unitPrice: fallbackData.amount || 0,
+              price: fallbackData.amount || 0,
+              orderId: cleanTxnId,
+              requestor: fallbackData.email,
+              department: fallbackData.department,
+              originalRow: fallbackData 
+            }]
+          });
+        }
       }
 
     } catch (e) {
-      console.error(`❌ Amazon Dispatch Error: ${e}`);
+      console.error(`❌ Amazon Dispatch Error: ${e.stack || e}`);
+      
+      if (CONFIG.AMAZON_B2B.TRIAL_MODE_ENABLED && fallbackData) {
+        console.warn(`⚠️ [TRIAL MODE] Forcing ledger push despite dispatch error: ${e.message}`);
+        this.updateQueueItemStatus(transactionId, 'ORDERED');
+        
+        this.logTransactionsToBudgetHub({
+          success: true, 
+          orderId: `SIM-FORCE-${transactionId}`,
+          items: [{
+            index: 0,
+            itemNumber: 1,
+            description: fallbackData.description || `[SIMULATED DUE TO ERROR: ${e.message}]`,
+            url: '',
+            quantity: 1,
+            unitPrice: fallbackData.amount,
+            price: fallbackData.amount,
+            orderId: transactionId,
+            requestor: fallbackData.email,
+            department: fallbackData.department
+          }],
+          totalAmount: fallbackData.amount
+        });
+        
+        sendAmazonSummaryEmail(`Order Placed (Simulated Fallback) — ${transactionId}`, [{
+           status: 'ORDERED', 
+           orderId: `SIM-FORCE-${transactionId}`,
+           submittedPrice: fallbackData.amount,
+           livePrice: fallbackData.amount,
+           delta: 0,
+           asin: 'SIMULATED'
+        }]);
+        return;
+      }
+
       this.updateQueueItemStatus(transactionId, 'ERROR');
       logAmazonApiResult({ requestId, status: 'ERROR', rejectionReason: e.toString() });
       sendAmazonSummaryEmail(`Error — ${transactionId}`, [{ status: 'ERROR', rejectionReason: e.toString() }]);
@@ -743,7 +851,26 @@ class AmazonWorkflowEngine {
   logTransactionsToBudgetHub(cartResult) {
     try {
       const budgetHub = SpreadsheetApp.openById(CONFIG.BUDGET_HUB_ID);
-      const ledgerSheet = budgetHub.getSheetByName('TransactionLedger');
+      let ledgerSheet = budgetHub.getSheetByName('TransactionLedger');
+      
+      if (!ledgerSheet) {
+        ledgerSheet = budgetHub.insertSheet("TransactionLedger");
+        ledgerSheet.appendRow([
+          "TransactionID",
+          "OrderID",
+          "ProcessedOn",
+          "Requestor",
+          "Approver",
+          "Organization",
+          "Form",
+          "Amount",
+          "Description",
+          "FiscalQuarter",
+          "InvoiceGenerated",
+          "InvoiceURL"
+        ]);
+      }
+
       const poNum = cartResult.orderId || 'UNKNOWN';
       const newRows = cartResult.items.map(item => [
         item.orderId,               // TransactionID
@@ -756,10 +883,28 @@ class AmazonWorkflowEngine {
         item.price,                 // Amount
         item.description,           // Description
         getCurrentQuarter(),        // FiscalQuarter
-        ''                          // InvoiceGenerated
+        '',                         // InvoiceGenerated
+        ''                          // InvoiceURL
       ]);
       ledgerSheet.getRange(ledgerSheet.getLastRow() + 1, 1, newRows.length, newRows[0].length).setValues(newRows);
       console.log(`✅ Logged ${newRows.length} transactions to ledger with PO: ${poNum}`);
+
+      SpreadsheetApp.flush(); // Ensure ledger is written before async trigger looks for it
+
+      // Ensure every ledger addition generates an invoice
+      try {
+        const txnId = cartResult.items[0].orderId;
+        console.log(`🧾 Queuing Single Invoice generation for Amazon Order: ${txnId}`);
+        const cache = CacheService.getScriptCache();
+        const trigger = ScriptApp.newTrigger("runGenerateSingleInvoiceAsync")
+          .timeBased()
+          .after(500)
+          .create();
+        cache.put("async_invoice_" + trigger.getUniqueId(), txnId, 3600);
+      } catch (invoiceErr) {
+        console.error(`❌ Failed to queue single invoice for Amazon Order ${poNum}:`, invoiceErr.message);
+      }
+
     } catch (error) {
       console.error('❌ Failed to log to Budget Hub:', error);
     }

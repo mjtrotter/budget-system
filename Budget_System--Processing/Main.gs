@@ -23,19 +23,21 @@
 // ============================================================================
 
 function initializeSystem() {
-  console.log('🚀 Initializing Budget Automation System...');
+  console.log("🚀 Initializing Budget Automation System...");
   createSystemConfig();
   createQueueSheets(); // Ensure queue sheets exist
   setupAllTriggers();
 
   // Initialize encumbrances via Budget Engine
-  if (typeof updateAllUserEncumbrances === 'function') {
+  if (typeof updateAllUserEncumbrances === "function") {
     updateAllUserEncumbrances();
   } else {
-    console.warn('⚠️ updateAllUserEncumbrances not found - check Budget_Engine.gs');
+    console.warn(
+      "⚠️ updateAllUserEncumbrances not found - check Budget_Engine.gs",
+    );
   }
 
-  console.log('✅ System initialization complete');
+  console.log("✅ System initialization complete");
 }
 
 /**
@@ -43,100 +45,122 @@ function initializeSystem() {
  * These sheets are required for form submission processing.
  */
 function createQueueSheets() {
-  console.log('📋 Ensuring queue sheets exist...');
+  console.log("📋 Ensuring queue sheets exist...");
 
   const queueHeaders = [
-    'TransactionID', 'Email', 'Type', 'Department', 'Division',
-    'Amount', 'Description', 'Status', 'SubmittedOn', 'ApprovedOn',
-    'Approver', 'ResponseID'
+    "TransactionID",
+    "Email",
+    "Type",
+    "Department",
+    "Division",
+    "Amount",
+    "Description",
+    "Status",
+    "SubmittedOn",
+    "ApprovedOn",
+    "Approver",
+    "ResponseID",
   ];
 
   // Create AutomatedQueue in Automated Hub
   try {
     const autoHub = SpreadsheetApp.openById(CONFIG.AUTOMATED_HUB_ID);
-    let autoQueue = autoHub.getSheetByName('AutomatedQueue');
+    let autoQueue = autoHub.getSheetByName("AutomatedQueue");
 
     if (!autoQueue) {
-      console.log('  Creating AutomatedQueue sheet...');
-      autoQueue = autoHub.insertSheet('AutomatedQueue');
-      autoQueue.getRange(1, 1, 1, queueHeaders.length).setValues([queueHeaders]);
+      console.log("  Creating AutomatedQueue sheet...");
+      autoQueue = autoHub.insertSheet("AutomatedQueue");
+      autoQueue
+        .getRange(1, 1, 1, queueHeaders.length)
+        .setValues([queueHeaders]);
       autoQueue.setFrozenRows(1);
 
       // Format header
       const headerRange = autoQueue.getRange(1, 1, 1, queueHeaders.length);
-      headerRange.setBackground('#1565C0');
-      headerRange.setFontColor('#FFFFFF');
-      headerRange.setFontWeight('bold');
+      headerRange.setBackground("#1565C0");
+      headerRange.setFontColor("#FFFFFF");
+      headerRange.setFontWeight("bold");
 
-      console.log('  ✅ AutomatedQueue created');
+      console.log("  ✅ AutomatedQueue created");
     } else {
-      console.log('  ✅ AutomatedQueue already exists');
+      console.log("  ✅ AutomatedQueue already exists");
     }
   } catch (error) {
-    console.error('  ❌ Failed to create AutomatedQueue:', error);
+    console.error("  ❌ Failed to create AutomatedQueue:", error);
   }
 
   // Create ManualQueue in Manual Hub
   try {
     const manualHub = SpreadsheetApp.openById(CONFIG.MANUAL_HUB_ID);
-    let manualQueue = manualHub.getSheetByName('ManualQueue');
+    let manualQueue = manualHub.getSheetByName("ManualQueue");
 
     if (!manualQueue) {
-      console.log('  Creating ManualQueue sheet...');
-      manualQueue = manualHub.insertSheet('ManualQueue');
-      manualQueue.getRange(1, 1, 1, queueHeaders.length).setValues([queueHeaders]);
+      console.log("  Creating ManualQueue sheet...");
+      manualQueue = manualHub.insertSheet("ManualQueue");
+      manualQueue
+        .getRange(1, 1, 1, queueHeaders.length)
+        .setValues([queueHeaders]);
       manualQueue.setFrozenRows(1);
 
       // Format header
       const headerRange = manualQueue.getRange(1, 1, 1, queueHeaders.length);
-      headerRange.setBackground('#2E7D32');
-      headerRange.setFontColor('#FFFFFF');
-      headerRange.setFontWeight('bold');
+      headerRange.setBackground("#2E7D32");
+      headerRange.setFontColor("#FFFFFF");
+      headerRange.setFontWeight("bold");
 
-      console.log('  ✅ ManualQueue created');
+      console.log("  ✅ ManualQueue created");
     } else {
-      console.log('  ✅ ManualQueue already exists');
+      console.log("  ✅ ManualQueue already exists");
     }
   } catch (error) {
-    console.error('  ❌ Failed to create ManualQueue:', error);
+    console.error("  ❌ Failed to create ManualQueue:", error);
   }
 }
 
 function createSystemConfig() {
   try {
     const budgetHub = SpreadsheetApp.openById(CONFIG.BUDGET_HUB_ID);
-    let configSheet = budgetHub.getSheetByName('System Config');
-    
+    let configSheet = budgetHub.getSheetByName("System Config");
+
     if (!configSheet) {
-      configSheet = budgetHub.insertSheet('System Config');
-      
+      configSheet = budgetHub.insertSheet("System Config");
+
       // Add headers
-      configSheet.getRange(1, 1, 1, 4).setValues([
-        ['Property', 'Value', 'Description', 'Last Updated']
-      ]);
-      
+      configSheet
+        .getRange(1, 1, 1, 4)
+        .setValues([["Property", "Value", "Description", "Last Updated"]]);
+
       // Add configuration values
       const configData = [
-        ['PRODUCTION_STATUS', 'TEST', 'System mode (TEST/LIVE)', new Date()],
-        ['AUTO_APPROVAL_LIMIT', CONFIG.AUTO_APPROVAL_LIMIT, 'Auto-approval threshold', new Date()],
-        ['FISCAL_YEAR_START', '07-01', 'Fiscal year start date', new Date()],
-        ['LAST_ENCUMBRANCE_UPDATE', new Date(), 'Last encumbrance calculation', new Date()],
-        ['VERSION', '3.0', 'System version', new Date()]
+        ["PRODUCTION_STATUS", "TEST", "System mode (TEST/LIVE)", new Date()],
+        [
+          "AUTO_APPROVAL_LIMIT",
+          CONFIG.AUTO_APPROVAL_LIMIT,
+          "Auto-approval threshold",
+          new Date(),
+        ],
+        ["FISCAL_YEAR_START", "07-01", "Fiscal year start date", new Date()],
+        [
+          "LAST_ENCUMBRANCE_UPDATE",
+          new Date(),
+          "Last encumbrance calculation",
+          new Date(),
+        ],
+        ["VERSION", "3.0", "System version", new Date()],
       ];
-      
+
       configSheet.getRange(2, 1, configData.length, 4).setValues(configData);
-      
+
       // Format header
       const headerRange = configSheet.getRange(1, 1, 1, 4);
-      headerRange.setBackground('#2E7D32');
-      headerRange.setFontColor('#FFFFFF');
-      headerRange.setFontWeight('bold');
-      
-      console.log('✅ System Config sheet created');
+      headerRange.setBackground("#2E7D32");
+      headerRange.setFontColor("#FFFFFF");
+      headerRange.setFontWeight("bold");
+
+      console.log("✅ System Config sheet created");
     }
-    
   } catch (error) {
-    console.error('Error creating System Config:', error);
+    console.error("Error creating System Config:", error);
   }
 }
 
@@ -146,69 +170,71 @@ function createSystemConfig() {
 
 function setupAllTriggers() {
   // Remove ALL existing triggers
-  ScriptApp.getProjectTriggers().forEach(trigger => {
+  ScriptApp.getProjectTriggers().forEach((trigger) => {
     ScriptApp.deleteTrigger(trigger);
   });
-  
+
   // Form submission triggers - Routed to Forms_Engine.gs
   // Note: These strings references functions that MUST match definitions in Forms_Engine.gs
-  
-  ScriptApp.newTrigger('processAmazonFormSubmission')
+
+  ScriptApp.newTrigger("processAmazonFormSubmission")
     .forForm(CONFIG.FORMS.AMAZON)
     .onFormSubmit()
     .create();
-    
-  ScriptApp.newTrigger('processWarehouseFormSubmission')
+
+  ScriptApp.newTrigger("processWarehouseFormSubmission")
     .forForm(CONFIG.FORMS.WAREHOUSE)
     .onFormSubmit()
     .create();
-    
-  ScriptApp.newTrigger('processFieldTripFormSubmission')
+
+  ScriptApp.newTrigger("processFieldTripFormSubmission")
     .forForm(CONFIG.FORMS.FIELD_TRIP)
     .onFormSubmit()
     .create();
-    
-  ScriptApp.newTrigger('processCurriculumFormSubmission')
+
+  ScriptApp.newTrigger("processCurriculumFormSubmission")
     .forForm(CONFIG.FORMS.CURRICULUM)
     .onFormSubmit()
     .create();
-    
-  ScriptApp.newTrigger('processAdminFormSubmission')
+
+  ScriptApp.newTrigger("processAdminFormSubmission")
     .forForm(CONFIG.FORMS.ADMIN)
     .onFormSubmit()
     .create();
-  
+
   // [DEPRECATED] Amazon Phase 1 & 2 Triggers (6AM & 8:30AM)
   // Replaced with instantaneous AWS Ordering API Dispatcher located in Forms_Engine.gs
-    
+
   // Warehouse processing - Daily at 9 AM
-  ScriptApp.newTrigger('processWarehouseOrders')
+  ScriptApp.newTrigger("processWarehouseOrders")
     .timeBased()
     .everyDays(1)
     .atHour(9)
     .create();
-    
+
   // Overnight invoice generation - Daily at 2 AM
-  ScriptApp.newTrigger('runOvernightInvoiceGeneration')
+  ScriptApp.newTrigger("runOvernightInvoiceGeneration")
     .timeBased()
     .everyDays(1)
     .atHour(2)
     .create();
-    
+
   // Encumbrance updates - Every 30 minutes
   // Calls function in Budget_Engine.gs
-  ScriptApp.newTrigger('updateAllUserEncumbrances')
+  ScriptApp.newTrigger("updateAllUserEncumbrances")
     .timeBased()
     .everyMinutes(30)
     .create();
-    
-  console.log('✅ All triggers configured successfully');
-  
+
+  console.log("✅ All triggers configured successfully");
+
   // Log trigger summary
   const triggers = ScriptApp.getProjectTriggers();
   console.log(`Total triggers created: ${triggers.length}`);
-  triggers.forEach(trigger => {
-    console.log(`- ${trigger.getHandlerFunction()} (${trigger.getEventType()})`);
+  triggers.forEach((trigger) => {
+    console.log(
+      `- ${trigger.getHandlerFunction()} (${trigger.getEventType()})`,
+    );
   });
 }
 
@@ -223,7 +249,7 @@ function setupAllTriggers() {
 // Amazon batches: Tuesday & Friday
 // Warehouse batches: Wednesday
 function runOvernightInvoiceGeneration() {
-  console.log('⏳ Running Overnight Invoice Generation...');
+  console.log("⏳ Running Overnight Invoice Generation...");
 
   const today = new Date();
   const dayOfWeek = today.getDay(); // 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
@@ -233,173 +259,218 @@ function runOvernightInvoiceGeneration() {
   // [DEPRECATED] Tuesday/Friday Amazon batch removed.
   // Amazon Orders flow directly to Sandbox via REST Integration natively.
 
-  // Wednesday (3) - Warehouse batch
-  if (dayOfWeek === 3) {
-    console.log('🏪 Running Warehouse batch invoice (scheduled day)...');
-    if (typeof runWarehouseBatch === 'function') {
+  // Wednesday (3) or Friday (5) - Warehouse batch
+  if (dayOfWeek === 3 || dayOfWeek === 5) {
+    console.log("🏪 Running Warehouse batch invoice (scheduled day)...");
+    if (typeof runWarehouseBatch === "function") {
       results.warehouse = runWarehouseBatch();
     } else {
-      console.warn('⚠️ runWarehouseBatch function not found');
+      console.warn("⚠️ runWarehouseBatch function not found");
     }
   }
 
   // Log results
   if (dayOfWeek !== 2 && dayOfWeek !== 3 && dayOfWeek !== 5) {
-    console.log('ℹ️ No batch invoices scheduled for today (day ' + dayOfWeek + ')');
+    console.log(
+      "ℹ️ No batch invoices scheduled for today (day " + dayOfWeek + ")",
+    );
   } else {
-    console.log('✅ Overnight invoice generation complete:', JSON.stringify(results));
+    console.log(
+      "✅ Overnight invoice generation complete:",
+      JSON.stringify(results),
+    );
   }
 
   return results;
 }
-
 
 // ============================================================================
 // DEPLOYMENT UTILITIES
 // ============================================================================
 
 function completePhase1Deployment() {
-  console.log('🚀 === KESWICK BUDGET SYSTEM - PHASE 1 DEPLOYMENT ===');
+  console.log("🚀 === KESWICK BUDGET SYSTEM - PHASE 1 DEPLOYMENT ===");
   console.log(`Started at: ${new Date()}`);
-  console.log('');
+  console.log("");
 
   // Step 1: Create upload folder
-  console.log('STEP 1: Create Upload Folder');
-  console.log('-'.repeat(40));
+  console.log("STEP 1: Create Upload Folder");
+  console.log("-".repeat(40));
   let uploadFolderId;
   try {
     uploadFolderId = createUploadFolder();
   } catch (e) {
-    console.error('Upload folder creation failed, continuing...');
+    console.error("Upload folder creation failed, continuing...");
   }
-  console.log('');
+  console.log("");
 
   // Step 2: Create queue sheets (CRITICAL - must exist before form submissions)
-  console.log('STEP 2: Create Queue Sheets');
-  console.log('-'.repeat(40));
+  console.log("STEP 2: Create Queue Sheets");
+  console.log("-".repeat(40));
   createQueueSheets();
-  console.log('');
+  console.log("");
 
   // Step 3: Link forms to Hubs
-  console.log('STEP 3: Link Forms to Hub Spreadsheets');
-  console.log('-'.repeat(40));
+  console.log("STEP 3: Link Forms to Hub Spreadsheets");
+  console.log("-".repeat(40));
   const linkResults = linkFormsToHubs();
-  console.log('');
-  
+  console.log("");
+
   // Step 4: Set up all triggers
-  console.log('STEP 4: Set Up Triggers');
-  console.log('-'.repeat(40));
+  console.log("STEP 4: Set Up Triggers");
+  console.log("-".repeat(40));
   setupAllTriggers();
-  console.log('');
+  console.log("");
 
   // Step 5: Verify configuration
-  console.log('STEP 5: Verify Configuration');
-  console.log('-'.repeat(40));
+  console.log("STEP 5: Verify Configuration");
+  console.log("-".repeat(40));
   verifyDeployment();
-  console.log('');
-  
+  console.log("");
+
   // Summary
-  console.log('='.repeat(60));
-  console.log('DEPLOYMENT COMPLETE');
-  console.log('='.repeat(60));
-  
+  console.log("=".repeat(60));
+  console.log("DEPLOYMENT COMPLETE");
+  console.log("=".repeat(60));
+
   return {
     uploadFolderId,
     linkResults,
-    testMode: CONFIG.TEST_MODE
+    testMode: CONFIG.TEST_MODE,
   };
 }
 
 function verifyDeployment() {
   const checks = [];
-  
+
   // Check Hub spreadsheets
   try {
     SpreadsheetApp.openById(CONFIG.BUDGET_HUB_ID);
-    checks.push({ name: 'Budget Hub', status: '✅', id: CONFIG.BUDGET_HUB_ID });
-  } catch (e) { checks.push({ name: 'Budget Hub', status: '❌', error: e.message }); }
-  
+    checks.push({ name: "Budget Hub", status: "✅", id: CONFIG.BUDGET_HUB_ID });
+  } catch (e) {
+    checks.push({ name: "Budget Hub", status: "❌", error: e.message });
+  }
+
   try {
     SpreadsheetApp.openById(CONFIG.AUTOMATED_HUB_ID);
-    checks.push({ name: 'Automated Hub', status: '✅', id: CONFIG.AUTOMATED_HUB_ID });
-  } catch (e) { checks.push({ name: 'Automated Hub', status: '❌', error: e.message }); }
-  
+    checks.push({
+      name: "Automated Hub",
+      status: "✅",
+      id: CONFIG.AUTOMATED_HUB_ID,
+    });
+  } catch (e) {
+    checks.push({ name: "Automated Hub", status: "❌", error: e.message });
+  }
+
   try {
     SpreadsheetApp.openById(CONFIG.MANUAL_HUB_ID);
-    checks.push({ name: 'Manual Hub', status: '✅', id: CONFIG.MANUAL_HUB_ID });
-  } catch (e) { checks.push({ name: 'Manual Hub', status: '❌', error: e.message }); }
-  
+    checks.push({ name: "Manual Hub", status: "✅", id: CONFIG.MANUAL_HUB_ID });
+  } catch (e) {
+    checks.push({ name: "Manual Hub", status: "❌", error: e.message });
+  }
+
   // Check forms
   const formChecks = [
-    { name: 'Amazon Form', id: CONFIG.FORMS.AMAZON },
-    { name: 'Warehouse Form', id: CONFIG.FORMS.WAREHOUSE },
-    { name: 'Field Trip Form', id: CONFIG.FORMS.FIELD_TRIP },
-    { name: 'Curriculum Form', id: CONFIG.FORMS.CURRICULUM },
-    { name: 'Admin Form', id: CONFIG.FORMS.ADMIN }
+    { name: "Amazon Form", id: CONFIG.FORMS.AMAZON },
+    { name: "Warehouse Form", id: CONFIG.FORMS.WAREHOUSE },
+    { name: "Field Trip Form", id: CONFIG.FORMS.FIELD_TRIP },
+    { name: "Curriculum Form", id: CONFIG.FORMS.CURRICULUM },
+    { name: "Admin Form", id: CONFIG.FORMS.ADMIN },
   ];
-  
-  formChecks.forEach(fc => {
+
+  formChecks.forEach((fc) => {
     try {
       FormApp.openById(fc.id);
-      checks.push({ name: fc.name, status: '✅', id: fc.id });
+      checks.push({ name: fc.name, status: "✅", id: fc.id });
     } catch (e) {
-      checks.push({ name: fc.name, status: '❌', error: e.message });
+      checks.push({ name: fc.name, status: "❌", error: e.message });
     }
   });
-  
+
   // Check triggers
   const triggers = ScriptApp.getProjectTriggers();
-  checks.push({ name: 'Triggers', status: triggers.length > 0 ? '✅' : '⚠️', count: triggers.length });
-  
-  console.log('Verification Results:');
-  checks.forEach(c => {
+  checks.push({
+    name: "Triggers",
+    status: triggers.length > 0 ? "✅" : "⚠️",
+    count: triggers.length,
+  });
+
+  console.log("Verification Results:");
+  checks.forEach((c) => {
     if (c.error) console.log(`  ${c.status} ${c.name}: ${c.error}`);
     else console.log(`  ${c.status} ${c.name}`);
   });
-  
+
   return checks;
 }
 
 function createUploadFolder() {
-  console.log('📁 === CREATING UPLOAD FOLDER ===');
-  const folderName = 'Budget System Uploads';
-  const parentFolderName = 'Keswick Budget System';
-  
+  console.log("📁 === CREATING UPLOAD FOLDER ===");
+  const folderName = "Budget System Uploads";
+  const parentFolderName = "Keswick Budget System";
+
   try {
     const existingFolders = DriveApp.getFoldersByName(folderName);
     if (existingFolders.hasNext()) {
       return existingFolders.next().getId();
     }
-    
+
     let parentFolder = DriveApp.getRootFolder();
     const parentFolders = DriveApp.getFoldersByName(parentFolderName);
     if (parentFolders.hasNext()) {
       parentFolder = parentFolders.next();
     }
-    
+
     const uploadFolder = parentFolder.createFolder(folderName);
-    uploadFolder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    uploadFolder.setSharing(
+      DriveApp.Access.ANYONE_WITH_LINK,
+      DriveApp.Permission.VIEW,
+    );
     return uploadFolder.getId();
-    
   } catch (error) {
-    console.error('❌ Failed to create upload folder:', error);
+    console.error("❌ Failed to create upload folder:", error);
     throw error;
   }
 }
 
 function linkFormsToHubs() {
-  console.log('🔗 === LINKING FORMS TO HUB SPREADSHEETS ===');
+  console.log("🔗 === LINKING FORMS TO HUB SPREADSHEETS ===");
   const results = { success: [], failed: [] };
-  
+
   const mappings = [
-    { form: 'Amazon', id: CONFIG.FORMS.AMAZON, hub: CONFIG.AUTOMATED_HUB_ID, sheet: 'Amazon' },
-    { form: 'Warehouse', id: CONFIG.FORMS.WAREHOUSE, hub: CONFIG.AUTOMATED_HUB_ID, sheet: 'Warehouse' },
-    { form: 'Field Trip', id: CONFIG.FORMS.FIELD_TRIP, hub: CONFIG.MANUAL_HUB_ID, sheet: 'Field Trip' },
-    { form: 'Curriculum', id: CONFIG.FORMS.CURRICULUM, hub: CONFIG.MANUAL_HUB_ID, sheet: 'Curriculum' },
-    { form: 'Admin', id: CONFIG.FORMS.ADMIN, hub: CONFIG.MANUAL_HUB_ID, sheet: 'Admin' }
+    {
+      form: "Amazon",
+      id: CONFIG.FORMS.AMAZON,
+      hub: CONFIG.AUTOMATED_HUB_ID,
+      sheet: "Amazon",
+    },
+    {
+      form: "Warehouse",
+      id: CONFIG.FORMS.WAREHOUSE,
+      hub: CONFIG.AUTOMATED_HUB_ID,
+      sheet: "Warehouse",
+    },
+    {
+      form: "Field Trip",
+      id: CONFIG.FORMS.FIELD_TRIP,
+      hub: CONFIG.MANUAL_HUB_ID,
+      sheet: "Field Trip",
+    },
+    {
+      form: "Curriculum",
+      id: CONFIG.FORMS.CURRICULUM,
+      hub: CONFIG.MANUAL_HUB_ID,
+      sheet: "Curriculum",
+    },
+    {
+      form: "Admin",
+      id: CONFIG.FORMS.ADMIN,
+      hub: CONFIG.MANUAL_HUB_ID,
+      sheet: "Admin",
+    },
   ];
-  
-  mappings.forEach(m => {
+
+  mappings.forEach((m) => {
     try {
       linkFormToSheet(m.id, m.hub, m.sheet);
       results.success.push(m.form);
@@ -408,8 +479,10 @@ function linkFormsToHubs() {
       console.error(`❌ Failed linking ${m.form}:`, e);
     }
   });
-  
-  console.log(`✅ Success: ${results.success.length}, ❌ Failed: ${results.failed.length}`);
+
+  console.log(
+    `✅ Success: ${results.success.length}, ❌ Failed: ${results.failed.length}`,
+  );
   return results;
 }
 
@@ -420,25 +493,27 @@ function linkFormToSheet(formId, spreadsheetId, sheetName) {
     if (existingDestId === spreadsheetId) return;
     if (existingDestId) form.removeDestination();
   } catch (e) {}
-  
+
   form.setDestination(FormApp.DestinationType.SPREADSHEET, spreadsheetId);
   console.log(`  Linked form ${formId} to spreadsheet ${spreadsheetId}`);
 }
 
 function getFormLinks() {
-  console.log('📋 === FORM LINKS ===');
+  console.log("📋 === FORM LINKS ===");
   const forms = [
-    { name: 'Amazon Request', id: CONFIG.FORMS.AMAZON },
-    { name: 'Warehouse Request', id: CONFIG.FORMS.WAREHOUSE },
-    { name: 'Field Trip Request', id: CONFIG.FORMS.FIELD_TRIP },
-    { name: 'Curriculum Request', id: CONFIG.FORMS.CURRICULUM },
-    { name: 'Admin Request', id: CONFIG.FORMS.ADMIN }
+    { name: "Amazon Request", id: CONFIG.FORMS.AMAZON },
+    { name: "Warehouse Request", id: CONFIG.FORMS.WAREHOUSE },
+    { name: "Field Trip Request", id: CONFIG.FORMS.FIELD_TRIP },
+    { name: "Curriculum Request", id: CONFIG.FORMS.CURRICULUM },
+    { name: "Admin Request", id: CONFIG.FORMS.ADMIN },
   ];
-  
-  forms.forEach(f => {
+
+  forms.forEach((f) => {
     try {
       const form = FormApp.openById(f.id);
-      console.log(`${f.name}: ${form.getPublishedUrl()} (Edit: ${form.getEditUrl()})`);
+      console.log(
+        `${f.name}: ${form.getPublishedUrl()} (Edit: ${form.getEditUrl()})`,
+      );
     } catch (e) {
       console.log(`${f.name}: ❌ ${e.message}`);
     }
@@ -461,49 +536,66 @@ function getFormLinks() {
 function doGet(e) {
   try {
     const params = e ? e.parameter : {};
-    
+
     // BACKDOOR: Local test script generation
-    if (params.action === 'get_pdfs') {
-      const templateType = params.template || 'all';
+    if (params.action === "get_pdfs") {
+      const templateType = params.template || "all";
       let results = {};
-      
-      if (templateType === 'amazon' || templateType === 'all') results.amazon = generateDemoAmazonInvoice();
-      if (templateType === 'warehouse' || templateType === 'all') results.warehouse = generateDemoWarehouseInternalInvoice();
-      if (templateType === 'warehouse_ext' || templateType === 'all') results.warehouseExternal = generateDemoWarehouseExternalInvoice();
-      if (templateType === 'fieldtrip' || templateType === 'all') results.fieldTrip = generateDemoFieldTripInvoice();
-      if (templateType === 'curriculum' || templateType === 'all') results.curriculum = generateDemoCurriculumInvoice();
-      if (templateType === 'admin' || templateType === 'all') results.admin = generateDemoAdminInvoice();
-      let html = '<html><head><style>body{font-family:sans-serif;padding:20px;line-height:1.6} a{color:#1565C0;text-decoration:none} a:hover{text-decoration:underline} .card{background:#f9f9f9;padding:15px;border-radius:8px;margin-bottom:10px;border:1px solid #ddd;}</style></head><body>';
-      html += '<h2>Sample Invoice PDFs Generated</h2>';
-      
+
+      if (templateType === "amazon" || templateType === "all")
+        results.amazon = generateDemoAmazonInvoice();
+      if (templateType === "warehouse" || templateType === "all")
+        results.warehouse = generateDemoWarehouseInternalInvoice();
+      if (templateType === "warehouse_ext" || templateType === "all")
+        results.warehouseExternal = generateDemoWarehouseExternalInvoice();
+      if (templateType === "fieldtrip" || templateType === "all")
+        results.fieldTrip = generateDemoFieldTripInvoice();
+      if (templateType === "curriculum" || templateType === "all")
+        results.curriculum = generateDemoCurriculumInvoice();
+      if (templateType === "admin" || templateType === "all")
+        results.admin = generateDemoAdminInvoice();
+      let html =
+        "<html><head><style>body{font-family:sans-serif;padding:20px;line-height:1.6} a{color:#1565C0;text-decoration:none} a:hover{text-decoration:underline} .card{background:#f9f9f9;padding:15px;border-radius:8px;margin-bottom:10px;border:1px solid #ddd;}</style></head><body>";
+      html += "<h2>Sample Invoice PDFs Generated</h2>";
+
       const renderLink = (name, res) => {
-        if (!res || res.error) return `<div class="card"><strong>${name}</strong>: ❌ Error: ${res ? res.error : 'Unknown'}</div>`;
+        if (!res || res.error)
+          return `<div class="card"><strong>${name}</strong>: ❌ Error: ${res ? res.error : "Unknown"}</div>`;
         return `<div class="card"><strong>${name}</strong>: <br><a href="${res.fileUrl}" target="_blank">📄 View PDF (${res.invoiceId})</a></div>`;
       };
-      
-      html += renderLink('Amazon Batch (Grouped by Division)', results.amazon);
-      html += renderLink('Warehouse Internal Batch', results.warehouse);
-      html += renderLink('Warehouse External Batch', results.warehouseExternal);
-      html += renderLink('Field Trip Single Invoice', results.fieldTrip);
-      html += renderLink('Curriculum Single Invoice', results.curriculum);
-      html += renderLink('Admin Single Invoice', results.admin);
-      
-      html += '<p style="margin-top:20px;font-size:12px;color:#666;"><em>Note: PDFs are saved to your Keswick Budget System / Invoices Drive folders.</em></p></body></html>';
-      
-      return HtmlService.createHtmlOutput(html).setTitle('Sample Invoices').addMetaTag('viewport', 'width=device-width, initial-scale=1');
+
+      html += renderLink("Amazon Batch (Grouped by Division)", results.amazon);
+      html += renderLink("Warehouse Internal Batch", results.warehouse);
+      html += renderLink("Warehouse External Batch", results.warehouseExternal);
+      html += renderLink("Field Trip Single Invoice", results.fieldTrip);
+      html += renderLink("Curriculum Single Invoice", results.curriculum);
+      html += renderLink("Admin Single Invoice", results.admin);
+
+      html +=
+        '<p style="margin-top:20px;font-size:12px;color:#666;"><em>Note: PDFs are saved to your Keswick Budget System / Invoices Drive folders.</em></p></body></html>';
+
+      return HtmlService.createHtmlOutput(html)
+        .setTitle("Sample Invoices")
+        .addMetaTag("viewport", "width=device-width, initial-scale=1");
     }
 
-    const token = params.token || '';
+    const token = params.token || "";
 
     if (!token) {
-      return buildResultPage('No Request', 'No approval request specified. Please use the link from your approval email.', false);
+      return buildResultPage(
+        "No Request",
+        "No approval request specified. Please use the link from your approval email.",
+        false,
+      );
     }
 
     // Validate the token
     const tokenValidation = validateAndRetrieveToken(token);
     if (!tokenValidation.valid) {
-      console.warn(`[SECURITY] Invalid token access attempt: ${tokenValidation.error}`);
-      return buildResultPage('Invalid Link', tokenValidation.error, false);
+      console.warn(
+        `[SECURITY] Invalid token access attempt: ${tokenValidation.error}`,
+      );
+      return buildResultPage("Invalid Link", tokenValidation.error, false);
     }
 
     const tokenData = tokenValidation.data;
@@ -514,56 +606,76 @@ function doGet(e) {
     // Fetch request data
     const requestData = getRequestDetails(transactionId);
     if (!requestData) {
-      return buildResultPage('Request Not Found',
-        `Transaction ${transactionId} was not found or has already been processed.`, false);
+      return buildResultPage(
+        "Request Not Found",
+        `Transaction ${transactionId} was not found or has already been processed.`,
+        false,
+      );
     }
 
-    if (requestData.status !== 'PENDING') {
-      return buildResultPage('Already Processed',
-        `This request (${transactionId}) has already been ${requestData.status.toLowerCase()}.`, false);
+    if (requestData.status !== "PENDING") {
+      return buildResultPage(
+        "Already Processed",
+        `This request (${transactionId}) has already been ${requestData.status.toLowerCase()}.`,
+        false,
+      );
     }
 
     // APPROVE: Process immediately routing through main approval engine logic
-    if (decision === 'approve') {
-      console.log(`[SECURITY] One-click approve for ${transactionId} by ${approverEmail}`);
+    if (decision === "approve") {
+      console.log(
+        `[SECURITY] One-click approve for ${transactionId} by ${approverEmail}`,
+      );
       try {
-        const result = processApprovalDecision(token, 'approve');
-        
+        const result = processApprovalDecision(token, "approve");
+
         if (result.success) {
           const requestorName = getDisplayName(requestData.email);
-          return buildResultPage('Request Approved',
-            `${requestData.type || 'Request'} ${transactionId} for $${(requestData.amount || 0).toFixed(2)} has been approved. A notification has been sent to ${requestorName}.`,
-            true);
+          return buildResultPage(
+            "Request Approved",
+            `${requestData.type || "Request"} ${transactionId} for $${(requestData.amount || 0).toFixed(2)} has been approved. A notification has been sent to ${requestorName}.`,
+            true,
+          );
         } else {
-          return buildResultPage('Approval Error', result.error || 'Failed to process approval.', false);
+          return buildResultPage(
+            "Approval Error",
+            result.error || "Failed to process approval.",
+            false,
+          );
         }
       } catch (approveError) {
         console.error(`[ERROR] One-click approve failed: ${approveError}`);
-        return buildResultPage('Approval Error', approveError.message || 'Failed to process approval.', false);
+        return buildResultPage(
+          "Approval Error",
+          approveError.message || "Failed to process approval.",
+          false,
+        );
       }
     }
 
     // REJECT: Show simple comment form
     const requestorName = getDisplayName(requestData.email);
-    const template = HtmlService.createTemplateFromFile('WebApp');
+    const template = HtmlService.createTemplateFromFile("WebApp");
     template.serverData = JSON.stringify({
       transactionId: transactionId,
       token: token,
       type: requestData.type,
       amount: requestData.amount,
-      requestor: requestorName
+      requestor: requestorName,
     });
 
-    console.log(`[SECURITY] Reject form displayed for ${transactionId} | Approver: ${approverEmail}`);
+    console.log(
+      `[SECURITY] Reject form displayed for ${transactionId} | Approver: ${approverEmail}`,
+    );
 
-    return template.evaluate()
-      .setTitle('Deny Request - Keswick Christian School')
-      .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+    return template
+      .evaluate()
+      .setTitle("Deny Request - Keswick Christian School")
+      .addMetaTag("viewport", "width=device-width, initial-scale=1")
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-
   } catch (error) {
-    console.error('[SECURITY ERROR] doGet error:', error);
-    return buildResultPage('Error', error.toString(), false);
+    console.error("[SECURITY ERROR] doGet error:", error);
+    return buildResultPage("Error", error.toString(), false);
   }
 }
 
@@ -571,25 +683,27 @@ function doGet(e) {
  * Looks up a user's display name from UserDirectory, falls back to email parsing.
  */
 function getDisplayName(email) {
-  if (!email) return 'Unknown';
+  if (!email) return "Unknown";
   try {
     const info = getUserBudgetInfo(email);
     if (info && info.firstName) {
       return `${info.firstName} ${info.lastName}`.trim();
     }
-  } catch (e) { /* fall through */ }
+  } catch (e) {
+    /* fall through */
+  }
   // Fallback: parse email (e.g. mtrotter@ → Mtrotter)
-  const namePart = email.split('@')[0];
-  const parts = namePart.split('.');
-  return parts.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+  const namePart = email.split("@")[0];
+  const parts = namePart.split(".");
+  return parts.map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(" ");
 }
 
 /**
  * Builds a simple branded result page (approval confirmation, errors, etc.)
  */
 function buildResultPage(title, message, isSuccess) {
-  const bgColor = isSuccess ? '#19573B' : '#b71c1c';
-  const icon = isSuccess ? '&#10003;' : '&#10007;';
+  const bgColor = isSuccess ? "#19573B" : "#b71c1c";
+  const icon = isSuccess ? "&#10003;" : "&#10007;";
   const html = `<!DOCTYPE html><html><head>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
@@ -615,7 +729,7 @@ function buildResultPage(title, message, isSuccess) {
 
   return HtmlService.createHtmlOutput(html)
     .setTitle(`${title} - Keswick Christian School`)
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+    .addMetaTag("viewport", "width=device-width, initial-scale=1");
 }
 
 /**
@@ -626,25 +740,31 @@ function buildResultPage(title, message, isSuccess) {
 function doPost(e) {
   try {
     const data = JSON.parse(e.postData.contents);
-    const token = data.token || '';
-    const decision = data.decision || '';
+    const token = data.token || "";
+    const decision = data.decision || "";
 
     // Validate token is provided
     if (!token) {
-      console.warn('[SECURITY] doPost called without token');
-      return ContentService.createTextOutput(JSON.stringify({
-        success: false,
-        error: 'No token provided'
-      })).setMimeType(ContentService.MimeType.JSON);
+      console.warn("[SECURITY] doPost called without token");
+      return ContentService.createTextOutput(
+        JSON.stringify({
+          success: false,
+          error: "No token provided",
+        }),
+      ).setMimeType(ContentService.MimeType.JSON);
     }
 
     // Validate decision is valid
-    if (!decision || (decision !== 'approve' && decision !== 'reject')) {
-      console.warn(`[SECURITY] doPost called with invalid decision: ${decision}`);
-      return ContentService.createTextOutput(JSON.stringify({
-        success: false,
-        error: 'Invalid decision. Must be "approve" or "reject"'
-      })).setMimeType(ContentService.MimeType.JSON);
+    if (!decision || (decision !== "approve" && decision !== "reject")) {
+      console.warn(
+        `[SECURITY] doPost called with invalid decision: ${decision}`,
+      );
+      return ContentService.createTextOutput(
+        JSON.stringify({
+          success: false,
+          error: 'Invalid decision. Must be "approve" or "reject"',
+        }),
+      ).setMimeType(ContentService.MimeType.JSON);
     }
 
     // Process approval with token validation
@@ -652,26 +772,42 @@ function doPost(e) {
 
     // Log the result
     if (result.success) {
-      console.log(`[SECURITY] Approval processed via doPost - Decision: ${result.status}`);
-      logSystemEvent('WEBAPP_APPROVAL_PROCESSED', Session.getActiveUser().getEmail(), 0, {
-        decision: result.status
-      });
+      console.log(
+        `[SECURITY] Approval processed via doPost - Decision: ${result.status}`,
+      );
+      logSystemEvent(
+        "WEBAPP_APPROVAL_PROCESSED",
+        Session.getActiveUser().getEmail(),
+        0,
+        {
+          decision: result.status,
+        },
+      );
     } else {
-      console.warn(`[SECURITY] Approval failed via doPost - Error: ${result.error}`);
+      console.warn(
+        `[SECURITY] Approval failed via doPost - Error: ${result.error}`,
+      );
     }
 
-    return ContentService.createTextOutput(JSON.stringify(result))
-      .setMimeType(ContentService.MimeType.JSON);
-
+    return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(
+      ContentService.MimeType.JSON,
+    );
   } catch (error) {
-    console.error('[SECURITY ERROR] doPost error:', error);
-    logSystemEvent('APPROVAL_WEBAPP_POST_ERROR', Session.getActiveUser().getEmail(), 0, {
-      error: error.toString()
-    });
-    return ContentService.createTextOutput(JSON.stringify({
-      success: false,
-      error: 'An error occurred processing your approval. Please try again.'
-    })).setMimeType(ContentService.MimeType.JSON);
+    console.error("[SECURITY ERROR] doPost error:", error);
+    logSystemEvent(
+      "APPROVAL_WEBAPP_POST_ERROR",
+      Session.getActiveUser().getEmail(),
+      0,
+      {
+        error: error.toString(),
+      },
+    );
+    return ContentService.createTextOutput(
+      JSON.stringify({
+        success: false,
+        error: "An error occurred processing your approval. Please try again.",
+      }),
+    ).setMimeType(ContentService.MimeType.JSON);
   }
 }
 
@@ -689,7 +825,7 @@ function getRequestDetails(transactionId) {
   const userBudget = getUserBudgetInfo(request.email);
   return {
     ...request,
-    budget: userBudget
+    budget: userBudget,
   };
 }
 
@@ -727,42 +863,55 @@ function handleApprovalFromWebApp(token, decision, reason) {
     // Fetch request
     const request = findRequestInQueues(transactionId);
     if (!request) {
-      return { success: false, error: 'Request not found or already processed' };
+      return {
+        success: false,
+        error: "Request not found or already processed",
+      };
     }
-    if (request.status !== 'PENDING') {
-      return { success: false, error: `Request already ${request.status.toLowerCase()}` };
+    if (request.status !== "PENDING") {
+      return {
+        success: false,
+        error: `Request already ${request.status.toLowerCase()}`,
+      };
     }
 
     // Process the decision
-    const status = decision === 'approve' ? 'APPROVED' : 'REJECTED';
+    const status = decision === "approve" ? "APPROVED" : "REJECTED";
     updateQueueStatus(transactionId, status, approverEmail, false);
     markTokenUsed(token, approverEmail);
 
     // Send notification to requestor
-    if (decision === 'reject') {
+    if (decision === "reject") {
       sendRejectionNotification(request.email, {
         transactionId: transactionId,
         amount: request.amount,
-        type: request.type || 'Request',
+        type: request.type || "Request",
         approver: approverEmail,
-        reason: reason || ''
+        reason: reason || "",
       });
     } else {
       sendApprovalNotification(request.email, {
         transactionId: transactionId,
         amount: request.amount,
-        type: request.type || 'Request',
-        approver: approverEmail
+        type: request.type || "Request",
+        approver: approverEmail,
       });
     }
 
-    logSystemEvent('WEBAPP_APPROVAL_PROCESSED', approverEmail, request.amount || 0, {
-      decision: status, reason: reason || '', transactionId: transactionId
-    });
+    logSystemEvent(
+      "WEBAPP_APPROVAL_PROCESSED",
+      approverEmail,
+      request.amount || 0,
+      {
+        decision: status,
+        reason: reason || "",
+        transactionId: transactionId,
+      },
+    );
 
     return { success: true, status: status };
   } catch (error) {
-    console.error('[SECURITY ERROR] handleApprovalFromWebApp error:', error);
+    console.error("[SECURITY ERROR] handleApprovalFromWebApp error:", error);
     return { success: false, error: error.toString() };
   }
 }
@@ -792,26 +941,25 @@ function markTokenUsed(token, usedBy) {
 // ============================================================================
 
 function testAmazonWorkflowManual() {
-  console.log('=== MANUAL AMAZON WORKFLOW TEST ===');
+  console.log("=== MANUAL AMAZON WORKFLOW TEST ===");
   const engine = new AmazonWorkflowEngine();
   return engine.executeAmazonWorkflow(true);
 }
 
 function testWarehouseProcessing() {
-  console.log('=== MANUAL WAREHOUSE PROCESSING TEST ===');
-  if (typeof processWarehouseOrders === 'function') {
+  console.log("=== MANUAL WAREHOUSE PROCESSING TEST ===");
+  if (typeof processWarehouseOrders === "function") {
     return processWarehouseOrders();
   }
-  console.warn('processWarehouseOrders not found');
+  console.warn("processWarehouseOrders not found");
   return null;
 }
 
 function testSequentialIds() {
-  console.log('Testing sequential IDs:');
-  console.log('Amazon:', generateSequentialTransactionId('AMAZON'));
-  console.log('Warehouse:', generateSequentialTransactionId('WAREHOUSE'));
-  console.log('Field Trip:', generateSequentialTransactionId('FIELD_TRIP'));
-  console.log('Curriculum:', generateSequentialTransactionId('CURRICULUM'));
-  console.log('Admin:', generateSequentialTransactionId('ADMIN'));
+  console.log("Testing sequential IDs:");
+  console.log("Amazon:", generateSequentialTransactionId("AMAZON"));
+  console.log("Warehouse:", generateSequentialTransactionId("WAREHOUSE"));
+  console.log("Field Trip:", generateSequentialTransactionId("FIELD_TRIP"));
+  console.log("Curriculum:", generateSequentialTransactionId("CURRICULUM"));
+  console.log("Admin:", generateSequentialTransactionId("ADMIN"));
 }
-
