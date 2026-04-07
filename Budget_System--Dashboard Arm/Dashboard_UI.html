@@ -2208,9 +2208,10 @@
                 const dropdown = document.getElementById('adminBudgetTarget');
                 const selected = dropdown.options[dropdown.selectedIndex];
                 const currentValLabel = document.getElementById('adminCurrentVal');
+                const formatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
                 if (selected && selected.value) {
                     const allocated = selected.getAttribute('data-allocated');
-                    currentValLabel.textContent = formatCurrency(parseFloat(allocated) || 0);
+                    currentValLabel.textContent = formatter.format(parseFloat(allocated) || 0);
                 } else {
                     currentValLabel.textContent = '$0.00';
                 }
