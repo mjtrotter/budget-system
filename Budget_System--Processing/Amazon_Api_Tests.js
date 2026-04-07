@@ -212,13 +212,13 @@ function testPlaceTrialOrder() {
     return false;
   }
 
-  // Use a commodity ASIN (Sharpie markers) with a reasonable budget ceiling
-  const submittedPrice = 8.00;
+  // Use the verified active Expo Markers ASIN provided by Keswick
+  const submittedPrice = 35.00;
   const ceiling = calculateMaxAllowedPrice(submittedPrice);
   console.log(`  Submitted: $${submittedPrice}, Max ceiling: $${ceiling.maxPrice} (buffer: $${ceiling.buffer})`);
 
   const testItems = [
-    { asin: 'B001E6A9MA', quantity: 1, expectedUnitPrice: ceiling.maxPrice, description: 'Sharpie Permanent Markers (12pk)' }
+    { asin: 'B0FJ235X2C', quantity: 1, expectedUnitPrice: ceiling.maxPrice, description: 'Expo Dry Erase Markers' }
   ];
 
   try {
@@ -270,9 +270,8 @@ function testFullPipeline() {
     return false;
   }
 
-  // Use commodity ASIN: Copy Paper (B07DRTB3BC) or Sharpies (B001E6A9MA)
-  const testAsin = 'B001E6A9MA';
-  const mockSubmittedPrice = 9.50; // Teacher submitted $9.50
+  const testAsin = 'B0FJ235X2C';
+  const mockSubmittedPrice = 27.50; // Teacher submitted ~$27.50
 
   try {
     // Step 1: Auth
@@ -289,7 +288,7 @@ function testFullPipeline() {
     console.log('5c. Placing trial order...');
     const txnId = 'E2E-TEST-' + Date.now();
     const orderResult = placeAmazonOrder(
-      [{ asin: testAsin, quantity: 1, expectedUnitPrice: ceiling.maxPrice, description: 'E2E Test — Sharpie Markers' }],
+      [{ asin: testAsin, quantity: 1, expectedUnitPrice: ceiling.maxPrice, description: 'E2E Test — Expo Markers' }],
       txnId,
       'Test Teacher'
     );

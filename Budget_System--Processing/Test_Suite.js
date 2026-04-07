@@ -1246,3 +1246,31 @@ function testTransactionIds() {
 function testOrderIds() {
   return MainTests.testOrderIdGeneration();
 }
+
+
+function printDivPrincipal() {
+  const dp = getDivisionPrincipal("invoicing@keswickchristian.org", "Math");
+  console.log("Div Principal for Math: " + dp);
+}
+
+
+function testOverageEscalation() {
+  const req = {
+    email: "invoicing@keswickchristian.org",
+    type: "CURRICULUM_AMAZON",
+    department: "Math",
+    amount: 5000000,
+    description: "Mega Math Overage",
+    isAutomated: true,
+    status: "PENDING"
+  };
+  const res = findRequestInQueues = () => req;
+  const oldValidate = validateApprover;
+  validateApprover = () => true;
+  getDivisionPrincipal = () => "escl-test@keswickchristian.org";
+  escalateQueueApprover = () => true;
+  sendEnhancedApprovalEmail = (email, data) => console.log("Escalation email sent to: " + email);
+  markTokenAsUsed = () => true;
+  const result = processApprovalAction("dummy-token", "approve");
+  console.log("Result: ", result);
+}

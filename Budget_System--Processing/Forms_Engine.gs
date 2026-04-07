@@ -96,6 +96,38 @@ const COLUMN_MAP = {
   },
 };
 
+// ============================================================================
+// FISCAL YEAR LOCKDOWN UTILITIES
+// ============================================================================
+
+/**
+ * Checks if the fiscal year is in lockdown (June 29-30)
+ */
+function isFiscalYearLocked() {
+  const now = new Date();
+  // Month is 0-indexed (5 = June), Date is 1-31
+  if (now.getMonth() === 5 && now.getDate() >= 29) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Helper to handle locked submissions
+ */
+function handleLockedSubmission(email, formName) {
+  try {
+    MailApp.sendEmail({
+      to: email,
+      subject: `Request Rejected - Fiscal Year Closed (${formName})`,
+      body: `Your ${formName} request was rejected because the fiscal year is currently closed for reconciliation.\n\nThe system will resume accepting new orders on July 1st.`
+    });
+    console.log(`🔒 Rejected submission from ${email} due to fiscal year lockdown.`);
+  } catch (e) {
+    console.error(`Failed to send lockdown rejection to ${email}: ${e.message}`);
+  }
+}
+
 // Helper to build item mappings arrays from COLUMN_MAP
 function getAmazonItemMappings() {
   const m = COLUMN_MAP.AMAZON;
@@ -224,6 +256,16 @@ function safelyWriteTransactionId(sheet, rowIndex, transactionId) {
 
 function processAmazonFormSubmission(e) {
   console.log("🚀 === AMAZON FORM PROCESSING START ===");
+
+  const response = e.response;
+  const email = response.getRespondentEmail();
+
+  // CHECK FOR FISCAL YEAR LOCKDOWN
+  if (isFiscalYearLocked()) {
+    handleLockedSubmission(email, "Amazon Order");
+    return;
+  }
+
   let step = 0;
 
   const lock = LockService.getScriptLock();
@@ -430,13 +472,8 @@ function processAmazonFormSubmission(e) {
         transactionId,
         approver: actualApprover,
       });
-      sendApprovalNotification(email, {
-        transactionId: transactionId,
-        amount: totalAmount_FIXED,
-        type: "Amazon Order",
-        description: description,
-        approver: actualApprover,
-      });
+      // Do NOT send the generic Approval Notification immediately for Amazon.
+      // The Amazon workflow engine will send the true Amazon Confirmed Receipt email momentarily.
 
       if (CONFIG.AMAZON_B2B && CONFIG.AMAZON_B2B.ENABLED) {
         new AmazonWorkflowEngine().dispatchAmazonOrder(transactionId, {
@@ -546,6 +583,15 @@ function lookupWarehouseCatalogItem(stockNumber) {
 }
 
 function processWarehouseFormSubmission(e) {
+  const response = e.response;
+  const email = response.getRespondentEmail();
+
+  // CHECK FOR FISCAL YEAR LOCKDOWN
+  if (isFiscalYearLocked()) {
+    handleLockedSubmission(email, "Warehouse Order");
+    return;
+  }
+
   const lock = LockService.getScriptLock();
   try {
     lock.waitLock(30000);
@@ -757,6 +803,15 @@ function processWarehouseFormSubmission(e) {
 // ============================================================================
 
 function processFieldTripFormSubmission(e) {
+  const response = e.response;
+  const email = response.getRespondentEmail();
+
+  // CHECK FOR FISCAL YEAR LOCKDOWN
+  if (isFiscalYearLocked()) {
+    handleLockedSubmission(email, "Field Trip Request");
+    return;
+  }
+
   const lock = LockService.getScriptLock();
   try {
     lock.waitLock(30000);
@@ -765,6 +820,7 @@ function processFieldTripFormSubmission(e) {
   }
 
   try {
+    console.log("🚌 === FIELD TRIP FORM PROCESSING START ===");
     const response = e.response;
     const responseId = response.getId();
     const timestamp = new Date();
@@ -842,38 +898,92 @@ function processFieldTripFormSubmission(e) {
     const budgetAvailable =
       orgBudget.allocated - orgBudget.spent - orgBudget.encumbered;
     const approver = getApproverForRequest({ amount: totalCost }, orgBudget);
-
     const pdfLink = pdfUpload ? extractPdfLink(pdfUpload) : null;
 
-    sendEnhancedApprovalEmail(approver, {
-      transactionId,
-      type: "Field Trip Request",
-      amount: totalCost,
-      requestor: email,
-      description: description,
-      items: [
-        {
-          description: `Field trip to ${destination}`,
-          quantity: parseInt(numStudents) || 1,
-          unitPrice:
-            parseInt(numStudents) > 0
-              ? totalCost / parseInt(numStudents)
-              : totalCost,
-          totalPrice: totalCost,
-        },
-      ],
-      budgetContext: {
-        allocated: orgBudget.allocated,
-        spent: orgBudget.spent,
-        encumbered: orgBudget.encumbered,
-        available: budgetAvailable,
-        withinBudget: totalCost <= budgetAvailable,
-        utilization: ((orgBudget.spent / orgBudget.allocated) * 100).toFixed(1),
-      },
-      pdfLink: pdfLink,
-    });
+    // AUDIT COMPLIANCE: Escalate ONLY when submitter is their own approver AND funds are insufficient.
+    // If within budget: the principal/dept head self-approves.
+    // If over budget: escalate to Division Principal so someone else can review.
+    const isDeptHead = email.toLowerCase() === approver.toLowerCase();
+    const withinBudget = totalCost <= budgetAvailable;
+    // Safely calculate per-student cost (avoid divide-by-zero)
+    const safeStudentCount = parseInt(numStudents) > 0 ? parseInt(numStudents) : 1;
+    const perStudentCost = totalCost / safeStudentCount;
 
-    logSystemEvent("FIELD_TRIP_SUBMITTED", email, totalCost, { transactionId });
+    if (isDeptHead && !withinBudget) {
+      // Over budget and self-submitting: escalate to Division Principal
+      const divisionPrincipal = getDivisionPrincipal(email, division) || CONFIG.BUSINESS_OFFICE_EMAIL;
+      console.log(`📍 Escalating DEPT HEAD submission (${email}) to ${divisionPrincipal} — over budget`);
+      
+      sendEnhancedApprovalEmail(divisionPrincipal, {
+        transactionId,
+        type: "Field Trip Request (Escalated — Over Budget)",
+        amount: totalCost,
+        requestor: email,
+        description: description,
+        items: [
+          {
+            description: `Field trip to ${destination}`,
+            quantity: safeStudentCount,
+            unitPrice: perStudentCost,
+            totalPrice: totalCost,
+          },
+        ],
+        budgetContext: {
+          allocated: orgBudget.allocated,
+          spent: orgBudget.spent,
+          encumbered: orgBudget.encumbered,
+          available: budgetAvailable,
+          withinBudget: withinBudget,
+          utilization: ((orgBudget.spent / orgBudget.allocated) * 100).toFixed(1),
+        },
+        pdfLink: pdfLink,
+      });
+
+      logSystemEvent("ESCALATED_SELF_SUBMISSION", email, totalCost, { 
+        transactionId,
+        escalatedTo: divisionPrincipal,
+        reason: "Over budget"
+      });
+    } else if (isDeptHead && withinBudget) {
+      // Within budget and self-submitting: self-approve
+      console.log(`📍 Field Trip self-approval: ${email} is their own approver and within budget`);
+      updateQueueStatus(transactionId, "APPROVED", email, false);
+      sendApprovalNotification(email, {
+        transactionId: transactionId,
+        amount: totalCost,
+        type: "Field Trip Request",
+        description: description,
+        approver: email,
+      });
+      logSystemEvent("FIELD_TRIP_SELF_APPROVED", email, totalCost, { transactionId });
+    } else {
+      sendEnhancedApprovalEmail(approver, {
+        transactionId,
+        type: "Field Trip Request",
+        amount: totalCost,
+        requestor: email,
+        description: description,
+        items: [
+          {
+            description: `Field trip to ${destination}`,
+            quantity: safeStudentCount,
+            unitPrice: perStudentCost,
+            totalPrice: totalCost,
+          },
+        ],
+        budgetContext: {
+          allocated: orgBudget.allocated,
+          spent: orgBudget.spent,
+          encumbered: orgBudget.encumbered,
+          available: budgetAvailable,
+          withinBudget: withinBudget,
+          utilization: ((orgBudget.spent / orgBudget.allocated) * 100).toFixed(1),
+        },
+        pdfLink: pdfLink,
+      });
+
+      logSystemEvent("FIELD_TRIP_SUBMITTED", email, totalCost, { transactionId });
+    }
   } catch (error) {
     handleProcessingError(e, error);
   } finally {
@@ -886,6 +996,15 @@ function processFieldTripFormSubmission(e) {
 // ============================================================================
 
 function processCurriculumFormSubmission(e) {
+  const response = e.response;
+  const email = response.getRespondentEmail();
+
+  // CHECK FOR FISCAL YEAR LOCKDOWN
+  if (isFiscalYearLocked()) {
+    handleLockedSubmission(email, "Curriculum Request");
+    return;
+  }
+
   const lock = LockService.getScriptLock();
   try {
     lock.waitLock(30000);
@@ -894,6 +1013,7 @@ function processCurriculumFormSubmission(e) {
   }
 
   try {
+    console.log("📚 === CURRICULUM FORM PROCESSING START ===");
     const response = e.response;
     const responseId = response.getId();
     const timestamp = new Date();
@@ -991,7 +1111,7 @@ function processCurriculumFormSubmission(e) {
       queueSheet.appendRow([
         transactionId,
         email,
-        "AMAZON",
+        "CURRICULUM_AMAZON",  // FIX #5: distinct type so budget check uses dept org budget
         userBudget.department,
         division,
         totalCost,
@@ -1006,31 +1126,57 @@ function processCurriculumFormSubmission(e) {
       // ENFORCE DEPARTMENT BUDGET SCOPING
       updateOrganizationEncumbranceRealTime(userBudget.department);
 
-      const isSub100 = totalCost <= 100;
       const budgetAvailable =
         orgBudget.allocated - orgBudget.spent - orgBudget.encumbered;
       const withinBudget = totalCost <= budgetAvailable;
-      const velocityCheck = checkOrderVelocity(email, totalCost); // Velocity is still per-user by school rule
 
-      if (isSub100 && withinBudget && velocityCheck.allowed) {
-        console.log(`📍 Curriculum-Amazon: AUTO-APPROVING`);
-        const actualApprover = getApproverForRequest(
-          { amount: totalCost },
-          orgBudget,
-        );
-        updateQueueStatus(transactionId, "APPROVED", actualApprover, true);
-        logSystemEvent("AMAZON_AUTO_APPROVAL", email, totalCost, {
+      // AUDIT COMPLIANCE: Escalate ONLY when submitter is their own approver AND funds are insufficient.
+      const approver = getApproverForRequest(
+        { amount: totalCost },
+        orgBudget,
+      );
+      const isDeptHead = email.toLowerCase() === approver.toLowerCase();
+
+      if (isDeptHead && !withinBudget) {
+        // Over budget and self-submitting: escalate to Division Principal
+        const divisionPrincipal = getDivisionPrincipal(email, userBudget.division) || CONFIG.BUSINESS_OFFICE_EMAIL;
+        console.log(`📍 Escalating Curriculum-Amazon DEPT HEAD submission (${email}) to ${divisionPrincipal} — over budget`);
+        
+        sendEnhancedApprovalEmail(divisionPrincipal, {
           transactionId,
-          approver: actualApprover,
-        });
-        sendApprovalNotification(email, {
-          transactionId: transactionId,
+          type: "Curriculum (Amazon Auto-Routed - Escalated Over Budget)",
           amount: totalCost,
-          type: "Curriculum (Amazon)",
+          requestor: email,
           description: description,
-          approver: actualApprover,
+          items: [
+            {
+              description: resourceName,
+              quantity: quantity || 1,
+              unitPrice: unitPrice,
+              totalPrice: totalCost,
+            },
+          ],
+          budgetContext: {
+            allocated: orgBudget.allocated,
+            spent: orgBudget.spent,
+            encumbered: orgBudget.encumbered,
+            available: budgetAvailable,
+            withinBudget: false,
+            utilization: (
+              (orgBudget.spent / orgBudget.allocated) *
+              100
+            ).toFixed(1),
+          },
         });
-
+        logSystemEvent("ESCALATED_SELF_SUBMISSION", email, totalCost, {
+          transactionId,
+          escalatedTo: divisionPrincipal,
+          reason: "Over budget",
+        });
+      } else if (isDeptHead && withinBudget) {
+        // Within budget and self-submitting: self-approve, dispatch to Amazon
+        console.log(`📍 Curriculum-Amazon self-approval: ${email} is their own approver and within budget`);
+        updateQueueStatus(transactionId, "APPROVED", email, true);
         if (CONFIG.AMAZON_B2B && CONFIG.AMAZON_B2B.ENABLED) {
           new AmazonWorkflowEngine().dispatchAmazonOrder(transactionId, {
             email: email,
@@ -1039,13 +1185,9 @@ function processCurriculumFormSubmission(e) {
             description: description,
           });
         }
+        logSystemEvent("CURRICULUM_AMAZON_SELF_APPROVED", email, totalCost, { transactionId });
       } else {
-        console.log(`📍 Curriculum-Amazon: REQUESTING APPROVAL`);
-        const approver = getApproverForRequest(
-          { amount: totalCost },
-          orgBudget,
-        );
-        updateQueueStatus(transactionId, "PENDING_APPROVAL", approver, true);
+        console.log(`📍 Curriculum-Amazon: REQUESTING DEPT HEAD APPROVAL`);
         sendEnhancedApprovalEmail(approver, {
           transactionId,
           type: "Curriculum (Amazon Auto-Routed)",
@@ -1114,38 +1256,92 @@ function processCurriculumFormSubmission(e) {
     const budgetAvailable =
       orgBudget.allocated - orgBudget.spent - orgBudget.encumbered;
     const approver = getApproverForRequest({ amount: totalCost }, orgBudget);
-
     const pdfLink = pdfUpload ? extractPdfLink(pdfUpload) : null;
 
-    sendEnhancedApprovalEmail(approver, {
-      transactionId,
-      type: "Curriculum Request",
-      amount: totalCost,
-      requestor: email,
-      description: description,
-      items: [
-        {
-          description: resourceName,
-          quantity: quantity || 1,
-          unitPrice: unitPrice,
-          totalPrice: totalCost,
-        },
-      ],
-      budgetContext: {
-        allocated: orgBudget.allocated,
-        spent: orgBudget.spent,
-        encumbered: orgBudget.encumbered,
-        available: budgetAvailable,
-        withinBudget: totalCost <= budgetAvailable,
-        utilization: ((orgBudget.spent / orgBudget.allocated) * 100).toFixed(1),
-      },
-      pdfLink: pdfLink,
-    });
+    // AUDIT COMPLIANCE: Escalate ONLY when submitter is their own approver AND funds are insufficient.
+    // If within budget: the dept head self-approves.
+    // If over budget: escalate to Division Principal.
+    const isDeptHead = email.toLowerCase() === approver.toLowerCase();
+    const withinBudget = totalCost <= budgetAvailable;
 
-    logSystemEvent("CURRICULUM_APPROVAL_REQUESTED", email, totalCost, {
-      transactionId,
-      approver,
-    });
+    if (isDeptHead && !withinBudget) {
+      // Over budget and self-submitting: escalate to Division Principal
+      const divisionPrincipal = getDivisionPrincipal(email, division) || CONFIG.BUSINESS_OFFICE_EMAIL;
+      console.log(`📍 Escalating DEPT HEAD submission (${email}) to ${divisionPrincipal} — over budget`);
+      
+      sendEnhancedApprovalEmail(divisionPrincipal, {
+        transactionId,
+        type: "Curriculum Request (Escalated — Over Budget)",
+        amount: totalCost,
+        requestor: email,
+        description: description,
+        items: [
+          {
+            description: resourceName,
+            quantity: quantity || 1,
+            unitPrice: unitPrice,
+            totalPrice: totalCost,
+          },
+        ],
+        budgetContext: {
+          allocated: orgBudget.allocated,
+          spent: orgBudget.spent,
+          encumbered: orgBudget.encumbered,
+          available: budgetAvailable,
+          withinBudget: false,
+          utilization: ((orgBudget.spent / orgBudget.allocated) * 100).toFixed(1),
+        },
+        pdfLink: pdfLink,
+      });
+
+      logSystemEvent("ESCALATED_SELF_SUBMISSION", email, totalCost, { 
+        transactionId,
+        escalatedTo: divisionPrincipal,
+        reason: "Over budget"
+      });
+    } else if (isDeptHead && withinBudget) {
+      // Within budget and self-submitting: self-approve
+      console.log(`📍 Curriculum self-approval: ${email} is their own approver and within budget`);
+      updateQueueStatus(transactionId, "APPROVED", email, false);
+      sendApprovalNotification(email, {
+        transactionId: transactionId,
+        amount: totalCost,
+        type: "Curriculum Request",
+        description: description,
+        approver: email,
+      });
+      logSystemEvent("CURRICULUM_SELF_APPROVED", email, totalCost, { transactionId });
+    } else {
+      sendEnhancedApprovalEmail(approver, {
+        transactionId,
+        type: "Curriculum Request",
+        amount: totalCost,
+        requestor: email,
+        description: description,
+        items: [
+          {
+            description: resourceName,
+            quantity: quantity || 1,
+            unitPrice: unitPrice,
+            totalPrice: totalCost,
+          },
+        ],
+        budgetContext: {
+          allocated: orgBudget.allocated,
+          spent: orgBudget.spent,
+          encumbered: orgBudget.encumbered,
+          available: budgetAvailable,
+          withinBudget: withinBudget,
+          utilization: ((orgBudget.spent / orgBudget.allocated) * 100).toFixed(1),
+        },
+        pdfLink: pdfLink,
+      });
+
+      logSystemEvent("CURRICULUM_APPROVAL_REQUESTED", email, totalCost, {
+        transactionId,
+        approver,
+      });
+    }
   } catch (error) {
     handleProcessingError(e, error);
   } finally {
@@ -1158,6 +1354,15 @@ function processCurriculumFormSubmission(e) {
 // ============================================================================
 
 function processAdminFormSubmission(e) {
+  const response = e.response;
+  const email = response.getRespondentEmail();
+
+  // CHECK FOR FISCAL YEAR LOCKDOWN
+  if (isFiscalYearLocked()) {
+    handleLockedSubmission(email, "Admin Request");
+    return;
+  }
+
   const lock = LockService.getScriptLock();
   try {
     lock.waitLock(30000);
@@ -1166,6 +1371,7 @@ function processAdminFormSubmission(e) {
   }
 
   try {
+    console.log("💼 === ADMIN FORM PROCESSING START ===");
     const response = e.response;
     const responseId = response.getId();
     const timestamp = new Date();
@@ -1336,21 +1542,64 @@ function processApprovalDecision(token, decision) {
     if (decision === "approve") {
       const budgetCheck = validateBudgetBeforeApproval(request);
       if (!budgetCheck.valid) {
-        logSystemEvent(
-          "APPROVAL_BLOCKED_OVERBUDGET",
-          approverEmail,
-          request.amount,
-          {
-            transactionId: transactionId,
-            available: budgetCheck.available,
-            encumbrance: budgetCheck.encumbrance,
-          },
-        );
+        const divisionPrincipalEmail = getDivisionPrincipal(request.email, request.division);
+        
+        if (divisionPrincipalEmail && approverEmail.toLowerCase().trim() === divisionPrincipalEmail.toLowerCase().trim()) {
+            console.log(`[OVERAGE OVERRIDE] Division Principal ${approverEmail} overriding budget check for ${transactionId}`);
+            logSystemEvent("APPROVAL_OVERAGE_OVERRIDE", approverEmail, request.amount, { transactionId: transactionId });
+        } else if (divisionPrincipalEmail) {
+            console.log(`[ESCALATION] Overage on ${transactionId}. Forwarding to ${divisionPrincipalEmail}`);
+            
+            // Mark token as used since Dept Head action is done
+            markTokenAsUsed(token, currentUser);
 
-        return {
-          success: false,
-          error: `Cannot approve: ${budgetCheck.message}. Current available budget: $${budgetCheck.available.toFixed(2)}`,
-        };
+            // Escalate in Queue
+            escalateQueueApprover(transactionId, divisionPrincipalEmail, request.isAutomated);
+
+            // Send new approval email to Division Principal
+            sendEnhancedApprovalEmail(divisionPrincipalEmail, {
+              transactionId: transactionId,
+              type: request.type + " (Overage Escalation)",
+              amount: request.amount,
+              requestor: request.email,
+              description: request.description,
+              items: request.items || [],
+              budgetContext: {
+                available: budgetCheck.available,
+                withinBudget: false,
+                utilization: 100
+              },
+              pdfLink: request.pdfLink || null
+            });
+
+            logSystemEvent("REQUEST_ESCALATED", approverEmail, request.amount, {
+              transactionId: transactionId,
+              newApprover: divisionPrincipalEmail
+            });
+
+            return {
+              success: true,
+              status: "ESCALATED",
+              message: `Approved on your end, but request exceeded budget by $${(request.amount - budgetCheck.available).toFixed(2)}. Escalated to Division Principal (${divisionPrincipalEmail}) for final override.`
+            };
+        } else {
+            // No division principal found to escalate to, block it.
+            logSystemEvent(
+              "APPROVAL_BLOCKED_OVERBUDGET",
+              approverEmail,
+              request.amount,
+              {
+                transactionId: transactionId,
+                available: budgetCheck.available,
+                encumbrance: budgetCheck.encumbrance,
+              },
+            );
+
+            return {
+              success: false,
+              error: `Cannot approve: ${budgetCheck.message}. Current available budget: $${budgetCheck.available.toFixed(2)}`,
+            };
+        }
       }
     }
 
@@ -1544,11 +1793,12 @@ function updateQueueStatus(transactionId, status, approver, isAutomated) {
         if (status === "REJECTED" || status === "VOID") {
           updateUserEncumbranceRealTime(requestor, amount, "remove");
         }
-        // If status changed to ORDERED from PENDING/APPROVED, encumbrance is handled (removed + spent added)
-        // But spent is only added when Invoice is generated or PEX txn clears.
-        // For now, removing encumbrance is correct if the money is effectively "spent".
-        // Actually, if ORDERED, it should stay encumbered until invoiced?
-        // No, current logic removes encumbrance when ORDERED.
+        // FIX #6: When a transaction moves to ORDERED, record it as actual spend
+        // in UserDirectory.BudgetSpent, and recalculate encumbrance (ORDERED items
+        // are no longer PENDING so they drop out of the encumbrance scan).
+        if (status === "ORDERED") {
+          recordBudgetSpent(requestor, amount);
+        }
       }
 
       return true;
@@ -1832,7 +2082,7 @@ function processWarehouseOrders() {
 
 function validateApprover(approverEmail, request) {
   // TEST MODE SUPER-ADMIN OVERRIDE
-  if (isTestMode()) {
+  if (isTestMode() && CONFIG.TEST_MODE === true) {
     const currentUser = Session.getActiveUser().getEmail();
     if (
       currentUser === CONFIG.ADMIN_EMAIL ||
@@ -1848,33 +2098,40 @@ function validateApprover(approverEmail, request) {
   }
 
   // Always allow business office
-  if (approverEmail === CONFIG.BUSINESS_OFFICE_EMAIL) {
+  if (approverEmail.toLowerCase() === CONFIG.BUSINESS_OFFICE_EMAIL.toLowerCase()) {
     return true;
   }
 
-  // Get user info
+  // 1. Check if they are the designated approver for the user
   const userBudget = getUserBudgetInfo(request.email);
-  if (!userBudget) return false;
-
-  // Check if approver matches expected approver
-  if (userBudget.approver === approverEmail) {
+  if (userBudget && userBudget.approver.toLowerCase() === approverEmail.toLowerCase()) {
     return true;
   }
 
-  // Check division heads
-  const divisionHeads = {
-    "Upper School": ["ushead@keswickchristian.org"],
-    "Lower School": ["lshead@keswickchristian.org"],
-    Admin: ["mtrotter@keswickchristian.org"],
-  };
-
-  if (
-    divisionHeads[request.division] &&
-    divisionHeads[request.division].includes(approverEmail)
-  ) {
+  // 2. Check if they are the Division Principal for the requested division
+  const divisionPrincipal = getDivisionPrincipal(request.email, request.division);
+  if (divisionPrincipal && divisionPrincipal.toLowerCase() === approverEmail.toLowerCase()) {
     return true;
   }
 
+  return false;
+}
+
+function escalateQueueApprover(transactionId, newApprover, isAutomated) {
+  const hubId = isAutomated ? CONFIG.AUTOMATED_HUB_ID : CONFIG.MANUAL_HUB_ID;
+  const hub = SpreadsheetApp.openById(hubId);
+  const queue = hub.getSheetByName(
+    isAutomated ? "AutomatedQueue" : "ManualQueue",
+  );
+  const data = queue.getDataRange().getValues();
+
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === transactionId) {
+      // Just update the Approver and keep status as PENDING, don't update ApprovedOn
+      queue.getRange(i + 1, 11).setValue(newApprover);
+      return true;
+    }
+  }
   return false;
 }
 
@@ -2043,7 +2300,7 @@ function voidOrderAndNotifyRequestor(
 /**
  * Generates a secure approval token and stores token data server-side.
  * Uses cryptographic UUID instead of predictable timestamps.
- * Token expires after 1 hour.
+ * Token expires after 72 hours (3 days) to give approvers a realistic window.
  *
  * @param {string} transactionId - The transaction/request ID
  * @param {string} approverEmail - The approver's email address
@@ -2055,7 +2312,7 @@ function generateApprovalUrl(transactionId, approverEmail, decision) {
     // Generate cryptographically secure random token
     const token = Utilities.getUuid();
     const now = Date.now();
-    const expiresAt = now + 3600000; // 1 hour expiration
+    const expiresAt = now + (72 * 60 * 60 * 1000); // 72-hour (3 day) expiration — FIX #4
 
     // Store token data server-side in PropertiesService
     const tokenData = {
@@ -2206,7 +2463,23 @@ function runGenerateSingleInvoiceAsync(e) {
     `🧾 Executing async Single Invoice generation for request: ${transactionId}`,
   );
   try {
-    generateSingleInvoice(transactionId);
+    const result = generateSingleInvoice(transactionId);
+    if (result && result.success) {
+      const isManual = transactionId.startsWith('FIELD') || transactionId.startsWith('ADMIN') || transactionId.startsWith('CURRIC');
+      if (isManual) {
+        const req = findRequestInQueues(transactionId);
+        if (req && req.email) {
+           sendInvoiceReadyNotification(req.email, {
+             transactionId: transactionId,
+             invoiceId: result.invoiceId || transactionId,
+             invoiceUrl: result.fileUrl,
+             packageFolder: result.packageFolder,
+             type: req.type,
+             amount: req.amount
+           });
+        }
+      }
+    }
   } catch (err) {
     console.error(
       `❌ Async invoice runner failed for ${transactionId}: ${err.message}`,

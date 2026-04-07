@@ -558,16 +558,48 @@ class KeswickDashboardService {
         throw new Error("Principal access required");
       }
 
-      // Return mock data as fallback
+      if (CONFIG.DEMO_MODE) {
+        return {
+          user: user,
+          kpis: this.getMockPrincipalKPIs(),
+          departments: this.getMockDepartmentSummary(user.divisions),
+          transactions: this.getMockTransactions(50),
+          tacAnalysis: this.getMockTACAnalysis(user.divisions),
+          budgetStatus: this.getMockBudgetStatus(user.divisions),
+          approvalQueue: this.getMockApprovalQueue(user.divisions),
+          alerts: this.getMockDivisionAlerts(user.divisions),
+        };
+      }
+
+      // LIVE MODE: fetch real data filtered to the principal's divisions
+      const divisionFilter = user.divisions; // e.g. ['US'] or ['LS']
+      const allTransactions = this.getTransactionData ? this.getTransactionData({ divisions: divisionFilter }) : [];
+      const orgBudgets = this.getOrganizationBudgets ? this.getOrganizationBudgets() : [];
+
+      // Filter org budgets to this principal's divisions
+      const divBudgets = orgBudgets.filter(o => divisionFilter.includes(o.division));
+      const totalAllocated  = divBudgets.reduce((s, o) => s + (o.allocated  || 0), 0);
+      const totalSpent      = divBudgets.reduce((s, o) => s + (o.spent      || 0), 0);
+      const totalEncumbered = divBudgets.reduce((s, o) => s + (o.encumbered || 0), 0);
+      const totalAvailable  = totalAllocated - totalSpent - totalEncumbered;
+
+      // Filter transactions to division
+      const divTransactions = allTransactions.filter(t => divisionFilter.includes(t.division));
+
+      this.logAccess(user.email, "PRINCIPAL_DASHBOARD", `Principal dashboard accessed for divisions: ${divisionFilter.join(',')}`);
+
       return {
         user: user,
-        kpis: this.getMockPrincipalKPIs(),
-        departments: this.getMockDepartmentSummary(user.divisions),
-        transactions: this.getMockTransactions(50),
-        tacAnalysis: this.getMockTACAnalysis(user.divisions),
-        budgetStatus: this.getMockBudgetStatus(user.divisions),
-        approvalQueue: this.getMockApprovalQueue(user.divisions),
-        alerts: this.getMockDivisionAlerts(user.divisions),
+        kpis: [
+          { id: 'division_budget',      label: 'Division Budget',     value: totalAllocated,  format: 'currency' },
+          { id: 'division_spent',       label: 'Spent to Date',       value: totalSpent,      format: 'currency' },
+          { id: 'division_encumbered',  label: 'Encumbered',          value: totalEncumbered, format: 'currency' },
+          { id: 'division_utilization', label: 'Utilization Rate',    value: totalAllocated > 0 ? Math.round((totalSpent / totalAllocated) * 100) : 0, format: 'percentage' },
+        ],
+        departments: divBudgets,
+        transactions: divTransactions.slice(0, 50),
+        budgetStatus: divBudgets,
+        alerts: [],
       };
     } catch (error) {
       console.error("Principal dashboard error:", error);
@@ -582,15 +614,46 @@ class KeswickDashboardService {
         throw new Error("Department head access required");
       }
 
-      // Return mock data as fallback
+      if (CONFIG.DEMO_MODE) {
+        return {
+          user: user,
+          kpis: this.getMockDepartmentKPIs(),
+          budget: this.getMockDepartmentBudget(user.departments[0]),
+          transactions: this.getMockTransactions(30),
+          tacBreakdown: this.getMockTACBreakdown(user.departments),
+          spending: this.getMockDepartmentSpending(user.departments),
+          comparison: this.getMockDepartmentComparison(user.departments[0]),
+        };
+      }
+
+      // LIVE MODE: fetch real data filtered to the dept head's departments
+      const deptFilter = user.departments; // e.g. ['Math', 'Science']
+      const allTransactions = this.getTransactionData ? this.getTransactionData({ departments: deptFilter }) : [];
+      const orgBudgets = this.getOrganizationBudgets ? this.getOrganizationBudgets() : [];
+
+      // Filter budgets to this dept head's departments
+      const deptBudgets = orgBudgets.filter(o => deptFilter.includes(o.department));
+      const totalAllocated  = deptBudgets.reduce((s, o) => s + (o.allocated  || 0), 0);
+      const totalSpent      = deptBudgets.reduce((s, o) => s + (o.spent      || 0), 0);
+      const totalEncumbered = deptBudgets.reduce((s, o) => s + (o.encumbered || 0), 0);
+      const totalAvailable  = totalAllocated - totalSpent - totalEncumbered;
+
+      // Filter transactions to departments
+      const deptTransactions = allTransactions.filter(t => deptFilter.includes(t.department));
+
+      this.logAccess(user.email, "DEPT_DASHBOARD", `Dept dashboard accessed for: ${deptFilter.join(',')}`);
+
       return {
         user: user,
-        kpis: this.getMockDepartmentKPIs(),
-        budget: this.getMockDepartmentBudget(user.departments[0]),
-        transactions: this.getMockTransactions(30),
-        tacBreakdown: this.getMockTACBreakdown(user.departments),
-        spending: this.getMockDepartmentSpending(user.departments),
-        comparison: this.getMockDepartmentComparison(user.departments[0]),
+        kpis: [
+          { id: 'dept_budget',      label: `${deptFilter[0]} Budget`, value: totalAllocated,  format: 'currency' },
+          { id: 'dept_spent',       label: 'Spent to Date',           value: totalSpent,      format: 'currency' },
+          { id: 'dept_available',   label: 'Available Budget',        value: totalAvailable,  format: 'currency' },
+          { id: 'dept_utilization', label: 'Utilization Rate',        value: totalAllocated > 0 ? Math.round((totalSpent / totalAllocated) * 100) : 0, format: 'percentage' },
+        ],
+        budget: deptBudgets[0] || { allocated: totalAllocated, spent: totalSpent, encumbered: totalEncumbered, available: totalAvailable },
+        transactions: deptTransactions.slice(0, 30),
+        spending: deptBudgets,
       };
     } catch (error) {
       console.error("Department dashboard error:", error);
@@ -4202,3 +4265,340 @@ class KeswickDashboardService {
     }
   }
 }
+
+// ============================================================================
+// BUDGET ADMIN PANEL
+// ============================================================================
+// Functions in this section are gated to authorized BO managers only.
+// Access: bendrulat@keswickchristian.org, sneel@keswickchristian.org
+// All mutations are logged to the BudgetAuditLog sheet in the Budget Hub.
+// ============================================================================
+
+const BUDGET_ADMIN_EMAILS = [
+  "mtrotter@keswickchristian.org",
+  "bendrulat@keswickchristian.org",
+  "sneel@keswickchristian.org",
+  "nstratis@keswickchristian.org",
+];
+
+/**
+ * Returns the email of the currently authenticated user.
+ */
+function _getAdminCallerEmail() {
+  try {
+    return (Session.getActiveUser().getEmail() ||
+            Session.getEffectiveUser().getEmail() || "").toLowerCase().trim();
+  } catch (e) {
+    return "";
+  }
+}
+
+/**
+ * Returns true if the calling user is an authorized Budget Admin.
+ */
+function _isAuthorizedBudgetAdmin() {
+  return BUDGET_ADMIN_EMAILS.includes(_getAdminCallerEmail());
+}
+
+/**
+ * Logs a change to the BudgetAuditLog sheet.
+ * Creates the sheet if it doesn't exist.
+ */
+function _logBudgetAuditEntry(adminEmail, action, target, field, oldValue, newValue, reason) {
+  try {
+    const hub = SpreadsheetApp.openById(CONFIG.BUDGET_HUB_ID);
+    let auditSheet = hub.getSheetByName("BudgetAuditLog");
+
+    if (!auditSheet) {
+      auditSheet = hub.insertSheet("BudgetAuditLog");
+      auditSheet.getRange(1, 1, 1, 8).setValues([[
+        "Timestamp", "AdminEmail", "Action", "Target", "Field", "OldValue", "NewValue", "Reason"
+      ]]);
+      auditSheet.setFrozenRows(1);
+      const hdr = auditSheet.getRange(1, 1, 1, 8);
+      hdr.setBackground("#19573B");
+      hdr.setFontColor("#FFFFFF");
+      hdr.setFontWeight("bold");
+      console.log("Created BudgetAuditLog sheet");
+    }
+
+    // Insert at top (row 2) so newest is first
+    auditSheet.insertRowAfter(1);
+    auditSheet.getRange(2, 1, 1, 8).setValues([[
+      new Date(), adminEmail, action, target, field,
+      String(oldValue), String(newValue), reason
+    ]]);
+  } catch (err) {
+    console.error("Failed to write BudgetAuditLog:", err);
+  }
+}
+
+/**
+ * Returns all data needed for the Admin Panel UI:
+ * - UserDirectory users (email, name, dept, allocated, spent, available)
+ * - OrganizationBudgets (org, allocated, spent, available)
+ * - Current config values (thresholds, modes)
+ * - Last 50 BudgetAuditLog entries
+ */
+function getAdminPanelData() {
+  if (!_isAuthorizedBudgetAdmin()) {
+    return { success: false, error: "Unauthorized. Admin access required." };
+  }
+
+  try {
+    const hub    = SpreadsheetApp.openById(CONFIG.BUDGET_HUB_ID);
+    const result = { success: true };
+
+    // --- Users ---
+    try {
+      const userSheet = hub.getSheetByName("UserDirectory");
+      if (userSheet) {
+        const rows = userSheet.getDataRange().getValues();
+        const hdrs = rows[0];
+        result.users = rows.slice(1)
+          .filter(r => r[0] && String(r[0]).includes("@"))
+          .map(r => ({
+            email:     String(r[0] || ""),
+            firstName: String(r[1] || ""),
+            lastName:  String(r[2] || ""),
+            dept:      String(r[3] || ""),
+            division:  String(r[4] || ""),
+            role:      String(r[5] || ""),
+            allocated: parseFloat(r[7]) || 0,
+            spent:     parseFloat(r[8]) || 0,
+            encumbered:parseFloat(r[9]) || 0,
+            available: parseFloat(r[10]) || 0,
+          }));
+      }
+    } catch (e) { result.users = []; }
+
+    // --- Org Budgets ---
+    try {
+      const orgSheet = hub.getSheetByName("OrganizationBudgets");
+      if (orgSheet) {
+        const rows = orgSheet.getDataRange().getValues();
+        result.orgs = rows.slice(1)
+          .filter(r => r[0])
+          .map(r => ({
+            name:      String(r[0] || ""),
+            type:      String(r[1] || ""),
+            division:  String(r[2] || ""),
+            allocated: parseFloat(r[3]) || 0,
+            spent:     parseFloat(r[4]) || 0,
+            encumbered:parseFloat(r[5]) || 0,
+            available: parseFloat(r[6]) || 0,
+          }));
+      }
+    } catch (e) { result.orgs = []; }
+
+    // --- Current Config ---
+    try {
+      const props = PropertiesService.getScriptProperties();
+      result.config = {
+        AUTO_APPROVAL_LIMIT:    props.getProperty("AUTO_APPROVAL_LIMIT")    || "200",
+        VELOCITY_LIMIT_DEFAULT: props.getProperty("VELOCITY_LIMIT_DEFAULT") || "500",
+        VELOCITY_LIMIT_ADMIN:   props.getProperty("VELOCITY_LIMIT_ADMIN")   || "2000",
+        PRICE_TOLERANCE_PCT:    props.getProperty("PRICE_TOLERANCE_PCT")    || "0.05",
+        PRICE_TOLERANCE_AMT:    props.getProperty("PRICE_TOLERANCE_AMT")    || "5.0",
+        PRICE_HARD_CAP:         props.getProperty("PRICE_HARD_CAP")         || "50.0",
+        TRIAL_MODE_ENABLED:     props.getProperty("TRIAL_MODE_ENABLED")     || "true",
+        TEST_MODE:              props.getProperty("TEST_MODE")               || "true",
+      };
+    } catch (e) { result.config = {}; }
+
+    // --- Audit Log ---
+    try {
+      const auditSheet = hub.getSheetByName("BudgetAuditLog");
+      if (auditSheet) {
+        const rows = auditSheet.getDataRange().getValues();
+        result.auditLog = rows.slice(1, 52).map(r => ({
+          timestamp: r[0] ? new Date(r[0]).toISOString() : "",
+          admin:     String(r[1] || ""),
+          action:    String(r[2] || ""),
+          target:    String(r[3] || ""),
+          field:     String(r[4] || ""),
+          oldValue:  String(r[5] || ""),
+          newValue:  String(r[6] || ""),
+          reason:    String(r[7] || ""),
+        }));
+      } else {
+        result.auditLog = [];
+      }
+    } catch (e) { result.auditLog = []; }
+
+    result.adminEmail = _getAdminCallerEmail();
+    return result;
+
+  } catch (err) {
+    console.error("getAdminPanelData error:", err);
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Updates BudgetAllocated for a user in UserDirectory.
+ */
+function updateUserBudget(userEmail, newAllocation, reason) {
+  if (!_isAuthorizedBudgetAdmin()) {
+    return { success: false, error: "Unauthorized" };
+  }
+  if (!userEmail || !reason) {
+    return { success: false, error: "userEmail and reason are required" };
+  }
+
+  const amount = parseFloat(newAllocation);
+  if (isNaN(amount) || amount < 0) {
+    return { success: false, error: "Invalid allocation amount" };
+  }
+
+  try {
+    const hub       = SpreadsheetApp.openById(CONFIG.BUDGET_HUB_ID);
+    const userSheet = hub.getSheetByName("UserDirectory");
+    if (!userSheet) return { success: false, error: "UserDirectory not found" };
+
+    const data = userSheet.getDataRange().getValues();
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][0]).toLowerCase().trim() === userEmail.toLowerCase().trim()) {
+        const oldValue = data[i][7]; // BudgetAllocated column (H)
+        userSheet.getRange(i + 1, 8).setValue(amount); // Column H = BudgetAllocated
+        SpreadsheetApp.flush();
+
+        const adminEmail = _getAdminCallerEmail();
+        _logBudgetAuditEntry(adminEmail, "BUDGET_ADJUST", userEmail, "BudgetAllocated", oldValue, amount, reason);
+
+        console.log(`✅ Budget updated: ${userEmail} | $${oldValue} → $${amount} | by ${adminEmail}`);
+        return { success: true, user: userEmail, oldValue: oldValue, newValue: amount };
+      }
+    }
+    return { success: false, error: `User not found: ${userEmail}` };
+
+  } catch (err) {
+    console.error("updateUserBudget error:", err);
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Updates the allocated amount for an organization in OrganizationBudgets.
+ */
+function updateOrgBudget(orgName, newAllocation, reason) {
+  if (!_isAuthorizedBudgetAdmin()) {
+    return { success: false, error: "Unauthorized" };
+  }
+  if (!orgName || !reason) {
+    return { success: false, error: "orgName and reason are required" };
+  }
+
+  const amount = parseFloat(newAllocation);
+  if (isNaN(amount) || amount < 0) {
+    return { success: false, error: "Invalid allocation amount" };
+  }
+
+  try {
+    const hub      = SpreadsheetApp.openById(CONFIG.BUDGET_HUB_ID);
+    const orgSheet = hub.getSheetByName("OrganizationBudgets");
+    if (!orgSheet) return { success: false, error: "OrganizationBudgets not found" };
+
+    const data = orgSheet.getDataRange().getValues();
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][0]).toLowerCase().trim() === orgName.toLowerCase().trim()) {
+        const oldValue = data[i][3]; // Allocated column (D, index 3)
+        orgSheet.getRange(i + 1, 4).setValue(amount); // Column D = Allocated
+        SpreadsheetApp.flush();
+
+        const adminEmail = _getAdminCallerEmail();
+        _logBudgetAuditEntry(adminEmail, "ORG_BUDGET_ADJUST", orgName, "Allocated", oldValue, amount, reason);
+
+        console.log(`✅ Org budget updated: ${orgName} | $${oldValue} → $${amount} | by ${adminEmail}`);
+        return { success: true, org: orgName, oldValue: oldValue, newValue: amount };
+      }
+    }
+    return { success: false, error: `Organization not found: ${orgName}` };
+
+  } catch (err) {
+    console.error("updateOrgBudget error:", err);
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Updates a system configuration value in Script Properties.
+ * Allowed keys are whitelisted to prevent arbitrary property writes.
+ */
+function updateSystemConfig(key, value, reason) {
+  if (!_isAuthorizedBudgetAdmin()) {
+    return { success: false, error: "Unauthorized" };
+  }
+
+  const ALLOWED_KEYS = [
+    "AUTO_APPROVAL_LIMIT",
+    "VELOCITY_LIMIT_DEFAULT",
+    "VELOCITY_LIMIT_ADMIN",
+    "PRICE_TOLERANCE_PCT",
+    "PRICE_TOLERANCE_AMT",
+    "PRICE_HARD_CAP",
+    "TRIAL_MODE_ENABLED",
+    "TEST_MODE",
+  ];
+
+  if (!ALLOWED_KEYS.includes(key)) {
+    return { success: false, error: `Key '${key}' is not a modifiable config setting` };
+  }
+  if (!reason) {
+    return { success: false, error: "A reason for the config change is required" };
+  }
+
+  try {
+    const props    = PropertiesService.getScriptProperties();
+    const oldValue = props.getProperty(key) || "(not set)";
+    props.setProperty(key, String(value));
+
+    const adminEmail = _getAdminCallerEmail();
+    _logBudgetAuditEntry(adminEmail, "CONFIG_CHANGE", "System Config", key, oldValue, String(value), reason);
+
+    console.log(`✅ Config updated: ${key} | ${oldValue} → ${value} | by ${adminEmail}`);
+    return { success: true, key: key, oldValue: oldValue, newValue: String(value) };
+
+  } catch (err) {
+    console.error("updateSystemConfig error:", err);
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Returns the last N entries from the BudgetAuditLog sheet.
+ */
+function getBudgetAuditLog(limit) {
+  if (!_isAuthorizedBudgetAdmin()) {
+    return { success: false, error: "Unauthorized" };
+  }
+
+  try {
+    const maxRows   = Math.min(parseInt(limit) || 50, 200);
+    const hub       = SpreadsheetApp.openById(CONFIG.BUDGET_HUB_ID);
+    const auditSheet = hub.getSheetByName("BudgetAuditLog");
+
+    if (!auditSheet) {
+      return { success: true, entries: [], message: "No audit log yet" };
+    }
+
+    const rows = auditSheet.getDataRange().getValues();
+    const entries = rows.slice(1, maxRows + 1).map(r => ({
+      timestamp: r[0] ? new Date(r[0]).toISOString() : "",
+      admin:     String(r[1] || ""),
+      action:    String(r[2] || ""),
+      target:    String(r[3] || ""),
+      field:     String(r[4] || ""),
+      oldValue:  String(r[5] || ""),
+      newValue:  String(r[6] || ""),
+      reason:    String(r[7] || ""),
+    }));
+
+    return { success: true, entries: entries };
+
+  } catch (err) {
+    console.error("getBudgetAuditLog error:", err);
+    return { success: false, error: err.message };
+  }
+}
+

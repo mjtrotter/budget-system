@@ -165,8 +165,168 @@ function createSystemConfig() {
 }
 
 // ============================================================================
-// TRIGGER CONFIGURATION
+// BUSINESS OFFICE EXECUTION PORTAL HANDLER
 // ============================================================================
+
+/**
+ * Called by Execute_Manual.html via google.script.run.processBoExecution()
+ * Handles both "approve" (execute purchase) and "reject" (force resubmit).
+ *
+ * @param {object} payload - { transactionId, action, finalPrice, notes }
+ * @returns {{ success: boolean, action: string, error?: string }}
+ */
+function processBoExecution(payload) {
+  try {
+    const { transactionId, action, finalPrice, notes } = payload || {};
+
+    if (!transactionId || !action) {
+      return { success: false, error: "Missing transactionId or action." };
+    }
+    if (action !== "approve" && action !== "reject") {
+      return { success: false, error: `Unknown action: ${action}` };
+    }
+    if (action === "reject" && (!notes || notes.trim() === "")) {
+      return { success: false, error: "Notes are required when rejecting." };
+    }
+
+    // Locate the transaction in ManualQueue
+    const manualHub = SpreadsheetApp.openById(CONFIG.MANUAL_HUB_ID);
+    const queue     = manualHub.getSheetByName("ManualQueue");
+    if (!queue) return { success: false, error: "ManualQueue not found." };
+
+    const data = queue.getDataRange().getValues();
+    let rowIndex = -1;
+    let txnData  = null;
+
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][0]).trim() === String(transactionId).trim()) {
+        rowIndex = i + 1; // 1-indexed sheet row
+        txnData  = data[i];
+        break;
+      }
+    }
+
+    if (rowIndex === -1) {
+      return { success: false, error: `Transaction ${transactionId} not found in ManualQueue.` };
+    }
+
+    const currentStatus = String(txnData[7] || "").trim().toUpperCase();
+    const TERMINAL_STATUSES = ["ORDERED", "REJECTED", "VOID", "EXECUTED"];
+    if (TERMINAL_STATUSES.includes(currentStatus)) {
+      return { success: false, error: `Transaction ${transactionId} has already been finalized (status: ${currentStatus}). No further action is possible.` };
+    }
+
+    const requestorEmail = String(txnData[1] || "");
+    const department     = String(txnData[3] || "");
+    const division       = String(txnData[4] || "");
+    const originalAmount = parseFloat(txnData[5]) || 0;
+    const description    = String(txnData[6] || "");
+    const formType       = String(txnData[2] || "MANUAL");
+    const pdfLink        = String(txnData[8] || "");
+
+    const boEmail = Session.getActiveUser().getEmail() || "invoicing@keswickchristian.org";
+
+    // -----------------------------------------------------------------------
+    if (action === "approve") {
+      const finalAmount = parseFloat(finalPrice) || originalAmount;
+
+      // 1. Update queue to ORDERED with final price
+      queue.getRange(rowIndex, 8).setValue("ORDERED");
+      queue.getRange(rowIndex, 10).setValue(new Date());
+      queue.getRange(rowIndex, 11).setValue(boEmail);
+      if (finalAmount !== originalAmount) {
+        queue.getRange(rowIndex, 6).setValue(finalAmount); // Update amount column
+      }
+      SpreadsheetApp.flush();
+
+      // 2. Write to TransactionLedger
+      moveToTransactionLedger({
+        transactionId: transactionId,
+        orderId:       transactionId,
+        requestor:     requestorEmail,
+        approver:      boEmail,
+        organization:  department,
+        form:          formType,
+        amount:        finalAmount,
+        description:   description,
+      });
+
+      // 3. Record budget spend for the requestor
+      recordBudgetSpent(requestorEmail, finalAmount);
+
+      // 4. Notify requestor of execution
+      const subject = `✅ Purchase Executed — ${transactionId}`;
+      const htmlBody = `
+        <div style="font-family: -apple-system, sans-serif; max-width: 560px; margin: 0 auto; padding: 20px;">
+          <div style="background: #19573B; padding: 24px 32px; border-radius: 10px 10px 0 0; text-align: center; border-bottom: 4px solid #ffc107;">
+            <img src="https://lh3.googleusercontent.com/d/1HDkW_xGIc4jOBH4REnXb3VJcZaEjPHKj"
+                 alt="Keswick Christian School"
+                 width="200"
+                 style="display:block; max-width:200px; height:auto; margin: 0 auto 16px auto; filter: brightness(0) invert(1);"
+                 onerror="this.style.display='none'">
+            <h2 style="color: white; margin: 0; font-size: 20px;">Purchase Executed</h2>
+            <p style="color: rgba(255,255,255,0.8); margin: 8px 0 0 0; font-size: 14px;">Your request has been purchased by the Business Office</p>
+          </div>
+          <div style="background: white; padding: 28px 32px; border-radius: 0 0 10px 10px; border: 1px solid #e5e7eb; border-top: none;">
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr><td style="padding: 8px 0; color: #6b7280; font-size: 14px; border-bottom: 1px solid #f3f4f6;">Transaction ID</td><td style="padding: 8px 0; font-weight: 600; text-align: right; border-bottom: 1px solid #f3f4f6;">${transactionId}</td></tr>
+              <tr><td style="padding: 8px 0; color: #6b7280; font-size: 14px; border-bottom: 1px solid #f3f4f6;">Description</td><td style="padding: 8px 0; font-weight: 500; text-align: right; border-bottom: 1px solid #f3f4f6;">${description}</td></tr>
+              <tr><td style="padding: 8px 0; color: #6b7280; font-size: 14px; border-bottom: 1px solid #f3f4f6;">Original Quote</td><td style="padding: 8px 0; font-weight: 500; text-align: right; border-bottom: 1px solid #f3f4f6;">$${originalAmount.toFixed(2)}</td></tr>
+              <tr><td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Final Amount Charged</td><td style="padding: 8px 0; font-weight: 700; font-size: 18px; color: #19573B; text-align: right;">$${finalAmount.toFixed(2)}</td></tr>
+            </table>
+            ${notes ? `<div style="margin-top: 16px; padding: 12px; background: #f9fafb; border-radius: 8px; font-size: 14px; color: #4b5563;"><strong>BO Notes:</strong> ${notes}</div>` : ""}
+            <p style="color: #9ca3af; font-size: 12px; margin-top: 20px; text-align: center;">This amount has been recorded to your budget. Contact the Business Office with any questions.</p>
+          </div>
+        </div>`;
+
+      sendSystemEmail({ to: requestorEmail, subject: subject, htmlBody: htmlBody });
+      logSystemEvent("BO_EXECUTION_APPROVED", boEmail, finalAmount, { transactionId, requestor: requestorEmail, finalAmount, notes });
+      return { success: true, action: "approve" };
+
+    // -----------------------------------------------------------------------
+    } else { // reject
+      // 1. Update queue to REJECTED
+      queue.getRange(rowIndex, 8).setValue("REJECTED");
+      queue.getRange(rowIndex, 10).setValue(new Date());
+      queue.getRange(rowIndex, 11).setValue(boEmail);
+      SpreadsheetApp.flush();
+
+      // 2. Remove encumbrance for the requestor
+      updateUserEncumbranceRealTime(requestorEmail, originalAmount, "remove");
+
+      // 3. Notify requestor of rejection
+      const subject = `❌ Purchase Denied — ${transactionId}`;
+      const htmlBody = `
+        <div style="font-family: -apple-system, sans-serif; max-width: 560px; margin: 0 auto; padding: 20px;">
+          <div style="background: #c62828; padding: 24px 32px; border-radius: 10px 10px 0 0; text-align: center;">
+            <h2 style="color: white; margin: 0; font-size: 20px;">Purchase Request Denied</h2>
+            <p style="color: rgba(255,255,255,0.8); margin: 8px 0 0 0; font-size: 14px;">The Business Office has returned your request for resubmission</p>
+          </div>
+          <div style="background: white; padding: 28px 32px; border-radius: 0 0 10px 10px; border: 1px solid #e5e7eb; border-top: none;">
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr><td style="padding: 8px 0; color: #6b7280; font-size: 14px; border-bottom: 1px solid #f3f4f6;">Transaction ID</td><td style="padding: 8px 0; font-weight: 600; text-align: right; border-bottom: 1px solid #f3f4f6;">${transactionId}</td></tr>
+              <tr><td style="padding: 8px 0; color: #6b7280; font-size: 14px; border-bottom: 1px solid #f3f4f6;">Description</td><td style="padding: 8px 0; font-weight: 500; text-align: right; border-bottom: 1px solid #f3f4f6;">${description}</td></tr>
+              <tr><td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Amount</td><td style="padding: 8px 0; font-weight: 600; text-align: right;">$${originalAmount.toFixed(2)}</td></tr>
+            </table>
+            <div style="margin-top: 16px; padding: 12px; background: #fef2f2; border-radius: 8px; border-left: 4px solid #c62828; font-size: 14px; color: #4b5563;">
+              <strong>Reason for Denial:</strong><br>${notes}
+            </div>
+            <p style="color: #9ca3af; font-size: 12px; margin-top: 16px; text-align: center;">Your budget encumbrance has been released. Please resubmit with the requested changes.</p>
+          </div>
+        </div>`;
+
+      sendSystemEmail({ to: requestorEmail, subject: subject, htmlBody: htmlBody });
+      logSystemEvent("BO_EXECUTION_REJECTED", boEmail, originalAmount, { transactionId, requestor: requestorEmail, reason: notes });
+      return { success: true, action: "reject" };
+    }
+
+  } catch (err) {
+    console.error("processBoExecution error:", err);
+    return { success: false, error: err.message || "Unexpected server error." };
+  }
+}
+
+
 
 function setupAllTriggers() {
   // Remove ALL existing triggers
@@ -224,6 +384,13 @@ function setupAllTriggers() {
   ScriptApp.newTrigger("updateAllUserEncumbrances")
     .timeBased()
     .everyMinutes(30)
+    .create();
+
+  // Approval reminders & escalation - Every 3 days (72 hours)
+  // Calls function in Approval_Reminders.gs
+  ScriptApp.newTrigger("checkAndSendApprovalReminders")
+    .timeBased()
+    .everyDays(3)
     .create();
 
   console.log("✅ All triggers configured successfully");
@@ -579,6 +746,34 @@ function doGet(e) {
         .addMetaTag("viewport", "width=device-width, initial-scale=1");
     }
 
+    if (params.action === "execute_manual") {
+      const transactionId = params.id;
+      if (!transactionId) return HtmlService.createHtmlOutput("<html><body><h2>Error: Missing Transaction ID</h2></body></html>");
+      
+      const request = findRequestInQueues(transactionId);
+      if (!request) return HtmlService.createHtmlOutput("<html><body><h2>Error: Request not found. It may have already been executed.</h2></body></html>");
+      
+      // Look up original PDF link if present
+      const manualHub = SpreadsheetApp.openById(CONFIG.MANUAL_HUB_ID);
+      const manualQueue = manualHub.getSheetByName("ManualQueue");
+      const manualData = manualQueue.getDataRange().getValues();
+      let pdfLink = "";
+      for (let i = 1; i < manualData.length; i++) {
+        if (manualData[i][0] === transactionId) {
+          pdfLink = manualData[i][8] || ""; // Assuming File URL is in col I (index 8)
+          break;
+        }
+      }
+      request.pdfLink = pdfLink;
+      
+      const template = HtmlService.createTemplateFromFile("Execute_Manual");
+      template.request = request;
+      
+      return template.evaluate()
+        .setTitle("Execute Purchase")
+        .addMetaTag("viewport", "width=device-width, initial-scale=1");
+    }
+
     const token = params.token || "";
 
     if (!token) {
@@ -890,12 +1085,29 @@ function handleApprovalFromWebApp(token, decision, reason) {
         reason: reason || "",
       });
     } else {
-      sendApprovalNotification(request.email, {
-        transactionId: transactionId,
-        amount: request.amount,
-        type: request.type || "Request",
-        approver: approverEmail,
-      });
+      // PHASE 1: Do NOT send the generic Approval Notification immediately for Amazon.
+      // Amazon API will send a final Receipt email with ETAs and final Prices once confirmed.
+      const isAmazon = request.type && request.type.toString().toUpperCase().includes("AMAZON");
+      
+      if (!isAmazon) {
+        sendApprovalNotification(request.email, {
+          transactionId: transactionId,
+          amount: request.amount,
+          type: request.type || "Request",
+          approver: approverEmail,
+        });
+        
+        // Let the BO know there's a new Manual transaction pending Execution
+        const executionUrl = `${CONFIG.WEBAPP_URL}?action=execute_manual&id=${encodeURIComponent(transactionId)}`;
+        sendBoExecutionRoutingEmail({
+          transactionId: transactionId,
+          type: request.type,
+          amount: request.amount,
+          requestor: request.email,
+          approver: approverEmail,
+          url: executionUrl
+        });
+      }
     }
 
     logSystemEvent(
@@ -933,6 +1145,98 @@ function markTokenUsed(token, usedBy) {
     }
   } catch (e) {
     console.warn(`Could not mark token as used: ${e.message}`);
+  }
+}
+
+// ============================================================================
+// BO EXECUTION HANDLER
+// ============================================================================
+
+/**
+ * Handle Business Office execution logic triggered from Execute_Manual.html
+ */
+function processBoExecution(payload) {
+  const { transactionId, action, finalPrice, notes } = payload;
+  
+  try {
+    const manualHub = SpreadsheetApp.openById(CONFIG.MANUAL_HUB_ID);
+    const manualQueue = manualHub.getSheetByName("ManualQueue");
+    const data = manualQueue.getDataRange().getValues();
+    
+    let rowIndex = -1;
+    let requestData = null;
+    
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][0] === transactionId) {
+        rowIndex = i + 1;
+        requestData = {
+          email: data[i][1],
+          type: data[i][2],
+          department: data[i][3],
+          amount: data[i][5],
+          description: data[i][6],
+          approver: data[i][10]
+        };
+        break;
+      }
+    }
+    
+    if (rowIndex === -1) return { success: false, error: "Transaction not found." };
+    
+    if (action === "reject") {
+      manualQueue.getRange(rowIndex, 8).setValue("REJECTED"); // Column H status
+      
+      sendRejectionNotification(requestData.email, {
+        transactionId: transactionId,
+        amount: requestData.amount,
+        type: requestData.type,
+        approver: "Business Office",
+        reason: notes || "No specific reason provided."
+      });
+      return { success: true, action: "reject" };
+      
+    } else if (action === "approve") {
+      // Execute the purchase (MARK AS ORDERED)
+      manualQueue.getRange(rowIndex, 8).setValue("ORDERED");
+      
+      // Override the original estimated amount with the TRUE final price paid
+      if (finalPrice !== undefined && !isNaN(finalPrice)) {
+         manualQueue.getRange(rowIndex, 6).setValue(finalPrice); // Update standard Amount col F
+      }
+      
+      // Trigger the actual spend logic (log to UserDirectory and Transaction Ledger)
+      recordBudgetSpent(requestData.email, parseFloat(finalPrice));
+      
+      moveToTransactionLedger({
+        transactionId: transactionId,
+        orderId: `MANUAL-${Date.now()}`,
+        requestor: requestData.email,
+        approver: requestData.approver || "BO",
+        organization: requestData.department,
+        form: requestData.type,
+        amount: parseFloat(finalPrice),
+        description: `[Executed] ${requestData.description}`
+      });
+      
+      // Trigger background invoice and receipt generation
+      try {
+        const trigger = ScriptApp.newTrigger("runGenerateSingleInvoiceAsync")
+          .timeBased()
+          .after(1000)
+          .create();
+        const cache = CacheService.getScriptCache();
+        cache.put("async_invoice_" + trigger.getUniqueId(), transactionId, 3600);
+      } catch (triggerError) {
+        console.error("Failed to set trigger for background invoice creation:", triggerError);
+      }
+      
+      return { success: true, action: "approve" };
+    }
+    
+    return { success: false, error: "Invalid action." };
+    
+  } catch (error) {
+    return { success: false, error: error.toString() };
   }
 }
 

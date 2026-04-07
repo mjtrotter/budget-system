@@ -101,7 +101,9 @@ const CONFIG = {
   // Amazon Business B2B Configuration — credentials loaded from encrypted Script Properties
   AMAZON_B2B: {
     ENABLED: true,
-    TRIAL_MODE_ENABLED: true, // Set to false only when user explicitly approves production orders
+    // Default TRUE (safe trial mode). Override via Script Properties: TRIAL_MODE_ENABLED=false
+    // Only disable when BO explicitly authorizes live Amazon ordering.
+    TRIAL_MODE_ENABLED: getDyn("TRIAL_MODE_ENABLED", true, "bool"),
     AUTH_URL: "https://api.amazon.com/auth/o2/token",
     ORDER_API_URL:
       "https://na.business-api.amazon.com/ordering/2022-10-30/orders",

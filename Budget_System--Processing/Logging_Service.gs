@@ -111,27 +111,72 @@ function handleProcessingError(e, error) {
     console.error("❌ Failed to log to SystemLog:", logError);
   }
 
-  // Step 2: Try to send email notification (separate try-catch)
+  // Step 2: Try to send email notifications (separate try-catch)
   try {
-    if (CONFIG.ADMIN_EMAIL) {
-      sendSystemEmail({
-        to: CONFIG.ADMIN_EMAIL,
-        subject: `[Budget System] Processing Error - ${errorId}`,
-        body:
-          `An error occurred processing a form submission:\n\n` +
-          `Error ID: ${errorId}\n` +
-          `Form: ${e.source?.getTitle() || "UNKNOWN"}\n` +
-          `User: ${userEmail}\n` +
-          `Error: ${error.message}\n\n` +
-          `Please check the system logs for more details.`,
-      });
-      console.log("✅ Processing error email sent");
+    const adminEmailToNotify = "mtrotter@keswickchristian.org"; // Direct IT Admin
+
+    // 2a. Determine user-facing message based on error type
+    let userMessage = "An unexpected error occurred while processing your latest budget request form submission.";
+    let nextSteps = "Please contact IT Administration (mtrotter@keswickchristian.org) for further assistance with Error ID: " + errorId;
+    
+    const errMsg = (error.message || "").toLowerCase();
+    
+    if (errMsg.includes("lock") || errMsg.includes("busy") || errMsg.includes("timeout")) {
+      userMessage = "The system was unusually busy while processing your request and timed out.";
+      nextSteps = "Please try **resubmitting your request** via the Google Form. If the issue persists, contact IT.";
+    } else if (errMsg.includes("budget") || errMsg.includes("allocated") || errMsg.includes("fund")) {
+      userMessage = "There was an issue resolving your budget availability or department allocations.";
+      nextSteps = "Please contact the **Business Office** to verify your budget state before resubmitting. Error ID: " + errorId;
+    } else if (errMsg.includes("not found in directory") || errMsg.includes("invalid email")) {
+      userMessage = "Your account or authorization level could not be identified by the system.";
+      nextSteps = "Please contact **IT Administration (mtrotter@keswickchristian.org)** to establish your account. Error ID: " + errorId;
     }
+
+    // 2b. Notify the user submitting the request
+    if (userEmail && userEmail !== "UNKNOWN") {
+      const emailObj = {
+        to: userEmail,
+        subject: `⚠️ Action Required: Purchase Request Processing Failed`,
+        htmlBody: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
+            <h2 style="color: #c62828;">Request Processing Error</h2>
+            <p><strong>Hi there,</strong></p>
+            <p>${userMessage}</p>
+            <div style="background: #f8f9fa; padding: 15px; border-left: 4px solid #f57c00; margin: 15px 0;">
+              <strong>Next Steps:</strong><br/>
+              ${nextSteps.replace(/\\*\\*(.*?)\\*\\*/g, '<strong>$1</strong>')}
+            </div>
+            <p style="font-size: 12px; color: #777;">Error details have already been logged for the administrators. Reference ID: ${errorId}</p>
+          </div>
+        `
+      };
+      
+      if (typeof sendSystemEmail === 'function') {
+        sendSystemEmail(emailObj);
+      } else {
+        MailApp.sendEmail({to: userEmail, subject: emailObj.subject, htmlBody: emailObj.htmlBody});
+      }
+    }
+
+    // 2c. Notify the Admin
+    const adminSubject = `[Budget System] Processing Error - ${errorId}`;
+    const adminBody = `An error occurred processing a form submission:\n\n` +
+      `Error ID: ${errorId}\n` +
+      `Form: ${e.source?.getTitle() || "UNKNOWN"}\n` +
+      `User: ${userEmail}\n` +
+      `Error: ${error.message}\n` +
+      `Stack: ${error.stack}\n\n` +
+      `The user has been automatically notified and directed to the appropriate support channel.`;
+
+    if (typeof sendSystemEmail === 'function') {
+      sendSystemEmail({ to: adminEmailToNotify, subject: adminSubject, body: adminBody });
+    } else {
+      MailApp.sendEmail({ to: adminEmailToNotify, subject: adminSubject, body: adminBody });
+    }
+    
+    console.log("✅ Processing error emails dispatched.");
   } catch (emailError) {
-    console.warn(
-      "⚠️ Failed to send error email (permission issue?):",
-      emailError.message,
-    );
+    console.warn("⚠️ Failed to send error emails (permission issue?):", emailError.message);
   }
 }
 

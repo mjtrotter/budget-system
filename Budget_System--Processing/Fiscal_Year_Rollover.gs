@@ -50,7 +50,9 @@ function performFiscalYearRollover() {
 }
 
 /**
- * Archives the previous fiscal year's transaction ledger
+ * Archives the previous fiscal year's transaction ledger.
+ * Exports data as a .xlsx file to Google Drive (Keswick Budget System/Archives/{FY})
+ * and clears the local TransactionLedger data rows.
  */
 function archivePreviousFiscalYear() {
   const budgetHub = SpreadsheetApp.openById(CONFIG.BUDGET_HUB_ID);
@@ -65,47 +67,97 @@ function archivePreviousFiscalYear() {
     return { archived: 0, message: 'No transactions to archive' };
   }
 
-  // Determine previous fiscal year
+  // Determine previous fiscal year label
   const now = new Date();
   const prevFY = now.getMonth() < 6
     ? `FY${now.getFullYear() - 2}-${String(now.getFullYear() - 1).slice(-2)}`
     : `FY${now.getFullYear() - 1}-${String(now.getFullYear()).slice(-2)}`;
 
-  // Create archive sheet
-  const archiveSheetName = `TransactionLedger_${prevFY}`;
-  let archiveSheet = budgetHub.getSheetByName(archiveSheetName);
-
-  if (!archiveSheet) {
-    archiveSheet = budgetHub.insertSheet(archiveSheetName);
-  }
-
-  // Copy data to archive
-  const headers = data[0];
   const transactions = data.slice(1);
+  const fileName = `TransactionLedger_${prevFY}.xlsx`;
 
-  archiveSheet.clear();
-  archiveSheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  // Step 1: Create a temporary spreadsheet to export as .xlsx
+  const tempSS = SpreadsheetApp.create(`KCS_Archive_Temp_${prevFY}`);
+  const tempSheet = tempSS.getActiveSheet();
+  tempSheet.setName('TransactionLedger');
+
+  // Write headers + data
+  const headers = data[0];
+  tempSheet.getRange(1, 1, 1, headers.length).setValues([headers]);
   if (transactions.length > 0) {
-    archiveSheet.getRange(2, 1, transactions.length, headers.length).setValues(transactions);
+    tempSheet.getRange(2, 1, transactions.length, headers.length).setValues(transactions);
   }
 
-  // Format archive
-  const headerRange = archiveSheet.getRange(1, 1, 1, headers.length);
+  // Format headers in the temp sheet
+  const headerRange = tempSheet.getRange(1, 1, 1, headers.length);
   headerRange.setBackground('#1565C0');
   headerRange.setFontColor('#FFFFFF');
   headerRange.setFontWeight('bold');
-  archiveSheet.setFrozenRows(1);
+  tempSheet.setFrozenRows(1);
 
-  // Clear current ledger (keep headers)
+  // Auto-resize all columns
+  for (let c = 1; c <= headers.length; c++) {
+    tempSheet.autoResizeColumn(c);
+  }
+
+  SpreadsheetApp.flush();
+
+  // Step 2: Export the temp spreadsheet as .xlsx blob
+  const tempFileId = tempSS.getId();
+  const exportUrl = `https://docs.google.com/spreadsheets/d/${tempFileId}/export?format=xlsx`;
+  const token = ScriptApp.getOAuthToken();
+  const response = UrlFetchApp.fetch(exportUrl, {
+    headers: { Authorization: `Bearer ${token}` },
+    muteHttpExceptions: true
+  });
+
+  if (response.getResponseCode() !== 200) {
+    // Clean up temp file even on failure
+    DriveApp.getFileById(tempFileId).setTrashed(true);
+    throw new Error(`Failed to export archive as .xlsx (HTTP ${response.getResponseCode()})`);
+  }
+
+  const xlsxBlob = response.getBlob().setName(fileName);
+
+  // Step 3: Locate or create the archive folder in Drive
+  let archiveFolder;
+  try {
+    // Look for "Keswick Budget System" root folder
+    const rootFolders = DriveApp.getFoldersByName('Keswick Budget System');
+    const rootFolder  = rootFolders.hasNext() ? rootFolders.next() : DriveApp.createFolder('Keswick Budget System');
+
+    // Look for "Archives" subfolder
+    const archiveFolders = rootFolder.getFoldersByName('Archives');
+    const archivesFolder  = archiveFolders.hasNext() ? archiveFolders.next() : rootFolder.createFolder('Archives');
+
+    // Look for the specific FY subfolder
+    const fyFolders = archivesFolder.getFoldersByName(prevFY);
+    archiveFolder   = fyFolders.hasNext() ? fyFolders.next() : archivesFolder.createFolder(prevFY);
+  } catch (folderErr) {
+    console.warn('Could not create archive folder structure, saving to root Drive:', folderErr);
+    archiveFolder = DriveApp.getRootFolder();
+  }
+
+  // Step 4: Save the .xlsx file to the archive folder
+  const savedFile = archiveFolder.createFile(xlsxBlob);
+  const fileUrl   = savedFile.getUrl();
+
+  // Step 5: Delete the temporary spreadsheet
+  DriveApp.getFileById(tempFileId).setTrashed(true);
+
+  // Step 6: Clear TransactionLedger data rows (keep header row)
   if (transactions.length > 0) {
     ledgerSheet.deleteRows(2, transactions.length);
   }
 
-  console.log(`Archived ${transactions.length} transactions to ${archiveSheetName}`);
+  console.log(`✅ Archived ${transactions.length} transactions to ${fileName} in Drive`);
+  console.log(`   Archive URL: ${fileUrl}`);
 
   return {
     archived: transactions.length,
-    archiveSheet: archiveSheetName,
+    fileName: fileName,
+    fileUrl: fileUrl,
+    archiveFolder: archiveFolder.getName(),
     previousFY: prevFY
   };
 }
@@ -177,12 +229,39 @@ function resetBudgetAllocations() {
 }
 
 /**
- * Archives and clears processing queues
+ * Archives and clears processing queues.
+ * Voids any PENDING or APPROVED items before archiving to prevent data loss.
  */
 function archiveAndClearQueues() {
   const results = {
-    automated: { archived: 0 },
-    manual: { archived: 0 }
+    automated: { archived: 0, voided: 0 },
+    manual: { archived: 0, voided: 0 }
+  };
+
+  // Helper to void and notify
+  const voidPendingItems = (queue, data, type) => {
+    let voidedCount = 0;
+    for (let i = 1; i < data.length; i++) {
+      const status = data[i][7]; // Status column
+      const email = data[i][1];
+      const transactionId = data[i][0];
+      
+      if (status === 'PENDING' || status === 'APPROVED') {
+        queue.getRange(i + 1, 8).setValue('VOIDED_FY_ROLLOVER');
+        voidedCount++;
+        
+        try {
+          MailApp.sendEmail({
+            to: email,
+            subject: `Request Cancelled - Fiscal Year Rollover (${transactionId})`,
+            body: `Your request ${transactionId} was cancelled due to the fiscal year rollover.\n\nPlease resubmit this request in the new fiscal year.`
+          });
+        } catch (e) {
+          console.error(`Failed to notify ${email} of voided request`);
+        }
+      }
+    }
+    return voidedCount;
   };
 
   // Archive Automated Queue
@@ -193,11 +272,15 @@ function archiveAndClearQueues() {
     if (autoQueue) {
       const data = autoQueue.getDataRange().getValues();
       if (data.length > 1) {
+        results.automated.voided = voidPendingItems(autoQueue, data, 'Automated');
+        
+        // Re-read data after voiding
+        const updatedData = autoQueue.getDataRange().getValues();
         const archiveName = `AutoQueue_Archive_${new Date().toISOString().split('T')[0]}`;
         const archive = autoHub.insertSheet(archiveName);
-        archive.getRange(1, 1, data.length, data[0].length).setValues(data);
-        autoQueue.deleteRows(2, data.length - 1);
-        results.automated.archived = data.length - 1;
+        archive.getRange(1, 1, updatedData.length, updatedData[0].length).setValues(updatedData);
+        autoQueue.deleteRows(2, updatedData.length - 1);
+        results.automated.archived = updatedData.length - 1;
       }
     }
   } catch (e) {
@@ -212,11 +295,15 @@ function archiveAndClearQueues() {
     if (manualQueue) {
       const data = manualQueue.getDataRange().getValues();
       if (data.length > 1) {
+        results.manual.voided = voidPendingItems(manualQueue, data, 'Manual');
+        
+        // Re-read data after voiding
+        const updatedData = manualQueue.getDataRange().getValues();
         const archiveName = `ManualQueue_Archive_${new Date().toISOString().split('T')[0]}`;
         const archive = manualHub.insertSheet(archiveName);
-        archive.getRange(1, 1, data.length, data[0].length).setValues(data);
-        manualQueue.deleteRows(2, data.length - 1);
-        results.manual.archived = data.length - 1;
+        archive.getRange(1, 1, updatedData.length, updatedData[0].length).setValues(updatedData);
+        manualQueue.deleteRows(2, updatedData.length - 1);
+        results.manual.archived = updatedData.length - 1;
       }
     }
   } catch (e) {
@@ -282,13 +369,40 @@ Please investigate and run manually if needed.
 }
 
 /**
+ * Triggers on June 27 to send a warning email.
+ */
+function sendFiscalYearWarning() {
+  const budgetHub = SpreadsheetApp.openById(CONFIG.BUDGET_HUB_ID);
+  const userSheet = budgetHub.getSheetByName('UserDirectory');
+  const data = userSheet.getDataRange().getValues();
+
+  const emails = [];
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][12] === true || data[i][12] === 'TRUE') { // Active column
+      emails.push(data[i][0]);
+    }
+  }
+
+  if (emails.length > 0) {
+    MailApp.sendEmail({
+      to: CONFIG.BUSINESS_OFFICE_EMAIL,
+      bcc: emails.join(','),
+      subject: '⚠️ ACTION REQUIRED: Fiscal Year Closing in 3 Days',
+      body: 'The fiscal year will close on June 30th.\n\nAll pending orders must be approved by June 30th. Any orders still pending on July 1st will be cancelled and must be resubmitted in the new fiscal year.\n\nThe system will stop accepting new orders on June 29th and June 30th.'
+    });
+    console.log(`Sent FY warning to ${emails.length} users`);
+  }
+}
+
+/**
  * Creates a trigger to run rollover on July 1
  */
 function createFiscalYearRolloverTrigger() {
   // Remove existing triggers first
   const existingTriggers = ScriptApp.getProjectTriggers();
   for (const trigger of existingTriggers) {
-    if (trigger.getHandlerFunction() === 'performFiscalYearRollover') {
+    if (trigger.getHandlerFunction() === 'performFiscalYearRollover' || 
+        trigger.getHandlerFunction() === 'sendFiscalYearWarning') {
       ScriptApp.deleteTrigger(trigger);
     }
   }
@@ -300,8 +414,14 @@ function createFiscalYearRolloverTrigger() {
     .atHour(2)     // 2 AM
     .create();
 
-  console.log('Fiscal year rollover trigger created for 1st of each month at 2 AM');
-  console.log('Note: The function itself checks if it\'s July before proceeding');
+  // Create warning trigger for June 27 at 8 AM
+  ScriptApp.newTrigger('sendFiscalYearWarning')
+    .timeBased()
+    .onMonthDay(27)
+    .atHour(8)
+    .create();
+
+  console.log('Fiscal year triggers created');
 
   return { success: true };
 }

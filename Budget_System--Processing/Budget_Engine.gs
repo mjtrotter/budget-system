@@ -41,22 +41,9 @@ function getUserBudgetInfo(email) {
       }
     }
 
-    // Default user if not found
-    return {
-      email: email,
-      firstName: "Unknown",
-      lastName: "User",
-      role: "Staff",
-      department: "General",
-      division: "General",
-      approver: CONFIG.TEST_EMAIL,
-      allocated: 500,
-      spent: 0,
-      encumbered: 0,
-      available: 500,
-      utilizationRate: 0,
-      active: true,
-    };
+    // User not found — reject rather than silently assigning a default budget
+    console.warn(`⚠️ User ${email} not found in UserDirectory — rejecting request`);
+    return null;
   } catch (error) {
     console.error("Error getting user budget info:", error);
     return null;
@@ -127,43 +114,100 @@ function getOrganizationBudgetInfo(orgName) {
     console.warn(`⚠️ Organization budget not found for ${orgName}`);
     return null;
   } catch (error) {
-    console.error("Error getting organization budget info:", error);
+    console.error(`Error querying organization budget for ${orgName}:`, error);
     return null;
   }
 }
 
+/**
+ * Retrieves the Division Principal's email for escalation based on a user's profile
+ * or a specific division string.
+ * @param {string} email - The user's email 
+ * @param {string} divisionOverride - Optional specific division name to lookup directly
+ */
+function getDivisionPrincipal(email, divisionOverride = null) {
+  let targetDivision = divisionOverride;
+
+  if (!targetDivision && email) {
+    const userProfile = getUserBudgetInfo(email);
+    if (userProfile && userProfile.division) {
+      targetDivision = userProfile.division;
+    }
+  }
+
+  if (!targetDivision) return null;
+
+  const orgBudget = getOrganizationBudgetInfo(targetDivision);
+  return orgBudget ? orgBudget.approver : null;
+}
+
+/**
+ * FIX #5: Validates budget before approval using the correct budget scope per form type.
+ *
+ * Budget scoping rules:
+ *   - FIELD_TRIP  → Division-level org budget (e.g., "Upper School", "Lower School")
+ *   - CURRICULUM / CURRICULUM_AMAZON → Department-level org budget (e.g., "Math", "English")
+ *   - AMAZON / WAREHOUSE / ADMIN → Individual user budget
+ *
+ * @param {Object} request - The request object from the queue. Must include:
+ *   request.email       - Requestor email
+ *   request.amount      - Requested dollar amount
+ *   request.type        - Form type string (AMAZON, WAREHOUSE, FIELD_TRIP, CURRICULUM, ADMIN, etc.)
+ *   request.division    - Division name (used for Field Trip org lookup)
+ *   request.department  - Department name (used for Curriculum org lookup)
+ */
 function validateBudgetBeforeApproval(request) {
   try {
+    const formType = (request.type || "").toUpperCase();
+
+    // --- FIELD TRIP: Division org budget ---
+    if (formType === "FIELD_TRIP") {
+      const division = request.division || request.department || "";
+      if (!division) {
+        return { valid: false, message: "Division not specified for Field Trip budget check", available: 0 };
+      }
+      const orgBudget = getOrganizationBudgetInfo(division);
+      if (!orgBudget) {
+        return { valid: false, message: `Division budget not found for: ${division}`, available: 0 };
+      }
+      if (orgBudget.available >= request.amount) {
+        return { valid: true, available: orgBudget.available, encumbrance: orgBudget.encumbered };
+      }
+      return { valid: false, message: "Insufficient funds", available: orgBudget.available, encumbrance: orgBudget.encumbered };
+    }
+
+    // --- CURRICULUM (including cross-routed AMAZON from Curriculum): Department org budget ---
+    if (formType === "CURRICULUM" || formType === "CURRICULUM_AMAZON" || formType === "CURRICULUM-AMAZON") {
+      const department = request.department || request.division || "";
+      if (!department) {
+        return { valid: false, message: "Department not specified for Curriculum budget check", available: 0 };
+      }
+      const orgBudget = getOrganizationBudgetInfo(department);
+      if (!orgBudget) {
+        return { valid: false, message: `Department budget not found for: ${department}`, available: 0 };
+      }
+      if (orgBudget.available >= request.amount) {
+        return { valid: true, available: orgBudget.available, encumbrance: orgBudget.encumbered };
+      }
+      return { valid: false, message: "Insufficient funds", available: orgBudget.available, encumbrance: orgBudget.encumbered };
+    }
+
+    // --- AMAZON / WAREHOUSE / ADMIN: Individual user budget ---
     const userBudget = getUserBudgetInfo(request.email);
-
     if (!userBudget) {
-      return {
-        valid: false,
-        message: "User budget profile not found",
-        available: 0,
-      };
+      return { valid: false, message: "User budget profile not found", available: 0 };
     }
-
-    // Allow small overages? Currently strict.
     if (userBudget.available >= request.amount) {
-      return {
-        valid: true,
-        available: userBudget.available,
-        encumbrance: userBudget.encumbered,
-      };
-    } else {
-      return {
-        valid: false,
-        message: "Insufficient funds",
-        available: userBudget.available,
-        encumbrance: userBudget.encumbered,
-      };
+      return { valid: true, available: userBudget.available, encumbrance: userBudget.encumbered };
     }
+    return { valid: false, message: "Insufficient funds", available: userBudget.available, encumbrance: userBudget.encumbered };
+
   } catch (error) {
     console.error("Budget validation error:", error);
     return { valid: false, message: "Validation error", available: 0 };
   }
 }
+
 
 function checkBudgetAlerts(email) {
   const userBudget = getUserBudgetInfo(email);
@@ -196,7 +240,14 @@ function checkBudgetAlerts(email) {
  */
 function checkDailySpendingVelocity(email, currentAmount) {
   try {
-    const DAILY_AUTO_APPROVE_LIMIT = 500; // Max $500/day in auto-approved items
+    // Role-aware velocity limits (configurable via Script Properties)
+    // Standard users: $500/day  |  Admin roles: $2,000/day
+    const DEFAULT_VELOCITY_LIMIT = getDyn("VELOCITY_LIMIT_DEFAULT", 500, "int");
+    const ADMIN_VELOCITY_LIMIT   = getDyn("VELOCITY_LIMIT_ADMIN",   2000, "int");
+
+    const userInfo = getUserBudgetInfo(email);
+    const isAdminRole = userInfo && (userInfo.role || "").toLowerCase().includes("admin");
+    const DAILY_AUTO_APPROVE_LIMIT = isAdminRole ? ADMIN_VELOCITY_LIMIT : DEFAULT_VELOCITY_LIMIT;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -238,281 +289,49 @@ function checkDailySpendingVelocity(email, currentAmount) {
   }
 }
 
+
 // ============================================================================
-// ENCUMBRANCE MANAGEMENT (OPTIMIZED)
+// ENCUMBRANCE MANAGEMENT (DEPRECATED - REPLACED BY SHEETS FORMULAS)
 // ============================================================================
 
-/**
- * Updates a user's encumbrance in real-time by recalculating from the queues.
- * @param {string} userEmail - The email of the user to update.
- * @param {number} amount - Ignored in the new logic (recalculated from source).
- * @param {string} action - Ignored in the new logic.
- */
 function updateUserEncumbranceRealTime(userEmail, amount, action) {
-  try {
-    console.log(`🔄 Recalculating encumbrance for ${userEmail}...`);
-
-    // Call the calculation function directly
-    const currentEncumbrance = calculateUserRealTimeEncumbrance(userEmail);
-
-    // Update the User Directory
-    const budgetHub = SpreadsheetApp.openById(CONFIG.BUDGET_HUB_ID);
-    const userSheet = budgetHub.getSheetByName("UserDirectory");
-    const data = userSheet.getDataRange().getValues();
-
-    for (let i = 1; i < data.length; i++) {
-      if (data[i][0] === userEmail) {
-        // Update Encumbered (Column J -> 10)
-        userSheet.getRange(i + 1, 10).setValue(currentEncumbrance);
-
-        console.log(
-          `✅ Updated ${userEmail}: Encumbered=$${currentEncumbrance.toFixed(2)}`,
-        );
-        break;
-      }
-    }
-  } catch (error) {
-    console.error(`Error updating encumbrance for ${userEmail}:`, error);
-  }
+  forceBudgetRecalculation();
 }
 
-/**
- * Calculates real-time encumbrance for a single user by scanning active queues.
- * @param {string} userEmail - The user's email.
- * @return {number} Total current encumbrance.
- */
 function calculateUserRealTimeEncumbrance(userEmail) {
-  let totalEncumbrance = 0;
-
-  // 1. Scan Automated Queue (Amazon, Warehouse)
-  try {
-    const autoHub = SpreadsheetApp.openById(CONFIG.AUTOMATED_HUB_ID);
-    const autoQueue = autoHub.getSheetByName("AutomatedQueue");
-    const autoData = autoQueue.getDataRange().getValues();
-
-    for (let i = 1; i < autoData.length; i++) {
-      if (autoData[i][1] === userEmail) {
-        const status = autoData[i][7]; // Column H
-        if (status === "PENDING" || status === "APPROVED") {
-          totalEncumbrance += parseFloat(autoData[i][5]) || 0; // Column F: Amount
-        }
-      }
-    }
-  } catch (e) {
-    console.error("Error scanning AutomatedQueue:", e);
-  }
-
-  // 2. Scan Manual Queue (Field Trip, Curriculum, Admin)
-  try {
-    const manualHub = SpreadsheetApp.openById(CONFIG.MANUAL_HUB_ID);
-    const manualQueue = manualHub.getSheetByName("ManualQueue");
-    const manualData = manualQueue.getDataRange().getValues();
-
-    for (let i = 1; i < manualData.length; i++) {
-      if (manualData[i][1] === userEmail) {
-        const status = manualData[i][7];
-        if (status === "PENDING" || status === "APPROVED") {
-          totalEncumbrance += parseFloat(manualData[i][5]) || 0;
-        }
-      }
-    }
-  } catch (e) {
-    console.error("Error scanning ManualQueue:", e);
-  }
-
-  return totalEncumbrance;
+  forceBudgetRecalculation();
+  return 0;
 }
 
-/**
- * Calculates real-time encumbrance for an organization by scanning active queues.
- * Used for departments or divisions.
- */
 function calculateOrganizationRealTimeEncumbrance(orgName) {
-  let totalEncumbrance = 0;
-
-  // Target columns:
-  // F = Amount (index 5)
-  // D = Department (index 3)
-  // E = Division (index 4)
-  // H = Status (index 7)
-
-  const searchOrg = orgName.toString().trim().toLowerCase();
-
-  try {
-    const manualHub = SpreadsheetApp.openById(CONFIG.MANUAL_HUB_ID);
-    const manualQueue = manualHub.getSheetByName("ManualQueue");
-    const manualData = manualQueue.getDataRange().getValues();
-
-    for (let i = 1; i < manualData.length; i++) {
-      const type = String(manualData[i][2]).trim(); // Column C: Form Type
-      const dept = String(manualData[i][3]).trim().toLowerCase();
-      const div = String(manualData[i][4]).trim().toLowerCase();
-      const status = manualData[i][7];
-
-      // Match constraint based on form type scopes:
-      // FIELD_TRIP scopes to Division
-      // CURRICULUM scopes to Department
-      let isMatch = false;
-      if (type === "FIELD_TRIP" && div === searchOrg) isMatch = true;
-      if (type === "CURRICULUM" && dept === searchOrg) isMatch = true;
-
-      if (isMatch && (status === "PENDING" || status === "APPROVED")) {
-        totalEncumbrance += parseFloat(manualData[i][5]) || 0;
-      }
-    }
-  } catch (e) {
-    console.error("Error scanning Organization ManualQueue:", e);
-  }
-
-  // Cross-check Curriculum items that auto-routed to AutomatedQueue (CI-AMZ)
-  try {
-    const autoHub = SpreadsheetApp.openById(CONFIG.AUTOMATED_HUB_ID);
-    const autoQueue = autoHub.getSheetByName("AutomatedQueue");
-    const autoData = autoQueue.getDataRange().getValues();
-
-    for (let i = 1; i < autoData.length; i++) {
-      const txnId = String(autoData[i][0]);
-      const dept = String(autoData[i][3]).trim().toLowerCase();
-      const status = autoData[i][7];
-
-      // CI-AMZ Curriculum items pull from department budget
-      if (txnId.startsWith("CI-AMZ") && dept === searchOrg) {
-        if (
-          status === "PENDING" ||
-          status === "APPROVED" ||
-          status === "ORDERED"
-        ) {
-          totalEncumbrance += parseFloat(autoData[i][5]) || 0;
-        }
-      }
-    }
-  } catch (e) {
-    console.error("Error scanning Organization AutoQueue:", e);
-  }
-
-  return totalEncumbrance;
+  forceBudgetRecalculation();
+  return 0;
 }
 
-/**
- * Updates an organization's encumbrance in real-time by recalculating from the queues.
- */
+function recordBudgetSpent(userEmail, amount) {
+  forceBudgetRecalculation();
+}
+
 function updateOrganizationEncumbranceRealTime(orgName) {
-  try {
-    console.log(`🔄 Recalculating encumbrance for Organization: ${orgName}...`);
-    const currentEncumbrance =
-      calculateOrganizationRealTimeEncumbrance(orgName);
-
-    const budgetHub = SpreadsheetApp.openById(CONFIG.BUDGET_HUB_ID);
-    const orgSheet = budgetHub.getSheetByName("OrganizationBudgets");
-    const data = orgSheet.getDataRange().getValues();
-
-    for (let i = 1; i < data.length; i++) {
-      if (
-        data[i][0].toString().trim().toLowerCase() ===
-        orgName.toString().trim().toLowerCase()
-      ) {
-        const allocated = parseFloat(data[i][1]) || 0;
-        const spent = parseFloat(data[i][2]) || 0;
-        const available = allocated - spent - currentEncumbrance;
-
-        // Update Encumbered (Column D -> 4)
-        orgSheet.getRange(i + 1, 4).setValue(currentEncumbrance);
-        // Update Available (Column E -> 5)
-        orgSheet.getRange(i + 1, 5).setValue(available);
-
-        console.log(
-          `✅ Updated Org ${orgName}: Encumbered=$${currentEncumbrance.toFixed(2)}, Available=$${available.toFixed(2)}`,
-        );
-        break;
-      }
-    }
-  } catch (error) {
-    console.error(`Error updating encumbrance for org ${orgName}:`, error);
-  }
+  forceBudgetRecalculation();
 }
 
-/**
- * Updates encumbrances for ALL users.
- * Runs on a schedule to ensure consistency.
- */
 function updateAllUserEncumbrances() {
-  console.log("🔄 Starting global encumbrance update...");
-  const budgetHub = SpreadsheetApp.openById(CONFIG.BUDGET_HUB_ID);
-  const userSheet = budgetHub.getSheetByName("UserDirectory");
-  const users = userSheet.getDataRange().getValues(); // Skip header in loop
-
-  for (let i = 1; i < users.length; i++) {
-    const email = users[i][0];
-    if (email) {
-      updateUserEncumbranceRealTime(email, 0, "recalc");
-    }
-  }
-  console.log("✅ Global encumbrance update complete.");
+  forceBudgetRecalculation();
 }
 
-/**
- * Simple helper to update budget values directly (legacy support)
- */
 function updateUserBudgetEncumbrance(userEmail, amount, action) {
-  // Redirect to the robust real-time update
-  updateUserEncumbranceRealTime(userEmail, amount, action);
+  forceBudgetRecalculation();
 }
 
 function releaseBudgetHold(email, amount) {
-  updateUserEncumbranceRealTime(email, amount, "remove");
+  forceBudgetRecalculation();
 }
 
-// ============================================================================
-// BATCH ENCUMBRANCE UPDATES
-// ============================================================================
-
-const ENCUMBRANCE_BATCH = {
-  pending: [],
-  timer: null,
-  threshold: 5, // Batch after 5 updates or 30 seconds
-  timeout: 30000, // 30 seconds
-};
-
-/**
- * Queues encumbrance updates for batch processing
- * Reduces database writes for high-volume periods
- */
 function queueEncumbranceUpdate(userEmail, amount, action) {
-  ENCUMBRANCE_BATCH.pending.push({
-    userEmail,
-    amount,
-    action,
-    timestamp: new Date(),
-  });
-
-  // Process immediately if threshold reached
-  // Note: Apps Script doesn't have setTimeout, so we process immediately on threshold
-  if (ENCUMBRANCE_BATCH.pending.length >= ENCUMBRANCE_BATCH.threshold) {
-    processPendingEncumbrances();
-  }
-  // Without setTimeout, pending items will be processed on next threshold hit
-  // or by a scheduled trigger calling processPendingEncumbrances()
+  forceBudgetRecalculation();
 }
 
-/**
- * Processes all pending encumbrance updates
- */
 function processPendingEncumbrances() {
-  if (ENCUMBRANCE_BATCH.pending.length === 0) return;
-
-  console.log(
-    `📊 Processing ${ENCUMBRANCE_BATCH.pending.length} pending encumbrance updates`,
-  );
-
-  // Reset timer reference (no longer using setTimeout in Apps Script)
-  ENCUMBRANCE_BATCH.timer = null;
-
-  // Process all pending updates
-  const updates = [...ENCUMBRANCE_BATCH.pending];
-  ENCUMBRANCE_BATCH.pending = [];
-
-  // Run full update once for all changes
-  updateAllUserEncumbrances();
-
-  console.log(`✅ Batch encumbrance update complete`);
+  forceBudgetRecalculation();
 }

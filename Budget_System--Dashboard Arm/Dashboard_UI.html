@@ -1433,6 +1433,10 @@
                     <i class="fas fa-chart-pie nav-icon"></i>
                     <span>Analytics</span>
                 </button>
+                <button class="nav-item hidden" data-tab="admin" id="adminTabBtn">
+                    <i class="fas fa-cogs nav-icon"></i>
+                    <span>Admin Panel</span>
+                </button>
             </nav>
         </aside>
         
@@ -2000,6 +2004,8 @@
                         </div>
                     </div>
 
+
+                
                     <!-- Financial Health Metrics -->
                     <div class="chart-container">
                         <div class="chart-header">
@@ -2011,7 +2017,102 @@
                             </div>
                         </div>
                     </div>
+
                 </div>
+<div id="adminTab" class="tab-content">
+                    <div class="table-header">
+                        <h2 class="table-title">Budget Administration</h2>
+                    </div>
+
+                    <div class="widget-grid">
+                        <!-- Budget Adjustments -->
+                        <div class="widget-card">
+                            <h3 class="widget-title">Adjust User or Org Budget</h3>
+                            <div class="filter-group mt-2">
+                                <label>Target Type</label>
+                                <select id="adminBudgetType" onchange="window.adminTabLogic.updateTargetDropdown()" style="width: 100%; padding: 8px;">
+                                    <option value="user">User</option>
+                                    <option value="org">Organization</option>
+                                </select>
+                            </div>
+                            <div class="filter-group mt-2">
+                                <label>Target</label>
+                                <select id="adminBudgetTarget" onchange="window.adminTabLogic.populateCurrentValue()" style="width: 100%; padding: 8px;">
+                                    <option value="">Select Target...</option>
+                                </select>
+                            </div>
+                            <div class="filter-group mt-2">
+                                <label>Current Allocated: <strong id="adminCurrentVal">$0.00</strong></label>
+                                <input type="number" id="adminNewVal" placeholder="New Allocation Amount" style="width: 100%; padding: 8px;" />
+                            </div>
+                            <div class="filter-group mt-2">
+                                <label>Reason/Audit Note</label>
+                                <input type="text" id="adminReason" placeholder="Required for Audit Trail" style="width: 100%; padding: 8px;" />
+                            </div>
+                            <button class="header-button mt-3" onclick="window.adminTabLogic.submitBudgetUpdate()" style="width: 100%; justify-content: center; background: var(--primary-color); color: white;">
+                                Update Budget
+                            </button>
+                        </div>
+
+                        <!-- System Config -->
+                        <div class="widget-card">
+                            <h3 class="widget-title">System Configurations</h3>
+                            <div class="filter-group mt-2">
+                                <label>Configuration Key</label>
+                                <select id="adminConfigKey" onchange="window.adminTabLogic.populateConfigValue()" style="width: 100%; padding: 8px;">
+                                    <option value="">Select Config...</option>
+                                    <option value="AUTO_APPROVAL_LIMIT">AUTO_APPROVAL_LIMIT</option>
+                                    <option value="VELOCITY_LIMIT_DEFAULT">VELOCITY_LIMIT_DEFAULT</option>
+                                    <option value="VELOCITY_LIMIT_ADMIN">VELOCITY_LIMIT_ADMIN</option>
+                                    <option value="PRICE_TOLERANCE_PCT">PRICE_TOLERANCE_PCT</option>
+                                    <option value="PRICE_TOLERANCE_AMT">PRICE_TOLERANCE_AMT</option>
+                                    <option value="PRICE_HARD_CAP">PRICE_HARD_CAP</option>
+                                    <option value="TRIAL_MODE_ENABLED">TRIAL_MODE_ENABLED</option>
+                                    <option value="TEST_MODE">TEST_MODE</option>
+                                </select>
+                            </div>
+                            <div class="filter-group mt-2">
+                                <label>New Value</label>
+                                <input type="text" id="adminConfigVal" placeholder="New Setting Value" style="width: 100%; padding: 8px;" />
+                            </div>
+                            <div class="filter-group mt-2">
+                                <label>Reason/Audit Note</label>
+                                <input type="text" id="adminConfigReason" placeholder="Required for Audit Trail" style="width: 100%; padding: 8px;" />
+                            </div>
+                            <button class="header-button mt-3" onclick="window.adminTabLogic.submitConfigUpdate()" style="width: 100%; justify-content: center; background: var(--primary-color); color: white;">
+                                Update Configuration
+                            </button>
+                            <p class="text-muted mt-2" style="font-size: 11px;">Note: TEST_MODE limits emails. TRIAL_MODE enables fake Amazon purchasing and blocks real ones.</p>
+                        </div>
+                    </div>
+
+                    <!-- Audit Log Table -->
+                    <div class="table-container mt-4">
+                        <div class="table-header">
+                            <h2 class="table-title">Budget Audit Log (Last 50 Entries)</h2>
+                        </div>
+                        <div class="table-wrapper">
+                            <table class="sortable-table">
+                                <thead>
+                                    <tr>
+                                        <th>Timestamp</th>
+                                        <th>Admin</th>
+                                        <th>Action</th>
+                                        <th>Target</th>
+                                        <th>Field</th>
+                                        <th>Old Value</th>
+                                        <th>New Value</th>
+                                        <th>Reason</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="adminAuditLogBody">
+                                    <tr><td colspan="8" class="text-center">Loading Audit Log...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </main>
         </div><!-- End dashboard-container (sidebar + main) -->
@@ -2020,6 +2121,162 @@
     <!-- Debug Console will be injected here by JavaScript -->
 
     <script>
+
+        // ============================================================================
+        // ADMIN TAB LOGIC
+        // ============================================================================
+        window.adminPanelData = null;
+
+        window.adminTabLogic = {
+            init: function() {
+                if (!window.adminPanelData) {
+                    google.script.run.withSuccessHandler((res) => {
+                        dashDebugger.log('Admin Panel Data loaded', res, 'data');
+                        if (res.success) {
+                            window.adminPanelData = res;
+                            this.populateAuditLog();
+                            this.updateTargetDropdown();
+                            // Button is unlocked if server responds with success (gated by BUDGET_ADMIN_EMAILS)
+                            document.getElementById('adminTabBtn').classList.remove('hidden');
+                        }
+                    }).getAdminPanelData();
+                }
+            },
+            populateAuditLog: function() {
+                const tbody = document.getElementById('adminAuditLogBody');
+                if (!tbody) return;
+                
+                const entries = window.adminPanelData.auditLog || [];
+                if (entries.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" class="text-center">No audit logs found.</td></tr>';
+                    return;
+                }
+                
+                let html = '';
+                entries.forEach(entry => {
+                    const dateStr = entry.timestamp ? new Date(entry.timestamp).toLocaleString() : '';
+                    html += `
+                        <tr>
+                            <td>${dateStr}</td>
+                            <td>${entry.admin}</td>
+                            <td><span class="badge ${entry.action.includes('BUDGET') ? 'bg-success' : 'bg-primary'}">${entry.action}</span></td>
+                            <td>${entry.target}</td>
+                            <td>${entry.field}</td>
+                            <td>${entry.oldValue}</td>
+                            <td>${entry.newValue}</td>
+                            <td>${entry.reason}</td>
+                        </tr>
+                    `;
+                });
+                tbody.innerHTML = html;
+            },
+            updateTargetDropdown: function() {
+                const type = document.getElementById('adminBudgetType').value;
+                const dropdown = document.getElementById('adminBudgetTarget');
+                dropdown.innerHTML = '<option value="">Select Target...</option>';
+                
+                if (!window.adminPanelData) return;
+                
+                if (type === 'user') {
+                    const users = window.adminPanelData.users || [];
+                    users.forEach(u => {
+                        if (u.email) {
+                            dropdown.innerHTML += `<option value="${u.email}" data-allocated="${u.allocated || 0}">${u.name} (${u.email}) - $${u.allocated || 0}</option>`;
+                        }
+                    });
+                } else {
+                    const orgs = window.adminPanelData.orgs || [];
+                    orgs.forEach(o => {
+                        dropdown.innerHTML += `<option value="${o.organization}" data-allocated="${o.allocated || 0}">${o.organization} - $${o.allocated || 0}</option>`;
+                    });
+                }
+                this.populateCurrentValue();
+            },
+            populateCurrentValue: function() {
+                const dropdown = document.getElementById('adminBudgetTarget');
+                const selected = dropdown.options[dropdown.selectedIndex];
+                const currentValLabel = document.getElementById('adminCurrentVal');
+                if (selected && selected.value) {
+                    const allocated = selected.getAttribute('data-allocated');
+                    currentValLabel.textContent = formatCurrency(parseFloat(allocated) || 0);
+                } else {
+                    currentValLabel.textContent = '$0.00';
+                }
+            },
+            populateConfigValue: function() {
+                const key = document.getElementById('adminConfigKey').value;
+                const input = document.getElementById('adminConfigVal');
+                if (key && window.adminPanelData && window.adminPanelData.config) {
+                    input.value = window.adminPanelData.config[key] || '';
+                } else {
+                    input.value = '';
+                }
+            },
+            submitBudgetUpdate: function() {
+                const type = document.getElementById('adminBudgetType').value;
+                const target = document.getElementById('adminBudgetTarget').value;
+                const newVal = document.getElementById('adminNewVal').value;
+                const reason = document.getElementById('adminReason').value;
+                
+                if (!target || !newVal || !reason) {
+                    alert('Target, New Allocation, and Reason are required.');
+                    return;
+                }
+                
+                updateLoadingStatus('Updating Budget...');
+                showLoading();
+                
+                if (type === 'user') {
+                    google.script.run.withSuccessHandler(this.onUpdateSuccess.bind(this)).withFailureHandler(this.onUpdateFail.bind(this)).updateUserBudget(target, newVal, reason);
+                } else {
+                    google.script.run.withSuccessHandler(this.onUpdateSuccess.bind(this)).withFailureHandler(this.onUpdateFail.bind(this)).updateOrgBudget(target, newVal, reason);
+                }
+            },
+            submitConfigUpdate: function() {
+                const key = document.getElementById('adminConfigKey').value;
+                const val = document.getElementById('adminConfigVal').value;
+                const reason = document.getElementById('adminConfigReason').value;
+                
+                if (!key || !val || !reason) {
+                    alert('Key, New Value, and Reason are required.');
+                    return;
+                }
+                
+                updateLoadingStatus('Updating Configuration...');
+                showLoading();
+                
+                google.script.run.withSuccessHandler(this.onUpdateSuccess.bind(this)).withFailureHandler(this.onUpdateFail.bind(this)).updateSystemConfig(key, val, reason);
+            },
+            onUpdateSuccess: function(res) {
+                hideLoading();
+                if (res.success) {
+                    alert('Successfully updated!');
+                    // Clear inputs
+                    document.getElementById('adminNewVal').value = '';
+                    document.getElementById('adminReason').value = '';
+                    document.getElementById('adminConfigReason').value = '';
+                    
+                    // Refresh data
+                    window.adminPanelData = null;
+                    this.init();
+                } else {
+                    alert('Error: ' + res.error);
+                }
+            },
+            onUpdateFail: function(err) {
+                hideLoading();
+                alert('Server Error: ' + err.message);
+            }
+        };
+
+        // Initialize admin on load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Give it a second to authenticate via normal loadDashboardData
+            setTimeout(() => {
+                window.adminTabLogic.init();
+            }, 2000);
+        });
+
         // ============================================================================
         // DEBUG SYSTEM
         // ============================================================================

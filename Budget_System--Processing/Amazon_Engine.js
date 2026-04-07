@@ -235,9 +235,10 @@ function calculateMaxAllowedPrice(submittedPrice) {
  * @param {Array} cartItems - [{asin, quantity, expectedUnitPrice, ...}]
  * @param {string} transactionId
  * @param {string} requesterName - Name of the person requesting (prints on shipping label)
+ * @param {string} requesterEmail - Email of the person requesting
  * @returns {Object} Order payload
  */
-function buildOrderPayload(cartItems, transactionId, requesterName) {
+function buildOrderPayload(cartItems, transactionId, requesterName, requesterEmail) {
   const shipToName = requesterName || 'Keswick Christian School';
   const lineItems = cartItems.map((item, index) => {
     const lineItem = {
@@ -271,7 +272,7 @@ function buildOrderPayload(cartItems, transactionId, requesterName) {
   const attributes = [
     {
       attributeType: 'PurchaseOrderNumber',
-      purchaseOrderNumber: `PO-${transactionId}`
+      purchaseOrderNumber: `${transactionId}`
     },
     {
       attributeType: 'BuyerReference',
@@ -315,9 +316,17 @@ function buildOrderPayload(cartItems, transactionId, requesterName) {
     }
   });
 
-  // TrialMode — always on until explicitly disabled
-  if (CONFIG.AMAZON_B2B.TRIAL_MODE_ENABLED) {
+  // TrialMode — dynamic logic:
+  // LIVE only if (email === mtrotter AND !TRIAL_MODE_ENABLED)
+  // Otherwise force TRIAL_MODE: true (Safety First for other users)
+  const isMtrotter = String(requesterEmail || '').toLowerCase().trim() === 'mtrotter@keswickchristian.org';
+  const forceTrial = !isMtrotter || CONFIG.AMAZON_B2B.TRIAL_MODE_ENABLED;
+  
+  if (forceTrial) {
     attributes.push({ attributeType: 'TrialMode' });
+    console.log(`🛡️  [CONTROL] Forcing SP-API TrialMode for ${requesterEmail}`);
+  } else {
+    console.log(`🚀 [CONTROL] Executing LIVE SP-API Order for ${requesterEmail}`);
   }
 
   return {
@@ -333,10 +342,11 @@ function buildOrderPayload(cartItems, transactionId, requesterName) {
  * @param {Array} cartItems
  * @param {string} transactionId
  * @param {string} requesterName - Name for shipping label
+ * @param {string} requesterEmail - Email of the person requesting
  * @returns {Object} { success, amazonOrderId, acceptedItems, rejectedItems, error }
  */
-function placeAmazonOrder(cartItems, transactionId, requesterName) {
-  const payload = buildOrderPayload(cartItems, transactionId, requesterName);
+function placeAmazonOrder(cartItems, transactionId, requesterName, requesterEmail) {
+  const payload = buildOrderPayload(cartItems, transactionId, requesterName, requesterEmail);
 
   let response, code, body;
   try {
@@ -374,12 +384,13 @@ function placeAmazonOrder(cartItems, transactionId, requesterName) {
 
   rateLimitPause();
 
-  if (code === 500) {
-    console.warn(`⚠️ [E2E PATCH] Amazon API returned 500 Internal Server Error. Simulating success for transaction ${transactionId}.`);
+  if (code === 500 && CONFIG.AMAZON_B2B.TRIAL_MODE_ENABLED) {
+    // In TRIAL MODE only: simulate success on 500 to allow E2E testing when Amazon API is unavailable
+    console.warn(`⚠️ [TRIAL MODE] Amazon API returned 500 Internal Server Error. Simulating success for transaction ${transactionId}.`);
     
     logAmazonApiResult({
       requestType: 'ORDER', asin: cartItems.map(i => i.asin).join(','),
-      status: 'SIMULATED', rejectionReason: `[500 Bypass]`
+      status: 'SIMULATED', rejectionReason: `[500 Bypass - Trial Mode]`
     });
     
     return {
@@ -442,38 +453,68 @@ function parseOrderResponse(responseBody, transactionId) {
     error: null
   };
 
-  // Extract accepted items
-  if (responseBody.acceptedItems && responseBody.acceptedItems.length > 0) {
-    result.success = true;
-    result.acceptedItems = responseBody.acceptedItems.map(item => {
-      const artifacts = {};
-      (item.artifacts || []).forEach(a => {
-        if (a.artifactType === 'OrderIdentifier') artifacts.orderId = a.orderId;
-        if (a.artifactType === 'UnitPrice') artifacts.unitPrice = a.amount?.amount;
+  const lineItems = responseBody.lineItems || [];
+
+  lineItems.forEach(lineItem => {
+    // Process accepted items inside this line
+    if (lineItem.acceptedItems && lineItem.acceptedItems.length > 0) {
+      lineItem.acceptedItems.forEach(item => {
+        const artifacts = {};
+        (item.artifacts || []).forEach(a => {
+          if (a.acceptanceArtifactType === 'OrderIdentifier') artifacts.orderId = a.identifier;
+          if (a.acceptanceArtifactType === 'UnitPrice') artifacts.unitPrice = a.amount?.amount;
+          if (a.acceptanceArtifactType === 'DeliveryTimeRange') {
+            artifacts.etaLower = a.lowerBoundary;
+            artifacts.etaUpper = a.upperBoundary;
+          }
+        });
+        result.acceptedItems.push({ externalId: lineItem.externalId, ...artifacts });
       });
-      return { externalId: item.externalId, ...artifacts };
-    });
-    // Primary order ID from first accepted item
+    }
+
+    // Process rejected items inside this line
+    if (lineItem.rejectedItems && lineItem.rejectedItems.length > 0) {
+      lineItem.rejectedItems.forEach(item => {
+        const artifacts = {};
+        (item.artifacts || []).forEach(a => {
+          if (a.rejectionArtifactType === 'BrokenUnitPriceExpectation') {
+            artifacts.expectedPrice = a.expectedAmount?.amount;
+            artifacts.actualPrice = a.actualAmount?.amount;
+          }
+          if (a.rejectionArtifactType === 'RejectionMessage') artifacts.message = a.message;
+          if (a.rejectionArtifactType === 'RejectionGroup' && a.supportingArtifacts) {
+            a.supportingArtifacts.forEach(sa => {
+              if (sa.rejectionArtifactType === 'RejectionMessage') artifacts.message = sa.message;
+            });
+          }
+        });
+        result.rejectedItems.push({ externalId: lineItem.externalId, ...artifacts });
+      });
+    }
+  });
+
+  if (result.acceptedItems.length > 0) {
+    result.success = true;
     result.amazonOrderId = result.acceptedItems[0]?.orderId || `TRIAL-${transactionId}`;
   }
 
-  // Extract rejected items
-  if (responseBody.rejectedItems && responseBody.rejectedItems.length > 0) {
-    result.rejectedItems = responseBody.rejectedItems.map(item => {
-      const artifacts = {};
-      (item.artifacts || []).forEach(a => {
-        if (a.artifactType === 'BrokenUnitPriceExpectation') {
-          artifacts.expectedPrice = a.expectedAmount?.amount;
-          artifacts.actualPrice = a.actualAmount?.amount;
-        }
-        if (a.artifactType === 'RejectionMessage') artifacts.message = a.message;
-      });
-      return { externalId: item.externalId, ...artifacts };
+  // Catch root level rejectionArtifacts safely
+  if (responseBody.rejectionArtifacts && responseBody.rejectionArtifacts.length > 0) {
+    responseBody.rejectionArtifacts.forEach(ra => {
+      if (ra.rejectionArtifactType === 'RejectionMessage') {
+        if (!result.error) result.error = ra.message;
+      }
     });
-    if (result.acceptedItems.length === 0) {
-      result.success = false;
-      result.error = 'All items rejected';
-    }
+  }
+
+  if (result.rejectedItems.length > 0 && result.acceptedItems.length === 0) {
+    result.success = false;
+    result.error = result.error || 'All items rejected by Amazon';
+  }
+
+  // Catch the "Unknown" case where 200 payload returned utterly nothing
+  if (!result.success && result.rejectedItems.length === 0 && !result.error && !responseBody.lineItems) {
+    result.error = 'Unparsable Amazon Payload: ' + JSON.stringify(responseBody).substring(0, 100);
   }
 
   return result;
@@ -680,7 +721,7 @@ class AmazonWorkflowEngine {
 
       // 6. Place order — Amazon evaluates price constraints via ExpectedUnitPrice
       console.log(`🛒 Placing order for ${cleanTxnId} (${cartItems.length} items)...`);
-      const orderResult = placeAmazonOrder(cartItems, cleanTxnId, requesterName);
+      const orderResult = placeAmazonOrder(cartItems, cleanTxnId, requesterName, requestor);
 
       if (orderResult.success) {
         this.updateQueueItemStatus(cleanTxnId, 'ORDERED');
@@ -691,14 +732,56 @@ class AmazonWorkflowEngine {
           status: 'ORDER_SUCCESS', orderId: orderResult.amazonOrderId
         });
 
+        let actualTotalAmount = 0;
+        const finalItems = parsedItems.map((item, index) => {
+          let finalUnitPrice = item.unitPrice;
+          let etaLower = null;
+          let etaUpper = null;
+          // Find the exact line item accepted by the API
+          const acceptedData = orderResult.acceptedItems.find(a => a.externalId === `line-${index + 1}`);
+          if (acceptedData && acceptedData.unitPrice) {
+            finalUnitPrice = acceptedData.unitPrice;
+          }
+          if (acceptedData && acceptedData.etaLower) {
+            etaLower = acceptedData.etaLower;
+            etaUpper = acceptedData.etaUpper;
+          }
+          const finalExtPrice = finalUnitPrice * item.quantity;
+          actualTotalAmount += finalExtPrice;
+          
+          return { 
+            ...item, 
+            unitPrice: finalUnitPrice, 
+            price: finalExtPrice,
+            etaLower,
+            etaUpper,
+            orderId: cleanTxnId, 
+            requestor, 
+            department: queueRow[3] 
+          };
+        });
+
         this.logTransactionsToBudgetHub({
           success: true, orderId: orderResult.amazonOrderId,
-          items: parsedItems.map(item => ({ ...item, orderId: cleanTxnId, requestor, department: queueRow[3] })),
-          totalAmount: queueRow[5]
+          items: finalItems,
+          totalAmount: actualTotalAmount > 0 ? actualTotalAmount : queueRow[5]
         });
 
         sendAmazonSummaryEmail(`Order Placed — ${cleanTxnId}`, summaryItems);
+        
+        // Phase 1: Send the highly detailed final receipt back to the teacher with ETAs
+        sendAmazonReceiptToRequestor({
+          requestorEmail: requestor,
+          transactionId: cleanTxnId,
+          amazonOrderId: orderResult.amazonOrderId,
+          items: finalItems,
+          totalAmount: actualTotalAmount > 0 ? actualTotalAmount : queueRow[5]
+        });
+        
         console.log(`✅ Order ${cleanTxnId} placed. ID: ${orderResult.amazonOrderId}`);
+        
+        // Trigger the actual spend logic (log to UserDirectory and update balances)
+        recordBudgetSpent(requestor, actualTotalAmount > 0 ? actualTotalAmount : queueRow[5]);
 
       } else {
         // Handle rejections — Amazon rejected because live price exceeded our ceiling

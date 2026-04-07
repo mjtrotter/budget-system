@@ -502,7 +502,7 @@ function sendApprovalNotification(requestorEmail, transactionData) {
         <div class="content">
           <div class="approval-box">
             <h2>Your order has been approved!</h2>
-            <p>The Business Office is now processing your purchase order. No further action is required from you at this time.</p>
+            <p>Your order is now being processed by the Business Office. You will receive a final confirmation receipt once the transaction has been executed.</p>
           </div>
 
           <div class="details-section">
@@ -604,6 +604,216 @@ function sendApprovalNotification(requestorEmail, transactionData) {
     console.error('Error sending approval notification:', error);
   }
 }
+
+// ============================================================================
+// BO EXECUTION ROUTING NOTIFICATION
+// ============================================================================
+
+function sendBoExecutionRoutingEmail(data) {
+  try {
+    const subject = `Execute Pending Order: ${data.transactionId} (${data.type})`;
+
+    const htmlBody = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; background: #f5f5f5; margin: 0; padding: 0; }
+        .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .header { background: #19573B; color: white; padding: 24px; text-align: center; border-bottom: 4px solid #ffc107; }
+        .header h1 { margin: 0; font-size: 22px; }
+        .content { padding: 30px; }
+        .info-box { background: #f8f9fa; border-left: 4px solid #19573B; padding: 20px; margin: 20px 0; border-radius: 5px; }
+        .detail-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e9ecef; }
+        .detail-label { color: #6c757d; }
+        .detail-value { color: #495057; font-weight: 500; }
+        .execute-link { display: block; text-align: center; background: #ffc107; color: #19573B; text-decoration: none; padding: 16px; border-radius: 6px; font-weight: 700; margin: 30px 0; font-size: 18px; }
+        .footer { background: #f8f9fa; padding: 20px; text-align: center; color: #6c757d; font-size: 14px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div style="background:white;padding:16px;text-align:center;border-bottom:1px solid #eee;">
+          <img src="https://lh3.googleusercontent.com/d/1HDkW_xGIc4jOBH4REnXb3VJcZaEjPHKj" style="max-width:200px;" onerror="this.style.display='none'" />
+        </div>
+        <div class="header">
+          <h1>Action Required: Execute Purchase Order</h1>
+        </div>
+        <div class="content">
+          <p>A new manual purchase order has been approved and is awaiting execution by the Business Office.</p>
+          
+          <div class="info-box">
+            <div class="detail-row">
+              <span class="detail-label">Transaction ID:</span>
+              <span class="detail-value">${data.transactionId}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Type:</span>
+              <span class="detail-value">${data.type}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Requestor:</span>
+              <span class="detail-value">${data.requestor}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Approver:</span>
+              <span class="detail-value">${data.approver}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Initial Amount:</span>
+              <span class="detail-value" style="color: #19573B; font-weight: bold;">$${parseFloat(data.amount || 0).toFixed(2)}</span>
+            </div>
+          </div>
+
+          <p>Please finalize this order using the Business Office Execution Portal. You will be asked to confirm the final billed price.</p>
+
+          <a href="${data.url}" class="execute-link">Open Execution Portal</a>
+        </div>
+        <div class="footer">
+          Keswick Christian School • Business Office Procurement
+        </div>
+      </div>
+    </body>
+    </html>
+    `;
+
+    // In testing it goes to the test email, otherwise the literal BO email.
+    const boEmail = typeof CONFIG !== 'undefined' ? CONFIG.BUSINESS_OFFICE_EMAIL : 'mtrotter@keswickchristian.org';
+    const recipient = isTestMode() ? CONFIG.TEST_EMAIL_RECIPIENT : boEmail;
+
+    sendSystemEmail({
+      to: recipient,
+      subject: isTestMode() ? `[TEST] ${subject}` : subject,
+      htmlBody: htmlBody
+    });
+
+    console.log(`✉️ BO execution routing email sent to ${recipient}`);
+  } catch (error) {
+    console.error('Error sending BO execution routing email:', error);
+  }
+}
+
+// ============================================================================
+// AMAZON RECEIPT & ETA NOTIFICATION
+// ============================================================================
+function sendAmazonReceiptToRequestor(payload) {
+  try {
+    const userBudget = getUserBudgetInfo(payload.requestorEmail);
+    const newSpent = userBudget.spent;
+    const newEncumbered = userBudget.encumbered;
+    const newAvailable = userBudget.allocated - newSpent - newEncumbered;
+    const newUtilization = userBudget.allocated > 0 ? ((newSpent + newEncumbered) / userBudget.allocated * 100) : 0;
+
+    const subject = `Order Confirmed: Amazon Purchase ${payload.transactionId}`;
+
+    let itemsHtml = '';
+    payload.items.forEach(item => {
+      let etaString = 'ETA Pending';
+      if (item.etaLower && item.etaUpper) {
+        const dLower = new Date(item.etaLower);
+        const dUpper = new Date(item.etaUpper);
+        if (!isNaN(dLower.getTime()) && !isNaN(dUpper.getTime())) {
+          etaString = `Arriving ${dLower.toLocaleDateString()} - ${dUpper.toLocaleDateString()}`;
+        }
+      }
+
+      itemsHtml += `
+        <div style="border-bottom: 1px solid #eee; padding: 12px 0;">
+          <div style="font-weight: 600; color: #333;">${item.description || 'Amazon Item'}</div>
+          <div style="display: flex; justify-content: space-between; margin-top: 4px; font-size: 14px;">
+            <div style="color: #666;">Qty: ${item.quantity} &times; $${item.unitPrice.toFixed(2)}</div>
+            <div style="font-weight: 600; color: #19573B;">$${item.price.toFixed(2)}</div>
+          </div>
+          <div style="margin-top: 4px; font-size: 13px; color: #d32f2f; font-weight: 500;">
+            🚚 ${etaString}
+          </div>
+        </div>
+      `;
+    });
+
+    const htmlBody = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; background-color: #f5f5f5; margin: 0; padding: 0; }
+        .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .header { background: #19573B; color: white; padding: 24px; text-align: center; }
+        .header img { max-width: 200px; filter: brightness(0) invert(1); margin-bottom: 12px; }
+        .content { padding: 30px; }
+        .success-box { background: #e8f5e9; border-left: 4px solid #19573B; padding: 20px; margin: 20px 0; border-radius: 5px; }
+        .success-box h2 { color: #19573B; margin: 0 0 10px 0; font-size: 20px; }
+        .info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin: 30px 0; }
+        .info-card { background: #f8f9fa; padding: 20px; border-radius: 8px; text-align: center; border: 1px solid #e9ecef; }
+        .info-label { color: #6c757d; font-size: 14px; text-transform: uppercase; margin-bottom: 5px; }
+        .info-value { font-size: 24px; font-weight: 600; color: #495057; }
+        .items-section { border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; margin: 20px 0; }
+        .footer { background: #f8f9fa; padding: 20px; text-align: center; color: #6c757d; font-size: 14px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+      <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color:white; border-bottom:1px solid #eee;">
+        <tr>
+          <td align="center" style="padding: 20px;">
+            <img src="https://lh3.googleusercontent.com/d/1HDkW_xGIc4jOBH4REnXb3VJcZaEjPHKj" alt="Keswick Christian School" width="220" style="display:block; max-width:220px; height:auto; border:0;">
+          </td>
+        </tr>
+      </table>
+        <div class="header">
+          <h1 style="margin: 0; font-size: 22px;">Order Placed Successfully</h1>
+        </div>
+        <div class="content">
+          <div class="success-box">
+            <h2>Your supplies are on the way!</h2>
+            <p>Your Department Head approved your request and the API has officially dispatched the order to Amazon.</p>
+          </div>
+          
+          <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <div style="font-size: 14px; color: #666; margin-bottom: 5px;">Amazon Order Number</div>
+            <div style="font-size: 18px; font-weight: bold; color: #1565c0;">${payload.amazonOrderId}</div>
+          </div>
+
+          <div class="items-section">
+            <h3 style="margin-top: 0; color: #19573B;">Line Items & Delivery Estimates</h3>
+            ${itemsHtml}
+            <div style="margin-top: 15px; padding-top: 15px; border-top: 2px solid #333; text-align: right; font-size: 18px; font-weight: bold;">
+              Total Billed: $${payload.totalAmount.toFixed(2)}
+            </div>
+          </div>
+
+          <div class="info-grid">
+            <div class="info-card">
+              <div class="info-label">Remaining Budget</div>
+              <div class="info-value" style="color: #19573B;">$${newAvailable.toFixed(2)}</div>
+            </div>
+            <div class="info-card">
+              <div class="info-label">Budget Utilization</div>
+              <div class="info-value" style="color: #1976d2;">${newUtilization.toFixed(1)}%</div>
+            </div>
+          </div>
+        </div>
+        <div class="footer">
+          Keswick Christian School • Business Office Procurement
+        </div>
+      </div>
+    </body>
+    </html>
+    `;
+
+    const recipient = getEmailRecipient(payload.requestorEmail);
+    sendSystemEmail({
+      to: recipient,
+      subject: isTestMode() ? `[TEST] ${subject}` : subject,
+      htmlBody: htmlBody
+    });
+
+    console.log(`✉️ Amazon detailed receipt sent to ${recipient}`);
+  } catch (error) {
+    console.error('Error sending Amazon receipt to requestor:', error);
+  }
+}
+
 
 // ============================================================================
 // REJECTION NOTIFICATION TO REQUESTOR
@@ -1323,9 +1533,10 @@ function sendInvoiceReadyNotification(requestorEmail, invoiceData) {
           <h1>Invoice Ready</h1>
         </div>
         <div class="content">
-          <p>Your purchase order has been invoiced. You can view and download your invoice below.</p>
-          <div style="text-align: center; margin: 25px 0;">
-            <a href="${invoiceData.invoiceUrl}" class="invoice-link">View Invoice (PDF)</a>
+          <p>Your purchase order has been executed and invoiced. You can view the final invoice below.</p>
+          <div style="text-align: center; margin: 25px 0; display:flex; flex-direction:column; gap:10px; align-items:center;">
+            <a href="${invoiceData.invoiceUrl}" class="invoice-link">View Final Invoice (PDF)</a>
+            ${invoiceData.packageFolder ? `<a href="${invoiceData.packageFolder}" style="color:#1565c0; font-weight:600; text-decoration:none;">📂 View Receipts & Quotes Folder</a>` : ''}
           </div>
           <div style="background: #f8f9fa; padding: 20px; border-radius: 8px;">
             <div class="detail-row">
