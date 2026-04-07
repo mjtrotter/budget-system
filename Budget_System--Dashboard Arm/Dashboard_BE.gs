@@ -4361,6 +4361,7 @@ function getAdminPanelData() {
             email:     String(r[0] || ""),
             firstName: String(r[1] || ""),
             lastName:  String(r[2] || ""),
+            name:      `${String(r[1] || "")} ${String(r[2] || "")}`.trim() || String(r[0] || ""),
             dept:      String(r[3] || ""),
             division:  String(r[4] || ""),
             role:      String(r[5] || ""),

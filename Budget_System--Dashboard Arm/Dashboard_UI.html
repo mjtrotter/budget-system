@@ -2082,7 +2082,19 @@
                             <button class="header-button mt-3" onclick="window.adminTabLogic.submitConfigUpdate()" style="width: 100%; justify-content: center; background: var(--primary-color); color: white;">
                                 Update Configuration
                             </button>
-                            <p class="text-muted mt-2" style="font-size: 11px;">Note: TEST_MODE limits emails. TRIAL_MODE enables fake Amazon purchasing and blocks real ones.</p>
+                            <div class="config-help mt-3 p-2 bg-light rounded" style="font-size: 11px; max-height: 200px; overflow-y: auto; border: 1px solid #eee;">
+                                <strong style="color: var(--secondary-color);">Config Cheat Sheet:</strong>
+                                <ul class="ps-3 mb-0">
+                                    <li><strong>AUTO_APPROVAL_LIMIT:</strong> Purchases under this $ amount auto-approve.</li>
+                                    <li><strong>VELOCITY_LIMIT_DEFAULT:</strong> Max daily spend limit for standard users.</li>
+                                    <li><strong>VELOCITY_LIMIT_ADMIN:</strong> Max daily spend limit for admins.</li>
+                                    <li><strong>PRICE_TOLERANCE_PCT:</strong> Allowed price variance (0.05 = 5%).</li>
+                                    <li><strong>PRICE_TOLERANCE_AMT:</strong> Max absolute $ variance (e.g. 5.0).</li>
+                                    <li><strong>PRICE_HARD_CAP:</strong> Max cap regardless of %.</li>
+                                    <li><strong>TRIAL_MODE_ENABLED:</strong> If true, Amazon orders are simulate (safe mode).</li>
+                                    <li><strong>TEST_MODE:</strong> If true, emails only go to UAT whitelisted testers.</li>
+                                </ul>
+                            </div>
                         </div>
                     </div>
 
@@ -2187,7 +2199,7 @@
                 } else {
                     const orgs = window.adminPanelData.orgs || [];
                     orgs.forEach(o => {
-                        dropdown.innerHTML += `<option value="${o.organization}" data-allocated="${o.allocated || 0}">${o.organization} - $${o.allocated || 0}</option>`;
+                        dropdown.innerHTML += `<option value="${o.name}" data-allocated="${o.allocated || 0}">${o.name} - $${o.allocated || 0}</option>`;
                     });
                 }
                 this.populateCurrentValue();
