@@ -705,6 +705,12 @@ function doGet(e) {
     const params = e ? e.parameter : {};
 
     // BACKDOOR: Local test script generation
+    if (params.action === "cleanup") {
+       if (typeof finalProductionCleanup === 'function') {
+         return finalProductionCleanup();
+       }
+    }
+
     if (params.action === "get_pdfs") {
       const templateType = params.template || "all";
       let results = {};
