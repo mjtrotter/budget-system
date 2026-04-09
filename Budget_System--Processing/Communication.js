@@ -681,13 +681,14 @@ function sendBoExecutionRoutingEmail(data) {
     </html>
     `;
 
-    // In testing it goes to the test email, otherwise the literal BO email.
-    const boEmail = typeof CONFIG !== 'undefined' ? CONFIG.BUSINESS_OFFICE_EMAIL : 'mtrotter@keswickchristian.org';
-    const recipient = isTestMode() ? CONFIG.TEST_EMAIL_RECIPIENT : boEmail;
+    // In test mode, send to the approver (the tester) so they can verify the email.
+    // In production, send to the actual Business Office.
+    const boEmail = CONFIG.BUSINESS_OFFICE_EMAIL || 'mtrotter@keswickchristian.org';
+    const recipient = isTestMode() ? getEmailRecipient(data.approver || boEmail) : boEmail;
 
     sendSystemEmail({
       to: recipient,
-      subject: isTestMode() ? `[TEST] ${subject}` : subject,
+      subject: isTestMode() ? `[TEST-BO] ${subject}` : subject,
       htmlBody: htmlBody
     });
 

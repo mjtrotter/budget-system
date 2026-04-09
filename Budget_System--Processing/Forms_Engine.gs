@@ -1672,7 +1672,8 @@ function processApprovalDecision(token, decision, reason_param = "", registratio
       updateUserBudgetEncumbrance(request.email, request.amount, "add");
 
       if (!request.isAutomated) {
-        // Let the BO know there's a new Manual transaction pending Execution
+        // Send BO the execution routing email. Ledger entry and invoice generation
+        // happen AFTER the BO confirms the final billed price via processBoExecution.
         const executionUrl = `${getDyn("WEBAPP_URL")}?action=execute_manual&id=${encodeURIComponent(transactionId)}`;
         sendBoExecutionRoutingEmail({
           transactionId: transactionId,
@@ -1682,41 +1683,6 @@ function processApprovalDecision(token, decision, reason_param = "", registratio
           approver: approverEmail,
           url: executionUrl
         });
-
-        const orderId = generateOrderID(
-          request.division || request.department,
-          request.type,
-        );
-        moveToTransactionLedger({
-          transactionId: transactionId,
-          orderId: orderId,
-          requestor: request.email,
-          approver: approverEmail,
-          organization: request.department,
-          form: request.type,
-          amount: request.amount,
-          description: request.description,
-        });
-
-        console.log(
-          `🧾 Queuing Single Invoice generation for approved request: ${transactionId}`,
-        );
-        try {
-          const cache = CacheService.getScriptCache();
-          const trigger = ScriptApp.newTrigger("runGenerateSingleInvoiceAsync")
-            .timeBased()
-            .after(100)
-            .create();
-          cache.put(
-            "async_invoice_" + trigger.getUniqueId(),
-            transactionId,
-            3600,
-          ); // 1 hour
-        } catch (invoiceErr) {
-          console.error(
-            `❌ Failed to queue single invoice for ${transactionId}: ${invoiceErr.message}`,
-          );
-        }
       } else {
         console.log(
           `Automated item ${transactionId} approved - routing payloads`,
@@ -1846,13 +1812,15 @@ function runApprovalDownstreamAsync(e) {
   });
 
   var data = JSON.parse(raw);
-  console.log("[ASYNC] Running downstream processing for " + data.transactionId);
+  console.log("[ASYNC] Running downstream for " + data.transactionId + " | isAutomated=" + data.isAutomated);
 
+  // Force SUMIFS recalculation before building email payloads
+  try { SpreadsheetApp.flush(); } catch (fe) { console.error("[ASYNC] flush error: " + fe); }
+
+  // Each step is isolated so one failure cannot block the others.
+
+  // 1. Notify requestor
   try {
-    // Force SUMIFS recalculation before building email payloads
-    SpreadsheetApp.flush();
-
-    // Notify requestor
     sendApprovalNotification(data.email, {
       transactionId: data.transactionId,
       amount: data.amount,
@@ -1860,12 +1828,21 @@ function runApprovalDownstreamAsync(e) {
       description: data.description,
       approver: data.approverEmail,
     });
+    console.log("[ASYNC] Requestor notification sent to " + data.email);
+  } catch (e1) { console.error("[ASYNC] sendApprovalNotification failed: " + e1); }
 
+  // 2. Update budget encumbrance
+  try {
     updateUserBudgetEncumbrance(data.email, data.amount, "add");
+  } catch (e2) { console.error("[ASYNC] updateUserBudgetEncumbrance failed: " + e2); }
 
-    if (!data.isAutomated) {
-      // BO Execution Routing Email (manual orders)
+  if (!data.isAutomated) {
+    // 3. BO Execution Routing Email (manual orders)
+    // Ledger entry and invoice generation happen AFTER the BO confirms
+    // the final billed price via the Execution Portal (processBoExecution).
+    try {
       var executionUrl = getDyn("WEBAPP_URL") + "?action=execute_manual&id=" + encodeURIComponent(data.transactionId);
+      console.log("[ASYNC] Sending BO routing email for " + data.transactionId + " | approver=" + data.approverEmail);
       sendBoExecutionRoutingEmail({
         transactionId: data.transactionId,
         type: data.type,
@@ -1874,34 +1851,13 @@ function runApprovalDownstreamAsync(e) {
         approver: data.approverEmail,
         url: executionUrl
       });
-
-      // Move to Transaction Ledger
-      var orderId = generateOrderID(data.division || data.department, data.type);
-      moveToTransactionLedger({
-        transactionId: data.transactionId,
-        orderId: orderId,
-        requestor: data.email,
-        approver: data.approverEmail,
-        organization: data.department,
-        form: data.type,
-        amount: data.amount,
-        description: data.description,
-      });
-
-      // Queue invoice generation
-      try {
-        var invoiceTrigger = ScriptApp.newTrigger("runGenerateSingleInvoiceAsync")
-          .timeBased().after(100).create();
-        CacheService.getScriptCache().put(
-          "async_invoice_" + invoiceTrigger.getUniqueId(), data.transactionId, 3600
-        );
-      } catch (invoiceErr) {
-        console.error("Failed to queue invoice for " + data.transactionId + ": " + invoiceErr.message);
-      }
-    } else {
-      // Automated (Amazon) — dispatch order
+      console.log("[ASYNC] BO routing email sent successfully");
+    } catch (e3) { console.error("[ASYNC] sendBoExecutionRoutingEmail FAILED: " + e3); }
+  } else {
+    // Automated (Amazon) — dispatch order
+    try {
       if (data.type === "AMAZON" && typeof AmazonWorkflowEngine !== "undefined") {
-        console.log("Routing approved Amazon order to dispatch: " + data.transactionId);
+        console.log("[ASYNC] Routing Amazon order to dispatch: " + data.transactionId);
         new AmazonWorkflowEngine().dispatchAmazonOrder(data.transactionId, {
           email: data.email,
           department: data.department,
@@ -1909,23 +1865,19 @@ function runApprovalDownstreamAsync(e) {
           description: data.description,
         });
       }
-    }
+    } catch (e6) { console.error("[ASYNC] Amazon dispatch failed: " + e6); }
+  }
 
+  try {
     logSystemEvent("REQUEST_APPROVED", data.approverEmail, data.amount, {
       transactionId: data.transactionId,
       requestor: data.email,
       timestamp: new Date(),
       async: true,
     });
+  } catch (e7) { console.error("[ASYNC] logSystemEvent failed: " + e7); }
 
-    console.log("[ASYNC] Downstream complete for " + data.transactionId);
-  } catch (error) {
-    console.error("[ASYNC ERROR] Downstream failed for " + data.transactionId + ": " + error.message);
-    logSystemEvent("ASYNC_APPROVAL_ERROR", data.approverEmail || "UNKNOWN", 0, {
-      error: error.toString(),
-      transactionId: data.transactionId,
-    });
-  }
+  console.log("[ASYNC] Downstream complete for " + data.transactionId);
 }
 
 function updateQueueStatus(transactionId, status, approver, isAutomated) {
