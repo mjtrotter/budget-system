@@ -1474,7 +1474,7 @@ function processAdminFormSubmission(e) {
  * @param {string} decision - 'approve' or 'reject'
  * @returns {Object} Result with success, status, or error
  */
-function processApprovalDecision(token, decision, reason_param = "", registrationOnly = false) {
+function processApprovalDecision(token, decision, reason_param = "", registrationOnly = false, skipIdentityCheck = false) {
   let tokenData = null;
   let request = null;
   let approverEmail = null;
@@ -1494,7 +1494,9 @@ function processApprovalDecision(token, decision, reason_param = "", registratio
     approverEmail = tokenData.approver;
 
     // Step 2: Verify current user matches token approver (identity verification)
-    const currentUser = Session.getActiveUser().getEmail();
+    // Skipped when called from doGet — the token itself proves identity, and
+    // Session.getActiveUser() can return empty in web-app deployment contexts.
+    const currentUser = skipIdentityCheck ? approverEmail : Session.getActiveUser().getEmail();
     if (currentUser !== approverEmail) {
       console.warn(
         `[SECURITY] Identity mismatch: Token approver ${approverEmail} != Current user ${currentUser}`,

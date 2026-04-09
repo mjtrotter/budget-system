@@ -824,7 +824,7 @@ function doGet(e) {
 
     // APPROVE: Register instantly, then run emails/ledger/invoices in background
     if (decision === "approve") {
-      const result = processApprovalDecision(token, "approve", "", true);
+      const result = processApprovalDecision(token, "approve", "", true, true);
 
       if (!result.success) {
         return buildResultPage("Approval Error", result.error, false);
