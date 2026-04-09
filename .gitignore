@@ -18,6 +18,9 @@ dist/
 # OS
 .DS_Store
 
+# Browser profiles (Playwright/E2E)
+.playwright-profile/
+
 # Project
 _scratch/*.md
 !_scratch/README.md
