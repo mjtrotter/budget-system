@@ -4357,11 +4357,20 @@ function getAdminPanelData() {
         const hdrs = rows[0];
         result.users = rows.slice(1)
           .filter(r => r[0] && String(r[0]).includes("@"))
-          .map(r => ({
+          .map(r => {
+            let fName = String(r[1] || "").trim();
+            let lName = String(r[2] || "").trim();
+            if (fName.toLowerCase() === "undefined") fName = "";
+            if (lName.toLowerCase() === "undefined") lName = "";
+            
+            let assembledName = `${fName} ${lName}`.trim();
+            if (!assembledName) assembledName = String(r[0] || "");
+            
+            return {
             email:     String(r[0] || ""),
             firstName: String(r[1] || ""),
             lastName:  String(r[2] || ""),
-            name:      `${String(r[1] || "")} ${String(r[2] || "")}`.trim() || String(r[0] || ""),
+            name:      assembledName,
             dept:      String(r[3] || ""),
             division:  String(r[4] || ""),
             role:      String(r[5] || ""),
@@ -4369,7 +4378,8 @@ function getAdminPanelData() {
             spent:     parseFloat(r[8]) || 0,
             encumbered:parseFloat(r[9]) || 0,
             available: parseFloat(r[10]) || 0,
-          }));
+          };
+          });
       }
     } catch (e) { result.users = []; }
 

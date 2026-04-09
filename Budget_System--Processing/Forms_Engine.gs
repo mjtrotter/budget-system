@@ -1474,7 +1474,7 @@ function processAdminFormSubmission(e) {
  * @param {string} decision - 'approve' or 'reject'
  * @returns {Object} Result with success, status, or error
  */
-function processApprovalDecision(token, decision) {
+function processApprovalDecision(token, decision, reason_param = "") {
   let tokenData = null;
   let request = null;
   let approverEmail = null;
@@ -1645,6 +1645,10 @@ function processApprovalDecision(token, decision) {
     markTokenAsUsed(token, currentUser);
 
     if (newStatus === "APPROVED") {
+      // CRITICAL: Flush spreadsheet changes (ledger/encumbrance updates) so SUMIFS formulas 
+      // are updated before we scrape the user budget for the email notification.
+      SpreadsheetApp.flush();
+
       sendApprovalNotification(request.email, {
         transactionId: transactionId,
         amount: request.amount,
@@ -1655,6 +1659,19 @@ function processApprovalDecision(token, decision) {
       updateUserBudgetEncumbrance(request.email, request.amount, "add");
 
       if (!request.isAutomated) {
+        // Let the BO know there's a new Manual transaction pending Execution
+        const executionUrl = `${getDyn("WEBAPP_URL")}?action=execute_manual&id=${encodeURIComponent(transactionId)}`;
+        if (typeof sendBoExecutionRoutingEmail === 'function') {
+          sendBoExecutionRoutingEmail({
+            transactionId: transactionId,
+            type: request.type,
+            amount: request.amount,
+            requestor: request.email,
+            approver: approverEmail,
+            url: executionUrl
+          });
+        }
+
         const orderId = generateOrderID(
           request.division || request.department,
           request.type,
@@ -1721,6 +1738,7 @@ function processApprovalDecision(token, decision) {
         amount: request.amount,
         description: request.description,
         approver: approverEmail,
+        reason: reason_param,
       });
 
       if (request.wasOverBudget) {

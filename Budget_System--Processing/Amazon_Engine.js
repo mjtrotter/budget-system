@@ -769,6 +769,14 @@ class AmazonWorkflowEngine {
 
         sendAmazonSummaryEmail(`Order Placed — ${cleanTxnId}`, summaryItems);
         
+        console.log(`✅ Order ${cleanTxnId} placed. ID: ${orderResult.amazonOrderId}`);
+        
+        // CRITICAL: Trigger the actual spend logic (log to UserDirectory and update balances)
+        // This must happen BEFORE the receipt is sent so the email shows the updated budget balance.
+        recordBudgetSpent(requestor, actualTotalAmount > 0 ? actualTotalAmount : queueRow[5]);
+        SpreadsheetApp.flush();
+        Utilities.sleep(1000); // Give the SUMIFS engine a moment to settle
+
         // Phase 1: Send the highly detailed final receipt back to the teacher with ETAs
         sendAmazonReceiptToRequestor({
           requestorEmail: requestor,
@@ -777,11 +785,6 @@ class AmazonWorkflowEngine {
           items: finalItems,
           totalAmount: actualTotalAmount > 0 ? actualTotalAmount : queueRow[5]
         });
-        
-        console.log(`✅ Order ${cleanTxnId} placed. ID: ${orderResult.amazonOrderId}`);
-        
-        // Trigger the actual spend logic (log to UserDirectory and update balances)
-        recordBudgetSpent(requestor, actualTotalAmount > 0 ? actualTotalAmount : queueRow[5]);
 
       } else {
         // Handle rejections — Amazon rejected because live price exceeded our ceiling

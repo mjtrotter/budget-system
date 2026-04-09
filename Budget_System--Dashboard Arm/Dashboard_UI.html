@@ -2205,13 +2205,24 @@
                 this.populateCurrentValue();
             },
             populateCurrentValue: function() {
+                const type = document.getElementById('adminBudgetType').value;
                 const dropdown = document.getElementById('adminBudgetTarget');
-                const selected = dropdown.options[dropdown.selectedIndex];
+                const selectedVal = dropdown.value;
                 const currentValLabel = document.getElementById('adminCurrentVal');
                 const formatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
-                if (selected && selected.value) {
-                    const allocated = selected.getAttribute('data-allocated');
-                    currentValLabel.textContent = formatter.format(parseFloat(allocated) || 0);
+                
+                let allocated = 0;
+                if (selectedVal && window.adminPanelData) {
+                    if (type === 'user') {
+                        const arr = window.adminPanelData.users || [];
+                        const u = arr.find(x => x.email === selectedVal);
+                        if (u) allocated = u.allocated || 0;
+                    } else {
+                        const arr = window.adminPanelData.orgs || [];
+                        const o = arr.find(x => x.name === selectedVal);
+                        if (o) allocated = o.allocated || 0;
+                    }
+                    currentValLabel.textContent = formatter.format(allocated);
                 } else {
                     currentValLabel.textContent = '$0.00';
                 }

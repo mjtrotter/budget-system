@@ -822,33 +822,19 @@ function doGet(e) {
       );
     }
 
-    // APPROVE: Process immediately routing through main approval engine logic
-    if (decision === "approve") {
-      console.log(
-        `[SECURITY] One-click approve for ${transactionId} by ${approverEmail}`,
-      );
-      try {
-        const result = processApprovalDecision(token, "approve");
-
-        if (result.success) {
-          const requestorName = getDisplayName(requestData.email);
-          return buildResultPage(
-            "Request Approved",
-            `${requestData.type || "Request"} ${transactionId} for $${(requestData.amount || 0).toFixed(2)} has been approved. A notification has been sent to ${requestorName}.`,
-            true,
-          );
-        } else {
-          return buildResultPage(
-            "Approval Error",
-            result.error || "Failed to process approval.",
-            false,
-          );
-        }
-      } catch (approveError) {
-        console.error(`[ERROR] One-click approve failed: ${approveError}`);
-        return buildResultPage(
-          "Approval Error",
-          approveError.message || "Failed to process approval.",
+    // APPROVE: Route to instant loading Async UI
+    try {
+      const template = HtmlService.createTemplateFromFile("Async_Approve");
+      template.token = token;
+      template.decision = decision;
+      return template.evaluate()
+        .setTitle("Budget System — Processing")
+        .addMetaTag("viewport", "width=device-width, initial-scale=1");
+    } catch (err) {
+      console.error(`[ERROR] Async UI Render failed: ${err}`);
+      return buildResultPage(
+        "Loading Error",
+          err.message || "Failed to process approval.",
           false,
         );
       }
@@ -1041,97 +1027,22 @@ function getRequestDetails(transactionId) {
 /**
  * Handles approval/rejection from WebApp UI (called via google.script.run).
  * Uses token-based system for security.
- *
- * @param {string} token - The secure approval token
- * @param {string} decision - 'approve' or 'reject'
- * @param {string} reason - Optional rejection reason
- * @returns {Object} Result with success and status or error
  */
-function handleApprovalFromWebApp(token, decision, reason) {
+function handleApprovalFromWebApp(token, decision, reason = "") {
   try {
-    console.log(`[SECURITY] WebApp rejection initiated`);
-
-    // Validate token
-    const tokenValidation = validateAndRetrieveToken(token);
-    if (!tokenValidation.valid) {
-      return { success: false, error: tokenValidation.error };
-    }
-
-    const tokenData = tokenValidation.data;
-    const transactionId = tokenData.transactionId;
-    const approverEmail = tokenData.approver;
-
-    // Fetch request
-    const request = findRequestInQueues(transactionId);
-    if (!request) {
-      return {
-        success: false,
-        error: "Request not found or already processed",
-      };
-    }
-    if (request.status !== "PENDING") {
-      return {
-        success: false,
-        error: `Request already ${request.status.toLowerCase()}`,
-      };
-    }
-
-    // Process the decision
-    const status = decision === "approve" ? "APPROVED" : "REJECTED";
-    updateQueueStatus(transactionId, status, approverEmail, false);
-    markTokenUsed(token, approverEmail);
-
-    // Send notification to requestor
-    if (decision === "reject") {
-      sendRejectionNotification(request.email, {
-        transactionId: transactionId,
-        amount: request.amount,
-        type: request.type || "Request",
-        approver: approverEmail,
-        reason: reason || "",
-      });
-    } else {
-      // PHASE 1: Do NOT send the generic Approval Notification immediately for Amazon.
-      // Amazon API will send a final Receipt email with ETAs and final Prices once confirmed.
-      const isAmazon = request.type && request.type.toString().toUpperCase().includes("AMAZON");
-      
-      if (!isAmazon) {
-        sendApprovalNotification(request.email, {
-          transactionId: transactionId,
-          amount: request.amount,
-          type: request.type || "Request",
-          approver: approverEmail,
-        });
-        
-        // Let the BO know there's a new Manual transaction pending Execution
-        const executionUrl = `${CONFIG.WEBAPP_URL}?action=execute_manual&id=${encodeURIComponent(transactionId)}`;
-        sendBoExecutionRoutingEmail({
-          transactionId: transactionId,
-          type: request.type,
-          amount: request.amount,
-          requestor: request.email,
-          approver: approverEmail,
-          url: executionUrl
-        });
-      }
-    }
-
-    logSystemEvent(
-      "WEBAPP_APPROVAL_PROCESSED",
-      approverEmail,
-      request.amount || 0,
-      {
-        decision: status,
-        reason: reason || "",
-        transactionId: transactionId,
-      },
-    );
-
-    return { success: true, status: status };
+    return processApprovalDecision(token, decision, reason);
   } catch (error) {
-    console.error("[SECURITY ERROR] handleApprovalFromWebApp error:", error);
+    console.error("[ERROR] handleApprovalFromWebApp proxy error:", error);
     return { success: false, error: error.toString() };
   }
+}
+
+/**
+ * Modern wrapper for processApprovalDecision specifically for the Async UI spinner.
+ * Namespaced differently to avoid any potential deployment collisions during transition.
+ */
+function processApprovalDecisionViaClient(token, decision) {
+  return handleApprovalFromWebApp(token, decision);
 }
 
 /**

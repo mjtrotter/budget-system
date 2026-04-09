@@ -552,8 +552,12 @@ function sendApprovalNotification(requestorEmail, transactionData) {
           <div class="next-steps">
             <h3>What Happens Next?</h3>
             <ul>
-              <li>The Business Office will generate an official purchase order</li>
-              <li>Your order will be submitted to the vendor</li>
+              ${transactionData.type && transactionData.type.toString().toUpperCase().includes("AMAZON") 
+                ? `<li><strong>Automated:</strong> Your order has been submitted directly to the Amazon Business API.</li>
+                   <li>A separate email with final pricing and delivery ETAs will follow shortly.</li>`
+                : `<li>The Business Office will generate an official purchase order</li>
+                   <li>Your order will be submitted to the vendor</li>`
+              }
               <li>You'll receive delivery confirmation when items arrive</li>
               <li>No further action is needed from you</li>
             </ul>
