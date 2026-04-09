@@ -1474,7 +1474,7 @@ function processAdminFormSubmission(e) {
  * @param {string} decision - 'approve' or 'reject'
  * @returns {Object} Result with success, status, or error
  */
-function processApprovalDecision(token, decision, reason_param = "") {
+function processApprovalDecision(token, decision, reason_param = "", registrationOnly = false) {
   let tokenData = null;
   let request = null;
   let approverEmail = null;
@@ -1644,6 +1644,19 @@ function processApprovalDecision(token, decision, reason_param = "") {
     // Step 7: Mark token as used (prevent replay attacks)
     markTokenAsUsed(token, currentUser);
 
+    // If registrationOnly, return immediately after registering the decision.
+    // The caller (doGet) schedules downstream processing via a background trigger.
+    if (registrationOnly) {
+      return {
+        success: true,
+        status: newStatus,
+        transactionId: transactionId,
+        approverEmail: currentUser,
+        token: token,
+        request: request
+      };
+    }
+
     if (newStatus === "APPROVED") {
       // CRITICAL: Flush spreadsheet changes (ledger/encumbrance updates) so SUMIFS formulas 
       // are updated before we scrape the user budget for the email notification.
@@ -1661,16 +1674,14 @@ function processApprovalDecision(token, decision, reason_param = "") {
       if (!request.isAutomated) {
         // Let the BO know there's a new Manual transaction pending Execution
         const executionUrl = `${getDyn("WEBAPP_URL")}?action=execute_manual&id=${encodeURIComponent(transactionId)}`;
-        if (typeof sendBoExecutionRoutingEmail === 'function') {
-          sendBoExecutionRoutingEmail({
-            transactionId: transactionId,
-            type: request.type,
-            amount: request.amount,
-            requestor: request.email,
-            approver: approverEmail,
-            url: executionUrl
-          });
-        }
+        sendBoExecutionRoutingEmail({
+          transactionId: transactionId,
+          type: request.type,
+          amount: request.amount,
+          requestor: request.email,
+          approver: approverEmail,
+          url: executionUrl
+        });
 
         const orderId = generateOrderID(
           request.division || request.department,
@@ -1785,6 +1796,135 @@ function processApprovalDecision(token, decision, reason_param = "") {
       error:
         "An error occurred while processing your approval. Please try again.",
     };
+  }
+}
+
+/**
+ * Schedules all post-approval downstream processing (emails, ledger, invoices, Amazon)
+ * as a background time-based trigger so the approver sees instant confirmation.
+ */
+function scheduleApprovalDownstream(registrationResult) {
+  var cache = CacheService.getScriptCache();
+  var trigger = ScriptApp.newTrigger("runApprovalDownstreamAsync")
+    .timeBased().after(100).create();
+
+  var payload = {
+    transactionId: registrationResult.transactionId,
+    approverEmail: registrationResult.approverEmail,
+    token: registrationResult.token,
+    email: registrationResult.request.email,
+    amount: registrationResult.request.amount,
+    type: registrationResult.request.type,
+    description: registrationResult.request.description,
+    department: registrationResult.request.department,
+    division: registrationResult.request.division,
+    isAutomated: !!registrationResult.request.isAutomated,
+    wasOverBudget: !!registrationResult.request.wasOverBudget
+  };
+
+  cache.put("async_approval_" + trigger.getUniqueId(), JSON.stringify(payload), 3600);
+  console.log("[ASYNC] Scheduled downstream processing for " + payload.transactionId);
+}
+
+/**
+ * Background trigger handler: runs all downstream approval processing.
+ * Fired by scheduleApprovalDownstream via a one-shot time-based trigger.
+ */
+function runApprovalDownstreamAsync(e) {
+  var cache = CacheService.getScriptCache();
+  var key = "async_approval_" + e.triggerUid;
+  var raw = cache.get(key);
+  if (!raw) {
+    console.error("[ASYNC] No cached data for trigger " + e.triggerUid);
+    return;
+  }
+  cache.remove(key);
+
+  // Clean up the one-shot trigger
+  ScriptApp.getProjectTriggers().forEach(function(t) {
+    if (t.getUniqueId() === e.triggerUid) ScriptApp.deleteTrigger(t);
+  });
+
+  var data = JSON.parse(raw);
+  console.log("[ASYNC] Running downstream processing for " + data.transactionId);
+
+  try {
+    // Force SUMIFS recalculation before building email payloads
+    SpreadsheetApp.flush();
+
+    // Notify requestor
+    sendApprovalNotification(data.email, {
+      transactionId: data.transactionId,
+      amount: data.amount,
+      type: data.type,
+      description: data.description,
+      approver: data.approverEmail,
+    });
+
+    updateUserBudgetEncumbrance(data.email, data.amount, "add");
+
+    if (!data.isAutomated) {
+      // BO Execution Routing Email (manual orders)
+      var executionUrl = getDyn("WEBAPP_URL") + "?action=execute_manual&id=" + encodeURIComponent(data.transactionId);
+      sendBoExecutionRoutingEmail({
+        transactionId: data.transactionId,
+        type: data.type,
+        amount: data.amount,
+        requestor: data.email,
+        approver: data.approverEmail,
+        url: executionUrl
+      });
+
+      // Move to Transaction Ledger
+      var orderId = generateOrderID(data.division || data.department, data.type);
+      moveToTransactionLedger({
+        transactionId: data.transactionId,
+        orderId: orderId,
+        requestor: data.email,
+        approver: data.approverEmail,
+        organization: data.department,
+        form: data.type,
+        amount: data.amount,
+        description: data.description,
+      });
+
+      // Queue invoice generation
+      try {
+        var invoiceTrigger = ScriptApp.newTrigger("runGenerateSingleInvoiceAsync")
+          .timeBased().after(100).create();
+        CacheService.getScriptCache().put(
+          "async_invoice_" + invoiceTrigger.getUniqueId(), data.transactionId, 3600
+        );
+      } catch (invoiceErr) {
+        console.error("Failed to queue invoice for " + data.transactionId + ": " + invoiceErr.message);
+      }
+    } else {
+      // Automated (Amazon) — dispatch order
+      if (data.type === "AMAZON" && typeof AmazonWorkflowEngine !== "undefined") {
+        console.log("Routing approved Amazon order to dispatch: " + data.transactionId);
+        new AmazonWorkflowEngine().dispatchAmazonOrder(data.transactionId, {
+          email: data.email,
+          department: data.department,
+          amount: data.amount,
+          description: data.description,
+        });
+      }
+    }
+
+    logSystemEvent("REQUEST_APPROVED", data.approverEmail, data.amount, {
+      transactionId: data.transactionId,
+      requestor: data.email,
+      timestamp: new Date(),
+      async: true,
+    });
+
+    console.log("[ASYNC] Downstream complete for " + data.transactionId);
+  } catch (error) {
+    console.error("[ASYNC ERROR] Downstream failed for " + data.transactionId + ": " + error.message);
+    logSystemEvent("ASYNC_APPROVAL_ERROR", data.approverEmail || "UNKNOWN", 0, {
+      error: error.toString(),
+      transactionId: data.transactionId,
+    });
   }
 }
 

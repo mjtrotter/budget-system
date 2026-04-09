@@ -822,23 +822,26 @@ function doGet(e) {
       );
     }
 
-    // APPROVE: Route to instant loading Async UI
+    // APPROVE: Register instantly, then run emails/ledger/invoices in background
     if (decision === "approve") {
-    try {
-      const template = HtmlService.createTemplateFromFile("Async_Approve");
-      template.token = token;
-      template.decision = decision;
-      return template.evaluate()
-        .setTitle("Budget System — Processing")
-        .addMetaTag("viewport", "width=device-width, initial-scale=1");
-    } catch (err) {
-      console.error(`[ERROR] Async UI Render failed: ${err}`);
-      return buildResultPage(
-        "Loading Error",
-          err.message || "Failed to process approval.",
-          false,
-        );
+      const result = processApprovalDecision(token, "approve", "", true);
+
+      if (!result.success) {
+        return buildResultPage("Approval Error", result.error, false);
       }
+      if (result.status === "ESCALATED") {
+        return buildResultPage("Request Escalated", result.message, true);
+      }
+
+      // Schedule downstream processing (emails, BO routing, ledger, invoices) as background trigger
+      scheduleApprovalDownstream(result);
+
+      const requestorName = getDisplayName(requestData.email);
+      return buildResultPage(
+        "Request Approved",
+        `${requestData.type || "Request"} ${transactionId} for $${(requestData.amount || 0).toFixed(2)} has been approved. ${requestorName} will receive a notification shortly.`,
+        true,
+      );
     }
 
     // REJECT: Show simple comment form
