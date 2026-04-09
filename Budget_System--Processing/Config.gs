@@ -93,10 +93,7 @@ const CONFIG = {
 
   // Web App URL (Updated to current deployment endpoint)
   // Re-keyed property to avoid fetching the stale cached URL from ScriptProperties
-  WEBAPP_URL: getDyn(
-    "ACTIVE_WEBAPP_URL",
-    "https://script.google.com/a/keswickchristian.org/macros/s/AKfycbwUAhH2X8jnj53SQ4fZ-TqGMH_OE-r1ySbQIaKS9e1vu8Z5I3ib82mFGEZ_tdZl3iSmaA/exec",
-  ),
+  WEBAPP_URL: "https://script.google.com/a/keswickchristian.org/macros/s/AKfycbwUAhH2X8jnj53SQ4fZ-TqGMH_OE-r1ySbQIaKS9e1vu8Z5I3ib82mFGEZ_tdZl3iSmaA/exec",
 
   // Amazon Business B2B Configuration — credentials loaded from encrypted Script Properties
   AMAZON_B2B: {

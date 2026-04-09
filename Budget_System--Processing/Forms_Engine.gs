@@ -1676,7 +1676,7 @@ function processApprovalDecision(token, decision, reason_param = "", registratio
       if (!request.isAutomated) {
         // Send BO the execution routing email. Ledger entry and invoice generation
         // happen AFTER the BO confirms the final billed price via processBoExecution.
-        const executionUrl = `${getDyn("WEBAPP_URL")}?action=execute_manual&id=${encodeURIComponent(transactionId)}`;
+        const executionUrl = `${CONFIG.WEBAPP_URL}?action=execute_manual&id=${encodeURIComponent(transactionId)}`;
         sendBoExecutionRoutingEmail({
           transactionId: transactionId,
           type: request.type,
@@ -1843,7 +1843,7 @@ function runApprovalDownstreamAsync(e) {
     // Ledger entry and invoice generation happen AFTER the BO confirms
     // the final billed price via the Execution Portal (processBoExecution).
     try {
-      var executionUrl = getDyn("WEBAPP_URL") + "?action=execute_manual&id=" + encodeURIComponent(data.transactionId);
+      var executionUrl = CONFIG.WEBAPP_URL + "?action=execute_manual&id=" + encodeURIComponent(data.transactionId);
       console.log("[ASYNC] Sending BO routing email for " + data.transactionId + " | approver=" + data.approverEmail);
       sendBoExecutionRoutingEmail({
         transactionId: data.transactionId,
@@ -2193,18 +2193,12 @@ function processWarehouseOrders() {
 }
 
 function validateApprover(approverEmail, request) {
-  // TEST MODE SUPER-ADMIN OVERRIDE
+  // TEST MODE: Allow any UAT-whitelisted user to approve.
+  // Session.getActiveUser().getEmail() returns empty in web app context,
+  // so we check the token-derived approverEmail against the whitelist instead.
   if (isTestMode() && CONFIG.TEST_MODE === true) {
-    const currentUser = Session.getActiveUser().getEmail();
-    if (
-      currentUser === CONFIG.ADMIN_EMAIL ||
-      approverEmail === CONFIG.ADMIN_EMAIL ||
-      currentUser === "invoicing@keswickchristian.org"
-    ) {
-      // Log this explicit override
-      console.warn(
-        `🔓 TEST MODE: Allowing approval for ${approverEmail} by ${currentUser}`,
-      );
+    if (CONFIG.UAT_WHITELIST && CONFIG.UAT_WHITELIST.some(function(e) { return e.toLowerCase() === approverEmail.toLowerCase(); })) {
+      console.warn(`🔓 TEST MODE: Allowing whitelisted UAT user ${approverEmail} as approver`);
       return true;
     }
   }

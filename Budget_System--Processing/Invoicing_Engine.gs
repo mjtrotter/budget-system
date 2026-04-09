@@ -130,7 +130,10 @@ function getUserInitials(email) {
 function runWarehouseBatch() {
   console.log("🏪 === WAREHOUSE BATCH INVOICING ===");
 
-  // Generate internal invoices (by division)
+  // Step 1: Move any APPROVED warehouse orders into the ledger first
+  processWarehouseOrders();
+
+  // Step 2: Generate individual invoices (per requestor)
   const internalResult = runBatchInvoicing("WAREHOUSE_INTERNAL");
 
   // Generate external invoice (all combined)
@@ -229,28 +232,37 @@ function runBatchInvoicing(formType) {
       `Found ${pendingTransactions.length} ${formTypeMatch} transactions to invoice`,
     );
 
-    // Group by division
-    const byDivision = {};
+    // Group by requestor for warehouse (individual invoices per person),
+    // by division for all other form types.
+    const isWarehouse = formTypeMatch === "WAREHOUSE";
+    const grouped = {};
     pendingTransactions.forEach((txn) => {
-      const div = getDivisionFromOrganization(txn.organization) || "OTHER";
-      if (!byDivision[div]) byDivision[div] = [];
-      byDivision[div].push(txn);
+      const key = isWarehouse
+        ? (txn.requestor || "UNKNOWN")
+        : (getDivisionFromOrganization(txn.organization) || "OTHER");
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push(txn);
     });
 
-    // We no longer track invoice IDs in the ledger, so we just use an empty array for existingIds to start at -01
     let existingBatchIds = [];
-
     const results = [];
 
-    // Generate invoice for each division
-    for (const [division, transactions] of Object.entries(byDivision)) {
+    for (const [groupKey, transactions] of Object.entries(grouped)) {
       if (transactions.length === 0) continue;
 
-      const invoiceId = generateInvoiceId(formType, division, existingBatchIds);
-      existingBatchIds.push(invoiceId); // Add to list for increment tracking
+      // For warehouse per-requestor invoices, derive initials from email for the ID
+      let idKey = groupKey;
+      if (isWarehouse) {
+        const parts = groupKey.replace(/@.*/, "").split(/[^a-zA-Z]/);
+        idKey = parts.map(function(p) { return p.charAt(0).toUpperCase(); }).join("") || "WH";
+      }
+
+      const division = getDivisionFromOrganization(transactions[0].organization) || "OTHER";
+      const invoiceId = generateInvoiceId(formType, idKey, existingBatchIds);
+      existingBatchIds.push(invoiceId);
 
       console.log(
-        `Generating ${invoiceId} with ${transactions.length} transactions`,
+        `Generating ${invoiceId} for ${isWarehouse ? groupKey : division} with ${transactions.length} transactions`,
       );
 
       const result = generateBatchInvoicePDF(transactions, {

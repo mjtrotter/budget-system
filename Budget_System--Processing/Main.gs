@@ -281,6 +281,17 @@ function processBoExecution(payload) {
 
       sendSystemEmail({ to: requestorEmail, subject: subject, htmlBody: htmlBody });
       logSystemEvent("BO_EXECUTION_APPROVED", boEmail, finalAmount, { transactionId, requestor: requestorEmail, finalAmount, notes });
+
+      // Queue invoice generation (attaches uploaded PDF if present)
+      try {
+        const invoiceTrigger = ScriptApp.newTrigger("runGenerateSingleInvoiceAsync")
+          .timeBased().after(1000).create();
+        CacheService.getScriptCache().put("async_invoice_" + invoiceTrigger.getUniqueId(), transactionId, 3600);
+        console.log("Queued invoice generation for " + transactionId);
+      } catch (invErr) {
+        console.error("Failed to queue invoice for " + transactionId + ": " + invErr);
+      }
+
       return { success: true, action: "approve" };
 
     // -----------------------------------------------------------------------
@@ -1069,97 +1080,7 @@ function markTokenUsed(token, usedBy) {
   }
 }
 
-// ============================================================================
-// BO EXECUTION HANDLER
-// ============================================================================
-
-/**
- * Handle Business Office execution logic triggered from Execute_Manual.html
- */
-function processBoExecution(payload) {
-  const { transactionId, action, finalPrice, notes } = payload;
-  
-  try {
-    const manualHub = SpreadsheetApp.openById(CONFIG.MANUAL_HUB_ID);
-    const manualQueue = manualHub.getSheetByName("ManualQueue");
-    const data = manualQueue.getDataRange().getValues();
-    
-    let rowIndex = -1;
-    let requestData = null;
-    
-    for (let i = 1; i < data.length; i++) {
-      if (data[i][0] === transactionId) {
-        rowIndex = i + 1;
-        requestData = {
-          email: data[i][1],
-          type: data[i][2],
-          department: data[i][3],
-          amount: data[i][5],
-          description: data[i][6],
-          approver: data[i][10]
-        };
-        break;
-      }
-    }
-    
-    if (rowIndex === -1) return { success: false, error: "Transaction not found." };
-    
-    if (action === "reject") {
-      manualQueue.getRange(rowIndex, 8).setValue("REJECTED"); // Column H status
-      
-      sendRejectionNotification(requestData.email, {
-        transactionId: transactionId,
-        amount: requestData.amount,
-        type: requestData.type,
-        approver: "Business Office",
-        reason: notes || "No specific reason provided."
-      });
-      return { success: true, action: "reject" };
-      
-    } else if (action === "approve") {
-      // Execute the purchase (MARK AS ORDERED)
-      manualQueue.getRange(rowIndex, 8).setValue("ORDERED");
-      
-      // Override the original estimated amount with the TRUE final price paid
-      if (finalPrice !== undefined && !isNaN(finalPrice)) {
-         manualQueue.getRange(rowIndex, 6).setValue(finalPrice); // Update standard Amount col F
-      }
-      
-      // Trigger the actual spend logic (log to UserDirectory and Transaction Ledger)
-      recordBudgetSpent(requestData.email, parseFloat(finalPrice));
-      
-      moveToTransactionLedger({
-        transactionId: transactionId,
-        orderId: `MANUAL-${Date.now()}`,
-        requestor: requestData.email,
-        approver: requestData.approver || "BO",
-        organization: requestData.department,
-        form: requestData.type,
-        amount: parseFloat(finalPrice),
-        description: `[Executed] ${requestData.description}`
-      });
-      
-      // Trigger background invoice and receipt generation
-      try {
-        const trigger = ScriptApp.newTrigger("runGenerateSingleInvoiceAsync")
-          .timeBased()
-          .after(1000)
-          .create();
-        const cache = CacheService.getScriptCache();
-        cache.put("async_invoice_" + trigger.getUniqueId(), transactionId, 3600);
-      } catch (triggerError) {
-        console.error("Failed to set trigger for background invoice creation:", triggerError);
-      }
-      
-      return { success: true, action: "approve" };
-    }
-    
-    return { success: false, error: "Invalid action." };
-    
-  } catch (error) {
-    return { success: false, error: error.toString() };
-  }
-}
+// Duplicate processBoExecution removed — single definition lives at line 178
 
 // ============================================================================
 // TEST & UTILITIES
