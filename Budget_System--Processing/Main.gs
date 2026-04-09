@@ -823,6 +823,7 @@ function doGet(e) {
     }
 
     // APPROVE: Route to instant loading Async UI
+    if (decision === "approve") {
     try {
       const template = HtmlService.createTemplateFromFile("Async_Approve");
       template.token = token;
